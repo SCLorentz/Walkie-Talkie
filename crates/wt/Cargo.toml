@@ -1,0 +1,19 @@
+[package]
+description = "SCLorentz's matrix client"
+edition.workspace = true
+name = "walkie-talkie"
+version = "0.0.2"
+publish.workspace = true
+authors = ["SCLorentz <sclorentz@proton.me>"]
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "wt"
+path = "src/main.rs"
+
+[dependencies]
+log.workspace = true
+log-panics.workspace = true
+app.workspace = true

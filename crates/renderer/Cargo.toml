@@ -1,0 +1,17 @@
+[package]
+name = "renderer"
+version = "0.0.1"
+edition.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+path = "src/renderer.rs"
+doctest = false
+
+[dependencies]
+log.workspace = true
+log-panics.workspace = true
+ash.workspace = true

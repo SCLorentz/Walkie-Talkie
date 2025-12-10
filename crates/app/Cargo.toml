@@ -1,0 +1,25 @@
+[package]
+name = "app"
+version = "0.0.1"
+edition.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+path = "src/app.rs"
+doctest = false
+
+[dependencies]
+log.workspace = true
+log-panics.workspace = true
+ash.workspace = true
+renderer.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2.workspace = true
+objc2-app-kit.workspace = true
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows.workspace = true

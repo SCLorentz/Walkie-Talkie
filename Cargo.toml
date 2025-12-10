@@ -1,27 +1,44 @@
-[package]
-name = "walkie-talkie"
-version = "0.0.1"
+[workspace]
+resolver = "2"
+members = [
+	"crates/app",
+	"crates/wt",
+	"crates/renderer"
+]
+default-members = ["crates/wt"]
+
+[workspace.package]
+publish = false
 edition = "2024"
 
-[package.metadata.release]
-release = false
-
-[dependencies]
-anyhow = "1.0.100"
-clap = { version = "4.5.51", features = ["derive"] }
-colog = "1.4.0"
-#font-kit = "0.14.3"
-futures-util = "0.3.31"
-glutin = "0.32.3"
-glutin-winit = "0.5.0"
+[workspace.dependencies]
+app = { path = "crates/app" }
+renderer = { path = "crates/renderer" }
 log = "0.4.28"
 log-panics = "2.1.0"
-matrix-sdk = { version = "0.13.0", features = ["markdown", "bundled-sqlite", "anyhow"]}
-skia-safe = { version = "0.81.0", features = ["metal", "gl", "textlayout"] }
-#softbuffer = "0.4.6"
 tokio = { version = "1.48.0", features = ["full"] }
 tracing-subscriber = "0.3.20"
 url = "2.5.7"
-#wayland-client = "0.31.11"
-#wayland-protocols = { version = "0.32.9", features = ["unstable"] }
-winit = "0.30.12"
+# renderer
+ash = "0.38.0"
+# linux
+wayland-client = "0.31"
+smithay-client-toolkit = "0.18"
+# macos
+objc2 = "0.6.3"
+objc2-app-kit = "0.3.2"
+# windows
+windows = { version = ">=0.59, <=0.62", features = [
+	"Data_Xml_Dom",
+	"Win32_Security",
+	"Win32_System_Threading",
+	"Win32_UI_WindowsAndMessaging",
+]}
+
+
+[workspace.lints.rust]
+unexpected_cfgs = { level = "allow" }
+
+[workspace.lints.clippy]
+dbg_macro = "deny"
+todo = "deny"

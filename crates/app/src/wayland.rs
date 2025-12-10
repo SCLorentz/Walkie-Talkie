@@ -1,4 +1,4 @@
-/*use wayland_client::{
+use wayland_client::{
 	Display, GlobalManager,
 };
 
@@ -16,7 +16,7 @@ pub fn detect_decorations(display: &Display) -> bool
 	globals
 		.instantiate_exact::<ZxdgDecorationManagerV1>(1)
 		.is_ok()
-}*/
+}
 
 //use wayland_protocols::unstable::xdg_decoration::v1::client::zxdg_toplevel_decoration_v1::Mode;
 
