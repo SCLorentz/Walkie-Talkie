@@ -1,11 +1,13 @@
 //use tokio
 
 use app::Window;
-use log::info;
+use log::{info, debug};
+use std::env;
 
 fn main() {
+	env_logger::init();
 	log_panics::init();
-	info!("starting program");
+	debug!("starting program");
 
-	Window::new();
+	Window::new("my window".to_string());
 }

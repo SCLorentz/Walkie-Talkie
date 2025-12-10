@@ -1,27 +1,35 @@
-use wayland_client::{
+// https://wayland.app/protocols/
+use std::env;
+use std::error::Error;
+use crate::DecorationMode;
+
+/*use wayland_client::{
 	Display, GlobalManager,
-};
+};*/
 
-use wayland_protocols::xdg::decoration::zv1::client::{
-	zxdg_decoration_manager_v1::ZxdgDecorationManagerV1
-};
-
-pub fn detect_decorations(display: &Display) -> bool
+pub fn get_decoration_mode() -> DecorationMode
 {
-	let globals = GlobalManager::new(display);
-
-	display.flush().unwrap();
-	display.dispatch_pending(&mut ()).unwrap();
-
-	globals
-		.instantiate_exact::<ZxdgDecorationManagerV1>(1)
-		.is_ok()
+	DecorationMode::ServerSide
 }
 
-//use wayland_protocols::unstable::xdg_decoration::v1::client::zxdg_toplevel_decoration_v1::Mode;
+/// List of supported DEs/WMs
+#[derive(Debug)]
+pub enum DE {
+	Hyprland,
+	Kde,
+	Gnome,
+	Other,
+	Unknown,
+}
 
-#[allow(unused)]
-pub fn detect_decorations() -> bool
+/// Detect the current DE/WM that the program is beeing executed
+pub fn get_de() -> DE
 {
-	true
+	match env::var("XDG_CURRENT_DESKTOP") {
+		Ok(desktop) if desktop.contains("KDE") => DE::Kde,
+		Ok(desktop) if desktop.contains("GNOME") => DE::Gnome,
+		Ok(desktop) if desktop.contains("Hyprland") => DE::Hyprland,
+		Ok(desktop) => DE::Other,
+		Err(_) => DE::Unknown,
+	}
 }

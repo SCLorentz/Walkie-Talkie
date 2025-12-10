@@ -7,5 +7,9 @@ use objc2_app_kit::{
 };
 use objc2_foundation::{ns_string, NSNotification, NSObject, NSObjectProtocol};*/
 
+use crate::CfgDecoration;
+
 #[derive(Clone)]
-pub struct CocoaWinDecoration {}
+pub struct CocoaWinDecoration {
+	default: CfgDecoration,
+}
