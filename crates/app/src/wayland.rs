@@ -1,7 +1,7 @@
+#![allow(unused)]
 // https://wayland.app/protocols/
 use crate::{DecorationMode, Decoration};
 
-#[allow(unused)]
 #[derive(Clone)]
 pub struct WaylandWinDecoration {
 	pub mode: DecorationMode,
@@ -18,7 +18,6 @@ pub fn get_decoration_mode() -> DecorationMode
 	{ DecorationMode::ServerSide }
 
 /// List of supported DEs/WMs
-#[allow(unused)]
 #[derive(Debug)]
 enum DE {
 	Hyprland,
@@ -48,7 +47,6 @@ pub trait WaylandDecoration
 	fn new() -> Decoration;
 
 	#[cfg(target_os = "linux")]
-	#[allow(unused)]
 	fn make_view();
 
 	#[cfg(target_os = "linux")]

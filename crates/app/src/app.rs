@@ -2,9 +2,9 @@ mod wayland;
 mod cocoa;
 mod winapi;
 
-use wayland::{WaylandWinDecoration, WaylandDecoration};
+use wayland::WaylandWinDecoration;
 use cocoa::{CocoaWinDecoration, CocoaDecoration};
-use winapi::{WindowsWinDecoration, WindowsDecoration};
+use winapi::WindowsWinDecoration;
 use log::{debug, warn};
 use ash::vk::SurfaceKHR;
 use renderer::Renderer;
@@ -142,4 +142,16 @@ pub enum Event {
 	RedrawRequest,
 	// For now:
 	Generic
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn vulkan_render() {
+		let decoration = Decoration::new();
+		let result = Renderer::new(decoration.get_view());
+		assert!(result.is_ok());
+	}
 }

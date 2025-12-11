@@ -1,17 +1,13 @@
 use ash::{
-	vk::{
-		self,
-		SurfaceKHR,
-		InstanceCreateFlags,
-		ApplicationInfo
-	},
+	vk::{self, SurfaceKHR, InstanceCreateFlags, ApplicationInfo	},
 	Entry
 };
 use ash_window::create_surface;
 use raw_window_handle::{AppKitDisplayHandle, AppKitWindowHandle};
-use std::error::Error;
-use std::ptr::NonNull;
+use std::{error::Error, ptr::NonNull};
+use log::debug;
 
+// WARN this is not recomended
 #[cfg(target_os = "macos")]
 use objc2_app_kit::NSView;
 
@@ -20,9 +16,11 @@ pub struct Renderer {
 }
 
 impl Renderer {
-	/// Creates a new Vulkan
+	/// Creates a new Vulkan render
 	pub fn new(view: &NSView) -> Result<Renderer, Box<dyn Error>>
 	{
+		debug!("Creating new vulkan render");
+
 		let entry = unsafe { Entry::load()? };
 		let app_info = ApplicationInfo {
 			api_version: vk::API_VERSION_1_1,

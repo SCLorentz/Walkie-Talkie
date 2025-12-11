@@ -1,3 +1,4 @@
+#![allow(unused)]
 use crate::{DecorationMode, Decoration};
 
 #[cfg(target_os = "windows")]
@@ -6,7 +7,6 @@ use windows::{
 	Win32::UI::WindowsAndMessaging::*,
 };
 
-#[allow(unused)]
 #[derive(Clone)]
 pub struct WindowsWinDecoration {
 	pub mode: DecorationMode,
