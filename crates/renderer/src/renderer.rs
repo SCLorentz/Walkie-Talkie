@@ -1,4 +1,12 @@
-use ash::{vk::{self, SurfaceKHR}, Entry};
+use ash::{
+	vk::{
+		self,
+		SurfaceKHR,
+		InstanceCreateFlags,
+		ApplicationInfo
+	},
+	Entry
+};
 use ash_window::create_surface;
 use raw_window_handle::{AppKitDisplayHandle, AppKitWindowHandle};
 use std::error::Error;
@@ -12,16 +20,34 @@ pub struct Renderer {
 }
 
 impl Renderer {
-	/// Creates a new Vulkan renderer
+	/// Creates a new Vulkan
 	pub fn new(view: &NSView) -> Result<Renderer, Box<dyn Error>>
 	{
 		let entry = unsafe { Entry::load()? };
-		let app_info = vk::ApplicationInfo {
+		let app_info = ApplicationInfo {
 			api_version: vk::API_VERSION_1_1,
 			..Default::default()
 		};
+
+		let extensions: [*const i8; 3] = [
+			vk::KHR_PORTABILITY_ENUMERATION_NAME.as_ptr(),
+			vk::KHR_SURFACE_NAME.as_ptr(),
+			vk::EXT_METAL_SURFACE_NAME.as_ptr(),
+		];
+
+		let validation_layer = std::ffi::CStr::from_bytes_with_nul(b"VK_LAYER_KHRONOS_validation\0").unwrap();
+
+		let layers = [
+			validation_layer.as_ptr()
+		];
+
 		let create_info = vk::InstanceCreateInfo {
 			p_application_info: &app_info,
+			enabled_extension_count: extensions.len() as u32,
+			pp_enabled_extension_names: extensions.as_ptr(),
+			enabled_layer_count: layers.len() as u32,
+			pp_enabled_layer_names: layers.as_ptr(),
+			flags: InstanceCreateFlags::ENUMERATE_PORTABILITY_KHR,
 			..Default::default()
 		};
 		let instance = unsafe { entry.create_instance(&create_info, None)? };
@@ -45,14 +71,3 @@ impl Renderer {
 	// for now returns a generic value
 	pub fn get_surface_size(&self) -> (f32, f32) { (0.0, 0.0) }
 }
-
-/*#[cfg(test)]
-mod tests {
-	use super::*;
-
-	#[test]
-	fn test_renderer() {
-		let result = add(2, 2);
-		assert_eq!(result, 4);
-	}
-}*/

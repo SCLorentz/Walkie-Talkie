@@ -18,6 +18,7 @@ pub enum DecorationMode {
 	ServerSide,
 }
 
+/// Window decoration
 pub enum Decoration {
 	Apple(CocoaWinDecoration),
 	Linux(WaylandWinDecoration),
@@ -61,7 +62,7 @@ impl Window {
 			resizable: true,
 			position: (0.0, 0.0),
 			title: String::from(title),
-			blur: false,
+			blur: false
 		}
 	}
 
@@ -83,7 +84,6 @@ impl Window {
 pub enum ThemeOp {
 	Dark,
 	Light,
-	//Custom(T) <-- could be useful for linux
 }
 
 pub trait Theme {
