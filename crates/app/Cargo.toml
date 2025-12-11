@@ -16,6 +16,7 @@ log.workspace = true
 log-panics.workspace = true
 ash.workspace = true
 renderer.workspace = true
+mouse_position.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 wayland-client.workspace = true

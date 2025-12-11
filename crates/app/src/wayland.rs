@@ -1,6 +1,7 @@
 // https://wayland.app/protocols/
-use crate::DecorationMode;
+use crate::{DecorationMode, Decoration};
 
+#[allow(unused)]
 #[derive(Clone)]
 pub struct WaylandWinDecoration {
 	pub mode: DecorationMode,
@@ -17,6 +18,7 @@ pub fn get_decoration_mode() -> DecorationMode
 	{ DecorationMode::ServerSide }
 
 /// List of supported DEs/WMs
+#[allow(unused)]
 #[derive(Debug)]
 enum DE {
 	Hyprland,
@@ -36,5 +38,30 @@ pub fn get_de() -> DE
 		Ok(desktop) if desktop.contains("Hyprland") => DE::Hyprland,
 		Ok(desktop) => DE::Other,
 		Err(_) => DE::Unknown,
+	}
+}
+
+pub trait WaylandDecoration
+{
+	/// Creates a native window frame decoration for Linux DE/WM
+	#[cfg(target_os = "linux")]
+	fn new() -> Decoration;
+
+	#[cfg(target_os = "linux")]
+	#[allow(unused)]
+	fn make_view();
+
+	#[cfg(target_os = "linux")]
+	fn get_view(&self);
+}
+
+impl WaylandDecoration for Decoration
+{
+	#[cfg(target_os = "linux")]
+	fn new() -> Decoration
+	{
+		return Decoration::Linux(WaylandWinDecoration {
+			mode: wayland::get_decoration_mode(),
+		});
 	}
 }

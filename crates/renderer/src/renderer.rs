@@ -1,26 +1,20 @@
-#[allow(unused)]
 use ash::{vk::{self, SurfaceKHR}, Entry};
-#[allow(unused)]
 use ash_window::create_surface;
 use raw_window_handle::{AppKitDisplayHandle, AppKitWindowHandle};
 use std::error::Error;
 use std::ptr::NonNull;
 
+#[cfg(target_os = "macos")]
 use objc2_app_kit::NSView;
 
-#[allow(unused)]
-use log::{info, warn, debug};
-
 pub struct Renderer {
-	//pub context
 	pub surface: SurfaceKHR,
 }
 
 impl Renderer {
+	/// Creates a new Vulkan renderer
 	pub fn new(view: &NSView) -> Result<Renderer, Box<dyn Error>>
 	{
-		debug!("new renderer");
-
 		let entry = unsafe { Entry::load()? };
 		let app_info = vk::ApplicationInfo {
 			api_version: vk::API_VERSION_1_1,
@@ -48,10 +42,8 @@ impl Renderer {
 		})
 	}
 
-	fn init_pipeline(&mut self) -> Result<(), Box<dyn Error>>
-	{
-		Ok(())
-	}
+	// for now returns a generic value
+	pub fn get_surface_size(&self) -> (f32, f32) { (0.0, 0.0) }
 }
 
 /*#[cfg(test)]
