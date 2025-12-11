@@ -3,10 +3,17 @@ use std::env;
 use std::error::Error;
 use crate::DecorationMode;
 
-/*use wayland_client::{
-	Display, GlobalManager,
-};*/
+#[derive(Clone)]
+pub struct WaylandWinDecoration {
+	pub mode: DecorationMode,
+}
 
+#[cfg(target_os = "linux")]
+use wayland_client::{
+	Display, GlobalManager,
+};
+
+#[cfg(target_os = "linux")]
 pub fn get_decoration_mode() -> DecorationMode
 {
 	DecorationMode::ServerSide
@@ -23,6 +30,7 @@ pub enum DE {
 }
 
 /// Detect the current DE/WM that the program is beeing executed
+#[cfg(target_os = "linux")]
 pub fn get_de() -> DE
 {
 	match env::var("XDG_CURRENT_DESKTOP") {
