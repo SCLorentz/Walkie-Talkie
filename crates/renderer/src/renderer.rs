@@ -11,23 +11,9 @@ use objc2_app_kit::NSView;
 #[allow(unused)]
 use log::{info, warn, debug};
 
-/*use objc2_app_kit::NSView;
-use objc2_foundation::{NSRect, NSPoint, NSSize};
-use objc2::{msg_send_id, rc::Id, MainThreadOnly};
-
-unsafe fn create_view() -> Id<NSView> {
-	let frame = NSRect::new(
-		NSPoint::new(0., 0.),
-		NSSize::new(100., 100.),
-	);
-
-	let view: Id<NSView> = msg_send_id![NSView::alloc(), initWithFrame: frame];
-	view
-}*/
-
 pub struct Renderer {
 	//pub context
-	pub surface: Option<SurfaceKHR>, // later: remove the Option<> tag
+	pub surface: SurfaceKHR,
 }
 
 impl Renderer {
@@ -37,7 +23,7 @@ impl Renderer {
 
 		let entry = unsafe { Entry::load()? };
 		let app_info = vk::ApplicationInfo {
-			api_version: vk::make_api_version(0, 1, 0, 0),
+			api_version: vk::API_VERSION_1_1,
 			..Default::default()
 		};
 		let create_info = vk::InstanceCreateInfo {
@@ -48,6 +34,7 @@ impl Renderer {
 
 		let display_handle = AppKitDisplayHandle::new();
 		let window_handle = AppKitWindowHandle::new(NonNull::from(view).cast());
+		// https://www.lunarg.com/wp-content/uploads/2024/03/The-State-of-Vulkan-on-Apple-LunarG-Richard-Wright-03-18-2024.pdf
 		let surface = unsafe { create_surface(
 			&entry,
 			&instance,
@@ -57,7 +44,7 @@ impl Renderer {
 		)};
 
 		Ok(Renderer {
-			surface: Some(surface?)
+			surface: surface?
 		})
 	}
 

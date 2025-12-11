@@ -79,7 +79,7 @@ impl Decoration
 /// Window interface
 #[allow(unused)]
 pub struct Window {
-	pub surface: Option<SurfaceKHR>,
+	pub surface: SurfaceKHR,
 	pub decoration: Decoration,
 	//id: u32,
 	surface_size: (f32, f32),
@@ -97,10 +97,10 @@ impl Window {
 	{
 		let decoration = Decoration::new();
 		let renderer = Renderer::new(decoration.get_view().expect("No view"));
+		let surface = renderer.unwrap_or_else(|e| panic!("Vulkan inicialization failed: {:?}", e)).surface;
 
 		Window {
-			surface: Some(renderer.unwrap().surface.expect("No surface found")), // for now this is will panic
-			//surface: None,
+			surface: surface,
 			decoration,
 			cursor: Cursor { position: (0.0, 0.0), texture: None, },
 			surface_size: (0.0, 0.0),
