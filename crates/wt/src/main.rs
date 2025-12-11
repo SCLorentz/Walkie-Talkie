@@ -1,12 +1,4 @@
-//use tokio
-
-use std::sync::mpsc;
-use std::io::{Write, stdout};
-use crossterm::{QueueableCommand, ExecutableCommand, cursor};
-use crossterm::terminal;
-use std::thread;
-
-use app::{Window, Theme};
+use app::{Window, Theme, Event};
 use log::{info, debug};
 
 fn main() {
@@ -15,9 +7,11 @@ fn main() {
 	debug!("starting program");
 
 	let mut app = Window::new("my window");
-	/*app.main_loop(|| {
-		return String::from("hello world")
-	});*/
+	app.main_loop(|e| {
+		if e != Event::Generic {
+			info!("event: {:?}", e);
+		}
+	});
 
 	let Some(t) = app.get_current_theme() else { return };
 	debug!("current theme set as {:?}", t);

@@ -1,6 +1,4 @@
 // https://wayland.app/protocols/
-use std::env;
-use std::error::Error;
 use crate::DecorationMode;
 
 #[derive(Clone)]
@@ -13,15 +11,14 @@ use wayland_client::{
 	Display, GlobalManager,
 };
 
+/// Detects if the DE/WM prefers CSD or SSD
 #[cfg(target_os = "linux")]
 pub fn get_decoration_mode() -> DecorationMode
-{
-	DecorationMode::ServerSide
-}
+	{ DecorationMode::ServerSide }
 
 /// List of supported DEs/WMs
 #[derive(Debug)]
-pub enum DE {
+enum DE {
 	Hyprland,
 	Kde,
 	Gnome,

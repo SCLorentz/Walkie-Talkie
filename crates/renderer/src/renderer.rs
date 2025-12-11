@@ -1,9 +1,12 @@
-//use std::mem;
+#[allow(unused)]
 use ash::{vk::{self, SurfaceKHR}, Entry};
+#[allow(unused)]
 use ash_window::create_surface;
 use raw_window_handle::{AppKitDisplayHandle, AppKitWindowHandle};
 use std::error::Error;
 use std::ptr::NonNull;
+
+use objc2_app_kit::NSView;
 
 #[allow(unused)]
 use log::{info, warn, debug};
@@ -28,11 +31,11 @@ pub struct Renderer {
 }
 
 impl Renderer {
-	pub fn new() -> Result<Renderer, Box<dyn Error>>
+	pub fn new(view: &NSView) -> Result<Renderer, Box<dyn Error>>
 	{
 		debug!("new renderer");
 
-		/*let entry = unsafe { Entry::load()? };
+		let entry = unsafe { Entry::load()? };
 		let app_info = vk::ApplicationInfo {
 			api_version: vk::make_api_version(0, 1, 0, 0),
 			..Default::default()
@@ -44,18 +47,17 @@ impl Renderer {
 		let instance = unsafe { entry.create_instance(&create_info, None)? };
 
 		let display_handle = AppKitDisplayHandle::new();
-		let view = create_view();
 		let window_handle = AppKitWindowHandle::new(NonNull::from(view).cast());
-		let surface = create_surface(
+		let surface = unsafe { create_surface(
 			&entry,
 			&instance,
 			raw_window_handle::RawDisplayHandle::AppKit(display_handle),
 			raw_window_handle::RawWindowHandle::AppKit(window_handle),
 			None
-		);*/
+		)};
 
 		Ok(Renderer {
-			surface: None // for now
+			surface: Some(surface?)
 		})
 	}
 

@@ -8,12 +8,14 @@ use objc2_app_kit::{
 use objc2_foundation::{ns_string, NSNotification, NSObject, NSObjectProtocol};*/
 
 #[cfg(target_os = "macos")]
-use objc2_app_kit::NSColor;
+use objc2_app_kit::NSView;
+
+#[cfg(target_os = "macos")]
+use objc2::rc::Retained;
 
 use crate::DecorationMode;
 
-#[derive(Clone)]
 pub struct CocoaWinDecoration {
 	pub mode: DecorationMode,
-	//pub theme: NSColor,
+	pub view: Retained<NSView>,
 }
