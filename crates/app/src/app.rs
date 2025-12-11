@@ -47,7 +47,10 @@ impl Window {
 	/// Create a new window
 	pub fn new(title: &'static str) -> Window
 	{
-		let decoration = Decoration::new();
+		use objc2_foundation::MainThreadMarker;
+		let mtm = MainThreadMarker::new().expect("Process must run on the Main Thread!");
+		let decoration = Decoration::new(mtm, title, 600.0, 500.0);
+
 		let renderer = Renderer::new(decoration.get_view())
 			.expect("Vulkan inicialization failed");
 		let surface = renderer.surface;
@@ -66,18 +69,9 @@ impl Window {
 		}
 	}
 
+	pub fn run(&self) { self.decoration.run(); }
+
 	pub fn is_active(&self) -> bool { self.active }
-
-	pub fn main_loop(&self, code: fn(e: Event))
-	{
-		debug!("starting main loop");
-		loop { code(Window::event()); }
-	}
-
-	fn event() -> Event
-	{
-		Event::Generic
-	}
 }
 
 #[derive(Debug, Clone)]

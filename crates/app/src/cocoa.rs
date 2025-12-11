@@ -1,61 +1,110 @@
-#![deny(unsafe_op_in_unsafe_fn)]
 use std::cell::OnceCell;
+use log::debug;
 
-use objc2::rc::Retained;
-use objc2::runtime::ProtocolObject;
-use objc2::{define_class, msg_send, DefinedClass, MainThreadOnly};
-use objc2_app_kit::{
-    NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSAutoresizingMaskOptions,
-    NSBackingStoreType, NSColor, NSFont, NSTextAlignment, NSTextField, NSWindow, NSWindowDelegate,
-    NSWindowStyleMask, NSView
+#[cfg(target_os = "macos")]
+use objc2::{
+	rc::Retained,
+	runtime::ProtocolObject,
+	define_class,
+	msg_send,
+	DefinedClass,
+	MainThreadOnly,
 };
+
+#[cfg(target_os = "macos")]
+use objc2_app_kit::{
+	NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSAutoresizingMaskOptions,
+	NSBackingStoreType, NSColor, NSFont, NSTextAlignment, NSTextField, NSWindow, NSWindowDelegate,
+	NSWindowStyleMask, NSView
+};
+
+#[cfg(target_os = "macos")]
 use objc2_foundation::{
-    ns_string, MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSPoint, NSRect,
-    NSSize,
+	MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSPoint, NSRect,
+	NSSize, NSString,
 };
 
 use crate::{DecorationMode, Decoration};
 
 pub struct CocoaWinDecoration {
-	pub app: Retained<NSApplication>,
 	pub mode: DecorationMode,
 	pub view: Retained<NSView>,
+	pub window: Retained<NSWindow>,
+	app: Retained<NSApplication>,
 }
 
 pub trait CocoaDecoration
 {
+	fn run(&self);
+
 	#[cfg(target_os = "macos")]
 	fn get_view(&self) -> &NSView;
 
 	#[cfg(target_os = "macos")]
-	fn new() -> Decoration;
+	fn new(mtm: MainThreadMarker, title: &str, width: f64, height: f64) -> Decoration;
 }
 
 impl CocoaDecoration for Decoration
 {
 	/// Creates the native window frame decoration for macOS
 	#[cfg(target_os = "macos")]
-	fn new() -> Decoration
+	fn new(mtm: MainThreadMarker, title: &str, width: f64, height: f64) -> Decoration
 	{
+		debug!("Creating CocoaDecoration object");
+		let window = unsafe {
+			NSWindow::initWithContentRect_styleMask_backing_defer(
+				NSWindow::alloc(mtm),
+				NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(width, height)),
+				NSWindowStyleMask::Titled
+					| NSWindowStyleMask::Closable
+					| NSWindowStyleMask::Miniaturizable
+					| NSWindowStyleMask::Resizable,
+				NSBackingStoreType::Buffered,
+				false,
+			)
+		};
+
+		unsafe { window.setReleasedWhenClosed(false) };
+
+		let ns_title = NSString::from_str(title);
+		window.setTitle(&ns_title);
+
+		let view = window.contentView().expect("window must have content view");
 		let mtm = MainThreadMarker::new().expect("Process must run on the Main Thread!");
 
 		let origin = NSPoint::new(10.0, -2.3);
 		let size = NSSize::new(5.0, 0.0);
 		let rect = NSRect::new(origin, size);
 
-		let view = NSView::initWithFrame(NSView::alloc(mtm), rect);
+		window.center();
+		window.setContentMinSize(NSSize::new(width, height));
 
-		//let app = NSApplication::sharedApplication(mtm);
-		//let delegate = Delegate::new(mtm);
-		//app.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
+		let delegate = Delegate::new(mtm);
+		window.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
+		window.makeKeyAndOrderFront(None);
 
+		delegate.ivars().window.set(window.clone()).unwrap();
+
+		let app =  NSApplication::sharedApplication(mtm);
+		app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
+		#[allow(deprecated)]
+		app.activateIgnoringOtherApps(true);
 		//app.run();
 
 		return Decoration::Apple(CocoaWinDecoration {
 			mode: DecorationMode::ServerSide,
+			window: window.into(),
 			view,
 			app,
 		});
+	}
+
+	fn run(&self) {
+		let app = match self {
+			Decoration::Apple(dec) => &dec.app,
+			_ => panic!("This shouldn't have happened.."),
+		};
+		unsafe { msg_send![&*app, run] }
 	}
 
 	#[cfg(target_os = "macos")]
@@ -66,13 +115,20 @@ impl CocoaDecoration for Decoration
 			_ => panic!("This shouldn't have happened..."),
 		}
 	}
+
+	/*fn set_title(&self, title: &str) {
+		let ns = NSString::from_str(title);
+		self.window.setTitle(&ns);
+	}*/
 }
 
+#[cfg(target_os = "macos")]
 #[derive(Debug, Default)]
 struct AppDelegateIvars {
 	window: OnceCell<Retained<NSWindow>>,
 }
 
+#[cfg(target_os = "macos")]
 define_class!(
 	#[unsafe(super = NSObject)]
 	#[thread_kind = MainThreadOnly]
@@ -83,52 +139,14 @@ define_class!(
 
 	unsafe impl NSApplicationDelegate for Delegate {
 		#[unsafe(method(applicationDidFinishLaunching:))]
-		fn did_finish_launching(&self, notification: &NSNotification) {
-			let mtm = self.mtm();
-
-			let app = unsafe { notification.object() }
-				.unwrap()
-				.downcast::<NSApplication>()
-				.unwrap();
-
-			let window = unsafe {
-				NSWindow::initWithContentRect_styleMask_backing_defer(
-					NSWindow::alloc(mtm),
-					NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(300.0, 300.0)), // <<-- use the generated rect on CocoaDecoration::new()
-					NSWindowStyleMask::Titled
-						| NSWindowStyleMask::Closable
-						| NSWindowStyleMask::Miniaturizable
-						| NSWindowStyleMask::Resizable,
-						NSBackingStoreType::Buffered,
-						false,
-				)
-			};
-
-			// How can I access this??
-			// NSString::from_str(&title)??
-			window.setTitle(ns_string!("A window")); // <<--- How can I set this name without a constant?
-			let view = window.contentView().expect("window must have content view"); // <<--- HERE connect with vulkan
-			window.center();
-			unsafe { window.setContentMinSize(NSSize::new(300.0, 300.0)) };
-			window.setDelegate(Some(ProtocolObject::from_ref(self)));
-
-			window.makeKeyAndOrderFront(None);
-
-			self.ivars().window.set(window).unwrap();
-
-			app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
-
-			#[allow(deprecated)]
-			app.activateIgnoringOtherApps(true);
-		}
+		fn did_finish_launching(&self, _notification: &NSNotification) {}
 	}
 
-	unsafe impl NSWindowDelegate for Delegate
-	{
+	unsafe impl NSWindowDelegate for Delegate {
 		#[unsafe(method(windowWillClose:))]
 		fn window_will_close(&self, _notification: &NSNotification)
 		{
-			unsafe { NSApplication::sharedApplication(self.mtm()).terminate(None) };
+			NSApplication::sharedApplication(self.mtm()).terminate(None);
 		}
 	}
 );
