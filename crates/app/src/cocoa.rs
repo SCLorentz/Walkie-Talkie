@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 use std::cell::OnceCell;
 use log::debug;
 
@@ -13,7 +15,7 @@ use objc2::{
 
 #[cfg(target_os = "macos")]
 use objc2_app_kit::{
-	NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSAutoresizingMaskOptions,
+	NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate,
 	NSBackingStoreType, NSColor, NSFont, NSTextAlignment, NSTextField, NSWindow, NSWindowDelegate,
 	NSWindowStyleMask, NSView
 };
@@ -26,6 +28,7 @@ use objc2_foundation::{
 
 use crate::{DecorationMode, Decoration};
 
+#[cfg(target_os = "macos")]
 pub struct CocoaWinDecoration {
 	pub mode: DecorationMode,
 	pub view: Retained<NSView>,
@@ -33,21 +36,21 @@ pub struct CocoaWinDecoration {
 	app: Retained<NSApplication>,
 }
 
+#[cfg(not(target_os = "macos"))]
+pub struct CocoaWinDecoration {}
+
+#[cfg(target_os = "macos")]
 pub trait CocoaDecoration
 {
 	fn run(&self);
-
-	#[cfg(target_os = "macos")]
 	fn get_view(&self) -> &NSView;
-
-	#[cfg(target_os = "macos")]
 	fn new(mtm: MainThreadMarker, title: &str, width: f64, height: f64) -> Decoration;
 }
 
+#[cfg(target_os = "macos")]
 impl CocoaDecoration for Decoration
 {
 	/// Creates the native window frame decoration for macOS
-	#[cfg(target_os = "macos")]
 	fn new(mtm: MainThreadMarker, title: &str, width: f64, height: f64) -> Decoration
 	{
 		debug!("Creating CocoaDecoration object");
@@ -72,9 +75,9 @@ impl CocoaDecoration for Decoration
 		let view = window.contentView().expect("window must have content view");
 		let mtm = MainThreadMarker::new().expect("Process must run on the Main Thread!");
 
-		let origin = NSPoint::new(10.0, -2.3);
-		let size = NSSize::new(5.0, 0.0);
-		let rect = NSRect::new(origin, size);
+		//let origin = NSPoint::new(10.0, -2.3);
+		//let size = NSSize::new(5.0, 0.0);
+		//let rect = NSRect::new(origin, size);
 
 		window.center();
 		window.setContentMinSize(NSSize::new(width, height));
@@ -89,7 +92,6 @@ impl CocoaDecoration for Decoration
 		app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
 		#[allow(deprecated)]
 		app.activateIgnoringOtherApps(true);
-		//app.run();
 
 		return Decoration::Apple(CocoaWinDecoration {
 			mode: DecorationMode::ServerSide,
@@ -99,20 +101,21 @@ impl CocoaDecoration for Decoration
 		});
 	}
 
+	/// The default function to run the program, since it's required on macOS
 	fn run(&self) {
 		let app = match self {
 			Decoration::Apple(dec) => &dec.app,
-			_ => panic!("This shouldn't have happened.."),
+			_ => unreachable!(),
 		};
 		unsafe { msg_send![&*app, run] }
 	}
 
-	#[cfg(target_os = "macos")]
+	/// Returns the NSView element from the window
 	fn get_view(&self) -> &NSView
 	{
 		match self {
 			Decoration::Apple(dec) => &dec.view,
-			_ => panic!("This shouldn't have happened..."),
+			_ => unreachable!(),
 		}
 	}
 
@@ -151,6 +154,7 @@ define_class!(
 	}
 );
 
+#[cfg(target_os = "macos")]
 impl Delegate {
 	fn new(mtm: MainThreadMarker) -> Retained<Self> {
 		let this = Self::alloc(mtm).set_ivars(AppDelegateIvars::default());

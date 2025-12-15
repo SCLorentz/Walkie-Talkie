@@ -5,7 +5,7 @@ mod winapi;
 use wayland::WaylandWinDecoration;
 use cocoa::{CocoaWinDecoration, CocoaDecoration};
 use winapi::WindowsWinDecoration;
-use log::{debug, warn};
+use log::warn;
 use ash::vk::SurfaceKHR;
 use renderer::Renderer;
 use std::path::Path;
@@ -28,9 +28,11 @@ pub enum Decoration {
 impl Decoration {}
 
 /// Window interface
-#[allow(unused)]
+#[allow(dead_code)]
 pub struct Window {
+	/// The vulkan render surface
 	pub surface: SurfaceKHR,
+	/// The native window frame
 	pub decoration: Decoration,
 	pub cursor: Cursor,
 	pub theme: ThemeOp,
@@ -69,9 +71,25 @@ impl Window {
 		}
 	}
 
-	pub fn run(&self) { self.decoration.run(); }
-
+	/// Detects if the window is focused
 	pub fn is_active(&self) -> bool { self.active }
+
+	/// The execution loop to be executed on the program.
+	/// Can be used to handle with events.
+	pub fn exec_loop(&self, run: fn(e: Option<Event>))
+	{
+		std::thread::spawn(move || {
+			loop { run(Window::event()); }
+		});
+
+		#[cfg(target_os = "macos")]
+		self.decoration.run();
+	}
+
+	fn event() -> Option<Event>
+	{
+		None
+	}
 }
 
 #[derive(Debug, Clone)]
@@ -80,9 +98,9 @@ pub enum ThemeOp {
 	Light,
 }
 
+#[allow(dead_code)]
 pub trait Theme {
-	#[allow(unused)]
-	fn set_theme(&mut self, theme: ThemeOp) {}
+	fn set_theme(&mut self, _theme: ThemeOp) {}
 	fn get_current_theme(&mut self) -> Option<ThemeOp> { None }
 }
 
@@ -95,13 +113,16 @@ impl Theme for Window {
 }
 
 /// Default cursor struct
-#[allow(unused)]
+#[allow(dead_code)]
 pub struct Cursor {
 	position: (f32, f32),
 	texture: Option<String>,
 }
 
+// transform this into a trait?
+#[allow(dead_code)]
 impl Cursor {
+	/// Get the current position of the cursor
 	pub fn get_cursor() -> Cursor
 	{
 		use mouse_position::mouse_position::{Mouse};
@@ -118,8 +139,18 @@ impl Cursor {
 		Cursor { position: pos, texture: None, }
 	}
 
-	#[allow(unused)]
-	pub fn set_texture(path: &Path) {}
+	/// Get the current position of the cursor relative to the window
+	pub fn relative_position() {}
+
+	pub fn change_pos(_new_pos: (f32, f32)) {}
+
+	pub fn hide() {}
+
+	pub fn show() {}
+
+	pub fn disable() {}
+
+	pub fn set_texture(_path: &Path) {}
 }
 
 /// List of Events
@@ -134,18 +165,5 @@ pub enum Event {
 	ThemeChange,
 	CloseRequest,
 	RedrawRequest,
-	// For now:
-	Generic
-}
-
-#[cfg(test)]
-mod tests {
-	use super::*;
-
-	#[test]
-	fn vulkan_render() {
-		let decoration = Decoration::new();
-		let result = Renderer::new(decoration.get_view());
-		assert!(result.is_ok());
-	}
+	Focused,
 }

@@ -7,10 +7,14 @@ use windows::{
 	Win32::UI::WindowsAndMessaging::*,
 };
 
+#[cfg(target_os = "windows")]
 #[derive(Clone)]
 pub struct WindowsWinDecoration {
 	pub mode: DecorationMode,
 }
+
+#[cfg(not(target_os = "windows"))]
+pub struct WindowsWinDecoration {}
 
 pub trait WindowsDecoration {
 	#[cfg(target_os = "windows")]

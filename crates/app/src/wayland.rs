@@ -40,16 +40,15 @@ pub fn get_de() -> DE
 	}
 }
 
+#[cfg(not(target_os = "linux"))]
+pub trait WaylandDecoration {}
+
+#[cfg(target_os = "linux")]
 pub trait WaylandDecoration
 {
 	/// Creates a native window frame decoration for Linux DE/WM
-	#[cfg(target_os = "linux")]
 	fn new() -> Decoration;
-
-	#[cfg(target_os = "linux")]
 	fn make_view();
-
-	#[cfg(target_os = "linux")]
 	fn get_view(&self);
 }
 

@@ -41,10 +41,23 @@ windows = { version = ">=0.59, <=0.62", features = [
 	"Win32_UI_WindowsAndMessaging",
 ]}
 
-
 [workspace.lints.rust]
 unexpected_cfgs = { level = "allow" }
 
 [workspace.lints.clippy]
 dbg_macro = "deny"
 todo = "deny"
+
+[profile.release]
+debug = "limited"
+lto = "thin"
+codegen-units = 1
+
+# https://thunderbiscuit.github.io/uniffi-examples/build-workflows/optimizations.html
+[profile.release-smaller]
+inherits = "release"
+opt-level = 'z'
+lto = true
+codegen-units = 1
+panic = 'abort'
+strip = 'debuginfo'
