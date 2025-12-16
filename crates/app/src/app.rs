@@ -5,9 +5,9 @@ mod winapi;
 use wayland::WaylandWinDecoration;
 use cocoa::{CocoaWinDecoration, CocoaDecoration};
 use winapi::WindowsWinDecoration;
-use log::warn;
+use log::{warn, info};
 use ash::vk::SurfaceKHR;
-use renderer::Renderer;
+use renderer::{Renderer, SurfaceBackend};
 use std::path::Path;
 
 /// Detect if the current system prefers CSDs or SSDs
@@ -53,7 +53,10 @@ impl Window {
 		let mtm = MainThreadMarker::new().expect("Process must run on the Main Thread!");
 		let decoration = Decoration::new(mtm, title, 600.0, 500.0);
 
-		let renderer = Renderer::new(decoration.get_view())
+		let backend =
+			SurfaceBackend::MacOS { ns_view: decoration.get_view() };
+
+		let renderer = Renderer::new(backend)
 			.expect("Vulkan inicialization failed");
 		let surface = renderer.surface;
 
@@ -92,7 +95,7 @@ impl Window {
 	}
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ThemeOp {
 	Dark,
 	Light,
@@ -105,25 +108,56 @@ pub trait Theme {
 }
 
 impl Theme for Window {
+	/// Modify the current window theme
+	/// If alread set as the value provided, it does nothing
 	fn set_theme(&mut self, theme: ThemeOp)
 		{ self.theme = theme; }
 
+	/// Returns the current global theme of the DE/WM
 	fn get_current_theme(&mut self) -> Option<ThemeOp>
 		{ Some(self.theme.clone()) }
 }
 
+/// List of possible types for the cursor
+#[derive(Debug, PartialEq)]
+pub enum CursorType {
+	Default,
+	Pointer,
+	TextBox,
+	Loading,
+	Forbidden,
+	Custom(Box<Path>),
+}
+
 /// Default cursor struct
 #[allow(dead_code)]
+#[derive(Debug, PartialEq)]
 pub struct Cursor {
 	position: (f32, f32),
-	texture: Option<String>,
+	r#type: CursorType,
+	visible: bool,
+	disabled: bool,
 }
 
 // transform this into a trait?
 #[allow(dead_code)]
 impl Cursor {
-	/// Get the current position of the cursor
+	/// Get the cursor object
 	pub fn get_cursor() -> Cursor
+	{
+		Cursor {
+			position: Self::get_position(),
+			r#type: CursorType::Default,
+			visible: true,
+			disabled: false,
+		}
+	}
+
+	/// Returns the current position of the cursor relative to the window
+	pub fn get_relative_position() {}
+
+	/// Returns the current position of the cursor
+	pub fn get_position() -> (f32, f32)
 	{
 		use mouse_position::mouse_position::{Mouse};
 
@@ -136,34 +170,77 @@ impl Cursor {
 			},
 		};
 
-		Cursor { position: pos, texture: None, }
+		pos
 	}
 
-	/// Get the current position of the cursor relative to the window
-	pub fn relative_position() {}
+	/// Modify the cursor position
+	pub fn change_position(&mut self, _new_pos: (f32, f32)) {}
 
-	pub fn change_pos(_new_pos: (f32, f32)) {}
+	/// Modify the cursor position relative to the window
+	pub fn change_relative_position(&mut self, _new_pos: (f32, f32)) {}
 
-	pub fn hide() {}
+	/// Hides the Cursor
+	/// If the cursor is already hidden, it does nothing
+	pub fn hide(&mut self)
+	{
+		self.visible = false;
+	}
 
-	pub fn show() {}
+	/// Shows the cursor
+	/// If the cursor is already visible, it does nothing
+	pub fn show(&mut self)
+	{
+		self.visible = true;
+	}
 
-	pub fn disable() {}
+	/// Locks the cursor in the current place and hides it
+	pub fn disable(&mut self)
+	{
+		info!("disabling cursor");
+		self.disabled = true;
+		self.hide();
+	}
 
-	pub fn set_texture(_path: &Path) {}
+	/// Set the cursor type
+	/// For example: `CursorType::Pointer` for click actions or `CursorType::Custom(Path)` for custom textures
+	pub fn set_type(&mut self, appearence: CursorType)
+	{
+		self.r#type = appearence;
+	}
 }
 
 /// List of Events
 #[derive(Debug, PartialEq)]
 pub enum Event {
-	MouseIn,
-	MouseOut,
+	MouseIn(Cursor),
+	MouseOut(Cursor),
 	LeftClick,
 	RightClick,
 	WindowResized,
 	WindowMoved,
-	ThemeChange,
+	ThemeChange(ThemeOp),
 	CloseRequest,
 	RedrawRequest,
 	Focused,
 }
+
+// Change this into a separate test inside the Renderer crate
+// this test cannot be done on macos
+// the idea is to detect any problems on the rendering engine
+/*#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn test_vulkan_render()
+	{
+		let result = catch_unwind(AssertUnwindSafe(|| {
+			use objc2_foundation::MainThreadMarker;
+			let mtm = MainThreadMarker::new().expect("Process must run on the Main Thread!");
+			let decoration = Decoration::new(mtm, "test", 600.0, 500.0);
+		}));
+
+		assert!(!result.is_err());
+	}
+}
+*/

@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 
 use std::cell::OnceCell;
+use core::ffi::c_void;
 use log::debug;
 
 #[cfg(target_os = "macos")]
@@ -43,7 +44,7 @@ pub struct CocoaWinDecoration {}
 pub trait CocoaDecoration
 {
 	fn run(&self);
-	fn get_view(&self) -> &NSView;
+	fn get_view(&self) -> *mut c_void;
 	fn new(mtm: MainThreadMarker, title: &str, width: f64, height: f64) -> Decoration;
 }
 
@@ -111,12 +112,14 @@ impl CocoaDecoration for Decoration
 	}
 
 	/// Returns the NSView element from the window
-	fn get_view(&self) -> &NSView
+	fn get_view(&self) -> *mut c_void
 	{
-		match self {
+		let view = match self {
 			Decoration::Apple(dec) => &dec.view,
 			_ => unreachable!(),
-		}
+		};
+
+		Retained::<NSView>::as_ptr(&view) as *const NSView as *mut c_void
 	}
 
 	/*fn set_title(&self, title: &str) {

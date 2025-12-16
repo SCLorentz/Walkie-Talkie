@@ -2,10 +2,15 @@ use ash::vk::{self, SurfaceKHR, RenderPass};
 use raw_window_handle::{AppKitDisplayHandle, AppKitWindowHandle};
 use std::{error::Error, ptr::NonNull};
 use log::debug;
+use core::ffi::c_void;
 
-// WARN this is not recomended
-#[cfg(target_os = "macos")]
-use objc2_app_kit::NSView;
+#[allow(unused)]
+pub enum SurfaceBackend {
+	MacOS { ns_view: *mut c_void },
+	Windows,
+	Linux,
+	Headless,
+}
 
 #[allow(unused)]
 pub struct Renderer {
@@ -65,8 +70,18 @@ impl Renderer {
 	])}
 
 	/// Creates a new Vulkan render
-	pub fn new(view: &NSView) -> Result<Renderer, Box<dyn Error>>
+	pub fn new(surface_backend: SurfaceBackend) -> Result<Renderer, Box<dyn Error>>
 	{
+		let mut view: *mut c_void = std::ptr::null_mut();
+
+		match surface_backend {
+			SurfaceBackend::Headless => todo!(),
+			SurfaceBackend::MacOS { ns_view } => {
+				view = ns_view;
+			},
+			_ => {}
+		}
+
 		debug!("Creating new vulkan render");
 
 		unsafe {
@@ -82,7 +97,10 @@ impl Renderer {
 
 			let instance = entry.create_instance(&instance_desc, None)?;
 			let display_handle = AppKitDisplayHandle::new();
-			let window_handle = AppKitWindowHandle::new(NonNull::from(view).cast());
+
+			let nn = NonNull::new(view)
+					.expect("NSView nunca deveria ser null");
+			let window_handle = AppKitWindowHandle::new(nn.cast());
 
 			let device = Self::get_device(&instance)?;
 			let renderpass = Self::render_pass(&device)?;
