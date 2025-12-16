@@ -4,7 +4,7 @@ use std::{error::Error, ptr::NonNull};
 use log::debug;
 use core::ffi::c_void;
 
-#[allow(unused)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum SurfaceBackend {
 	MacOS { ns_view: *mut c_void },
 	Windows,
@@ -19,7 +19,9 @@ pub struct Renderer {
 	device: ash::Device,
 }
 
+/// The rendring interface
 impl Renderer {
+	/// Detects the phisical device
 	fn get_device(instance: &ash::Instance) -> Result<ash::Device, Box<dyn Error>>
 	{ unsafe {
 		let physical_devices = instance.enumerate_physical_devices()?;
@@ -75,7 +77,9 @@ impl Renderer {
 		let mut view: *mut c_void = std::ptr::null_mut();
 
 		match surface_backend {
-			SurfaceBackend::Headless => todo!(),
+			SurfaceBackend::Headless => return Err(
+				Box::new("Headless not implemented yet".parse::<u32>().unwrap_err())
+			),
 			SurfaceBackend::MacOS { ns_view } => {
 				view = ns_view;
 			},
@@ -99,7 +103,7 @@ impl Renderer {
 			let display_handle = AppKitDisplayHandle::new();
 
 			let nn = NonNull::new(view)
-					.expect("NSView nunca deveria ser null");
+					.expect("NSView is shouldn't be null");
 			let window_handle = AppKitWindowHandle::new(nn.cast());
 
 			let device = Self::get_device(&instance)?;
@@ -121,7 +125,8 @@ impl Renderer {
 		}
 	}
 
-	// https://github.com/ash-rs/ash/blob/master/ash-examples/src/bin/texture.rs
+	/// Creates a new vulkan renderpass
+	/// here's an oficial example: https://github.com/ash-rs/ash/blob/master/ash-examples/src/bin/texture.rs
 	pub fn render_pass(device: &ash::Device) -> Result<RenderPass, Box<dyn Error>>
 	{
 		let renderpass_attachments = [
@@ -180,4 +185,17 @@ impl Renderer {
 
 	// for now returns a generic value
 	pub fn get_surface_size(&self) -> (f32, f32) { (0.0, 0.0) }
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn test_vulkan_render()
+	{
+		// for now this should fail, bc I didn't implement the Headless execution
+		let renderer = Renderer::new(SurfaceBackend::Headless);
+		assert!(renderer.is_ok());
+	}
 }

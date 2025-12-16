@@ -2,7 +2,7 @@
 // https://wayland.app/protocols/
 use crate::{DecorationMode, Decoration};
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct WaylandWinDecoration {
 	pub mode: DecorationMode,
 }

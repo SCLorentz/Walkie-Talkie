@@ -3,6 +3,8 @@
 use std::cell::OnceCell;
 use core::ffi::c_void;
 use log::debug;
+use renderer::SurfaceBackend;
+use objc2::Message;
 
 #[cfg(target_os = "macos")]
 use objc2::{
@@ -28,17 +30,6 @@ use objc2_foundation::{
 };
 
 use crate::{DecorationMode, Decoration};
-
-#[cfg(target_os = "macos")]
-pub struct CocoaWinDecoration {
-	pub mode: DecorationMode,
-	pub view: Retained<NSView>,
-	pub window: Retained<NSWindow>,
-	app: Retained<NSApplication>,
-}
-
-#[cfg(not(target_os = "macos"))]
-pub struct CocoaWinDecoration {}
 
 #[cfg(target_os = "macos")]
 pub trait CocoaDecoration
@@ -76,10 +67,6 @@ impl CocoaDecoration for Decoration
 		let view = window.contentView().expect("window must have content view");
 		let mtm = MainThreadMarker::new().expect("Process must run on the Main Thread!");
 
-		//let origin = NSPoint::new(10.0, -2.3);
-		//let size = NSSize::new(5.0, 0.0);
-		//let rect = NSRect::new(origin, size);
-
 		window.center();
 		window.setContentMinSize(NSSize::new(width, height));
 
@@ -94,33 +81,29 @@ impl CocoaDecoration for Decoration
 		#[allow(deprecated)]
 		app.activateIgnoringOtherApps(true);
 
-		return Decoration::Apple(CocoaWinDecoration {
+		Decoration {
 			mode: DecorationMode::ServerSide,
-			window: window.into(),
-			view,
-			app,
-		});
+			frame: to_c_void(&window),
+			app: to_c_void(&app),
+			backend: SurfaceBackend::MacOS { ns_view: to_c_void(&view), }
+		}
 	}
 
 	/// The default function to run the program, since it's required on macOS
-	fn run(&self) {
-		let app = match self {
-			Decoration::Apple(dec) => &dec.app,
-			_ => unreachable!(),
-		};
+	fn run(&self)
+	{
+		let app = self.app as *mut c_void as *const NSView;
+
 		unsafe { msg_send![&*app, run] }
 	}
 
 	/// Returns the NSView element from the window
-	fn get_view(&self) -> *mut c_void
-	{
-		let view = match self {
-			Decoration::Apple(dec) => &dec.view,
-			_ => unreachable!(),
-		};
-
-		Retained::<NSView>::as_ptr(&view) as *const NSView as *mut c_void
-	}
+	fn get_view(&self) -> *mut c_void {
+		match self.backend {
+			SurfaceBackend::MacOS { ns_view: view } => view,
+			_ => todo!(),
+		}
+ 	}
 
 	/*fn set_title(&self, title: &str) {
 		let ns = NSString::from_str(title);
@@ -163,4 +146,11 @@ impl Delegate {
 		let this = Self::alloc(mtm).set_ivars(AppDelegateIvars::default());
 		unsafe { msg_send![super(this), init] }
 	}
+}
+
+fn to_c_void<T>(ptr: &Retained<T>)
+	-> *mut c_void where T: Message
+{
+	let ptr: *mut T = Retained::<T>::as_ptr(&ptr) as *mut T;
+	ptr.cast()
 }

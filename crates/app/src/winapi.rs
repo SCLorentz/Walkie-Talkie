@@ -8,12 +8,13 @@ use windows::{
 };
 
 #[cfg(target_os = "windows")]
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct WindowsWinDecoration {
 	pub mode: DecorationMode,
 }
 
 #[cfg(not(target_os = "windows"))]
+#[derive(Clone, PartialEq, Debug)]
 pub struct WindowsWinDecoration {}
 
 pub trait WindowsDecoration {
