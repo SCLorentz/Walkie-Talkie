@@ -1,0 +1,8 @@
+<activity
+	android:name="android.app.NativeActivity"
+	android:label="walkie-talkie"
+	android:configChanges="orientation|keyboardHidden|screenSize">
+	<meta-data
+		android:name="android.app.wt"
+		android:value="core" />
+</activity>

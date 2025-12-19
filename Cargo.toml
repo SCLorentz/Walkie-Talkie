@@ -4,6 +4,7 @@ members = [
 	"crates/app",
 	"crates/wt",
 	"crates/renderer",
+	#"crates/android",
 	#"crates/auth",
 ]
 default-members = ["crates/wt"]
@@ -15,6 +16,7 @@ edition = "2024"
 [workspace.dependencies]
 app = { path = "crates/app" }
 renderer = { path = "crates/renderer" }
+#android = { path = "crates/android" }
 #
 log = "0.4.28"
 env_logger = "0.11"
@@ -41,6 +43,8 @@ windows = { version = ">=0.59, <=0.62", features = [
 	"Win32_System_Threading",
 	"Win32_UI_WindowsAndMessaging",
 ]}
+# android
+ndk-sys = "0.6.0"
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "allow" }
@@ -62,3 +66,6 @@ lto = true
 codegen-units = 1
 panic = 'abort'
 strip = 'debuginfo'
+
+[profile.android]
+inherits = "release"

@@ -116,7 +116,7 @@ impl Window {
 	{
 		use objc2_foundation::MainThreadMarker;
 		let mtm = MainThreadMarker::new()
-			.expect("Process must run on the Main Thread!");
+			.expect("Process expected to be executed on the Main Thread!");
 
 		let decoration = Decoration::new(mtm, title, 600.0, 500.0);
 		let view = decoration.get_view();

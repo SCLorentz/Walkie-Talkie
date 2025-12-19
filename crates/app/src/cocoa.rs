@@ -8,7 +8,7 @@ use objc2::Message;
 
 #[cfg(target_os = "macos")]
 use objc2::{
-	rc::Retained,
+	rc::{Retained, Allocated},
 	runtime::ProtocolObject,
 	define_class,
 	msg_send,
@@ -20,7 +20,8 @@ use objc2::{
 use objc2_app_kit::{
 	NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate,
 	NSBackingStoreType, NSColor, NSFont, NSTextAlignment, NSTextField, NSWindow, NSWindowDelegate,
-	NSWindowStyleMask, NSView
+	NSWindowStyleMask, NSView, NSWindowTitleVisibility, NSVisualEffectBlendingMode,
+	NSVisualEffectView, NSVisualEffectMaterial, NSVisualEffectState, NSAutoresizingMaskOptions
 };
 
 #[cfg(target_os = "macos")]
@@ -46,46 +47,73 @@ impl CocoaDecoration for Decoration
 	fn new(mtm: MainThreadMarker, title: &str, width: f64, height: f64) -> Decoration
 	{
 		debug!("Creating CocoaDecoration object");
-		let window = unsafe {
-			NSWindow::initWithContentRect_styleMask_backing_defer(
+
+		unsafe {
+			let origin = NSPoint::new(10.0, -2.3);
+			let size = NSSize::new(width, height);
+			let rect = NSRect::new(origin, size);
+
+			let window = NSWindow::initWithContentRect_styleMask_backing_defer(
 				NSWindow::alloc(mtm),
-				NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(width, height)),
+				rect,
 				NSWindowStyleMask::Titled
 					| NSWindowStyleMask::Closable
 					| NSWindowStyleMask::Miniaturizable
-					| NSWindowStyleMask::Resizable,
+					| NSWindowStyleMask::Resizable
+					| NSWindowStyleMask::FullSizeContentView,
 				NSBackingStoreType::Buffered,
 				false,
-			)
-		};
+			);
 
-		unsafe { window.setReleasedWhenClosed(false) };
+			window.setTitle(&NSString::from_str(title));
 
-		let ns_title = NSString::from_str(title);
-		window.setTitle(&ns_title);
+			window.setTitlebarAppearsTransparent(true);
+			window.setTitleVisibility(NSWindowTitleVisibility(1));
+			window.setBackgroundColor(
+				Some(&NSColor::colorWithSRGBRed_green_blue_alpha(0.8, 0.5, 0.5, 1.0,)
+			));
 
-		let view = window.contentView().expect("window must have content view");
-		let mtm = MainThreadMarker::new().expect("Process must run on the Main Thread!");
+			let alloc: Allocated<NSVisualEffectView> = NSVisualEffectView::alloc(mtm);
+			let blur_view = NSVisualEffectView::initWithFrame(alloc, rect);
 
-		window.center();
-		window.setContentMinSize(NSSize::new(width, height));
+			let content = window.contentView().unwrap();
+				content.addSubview(&blur_view);
 
-		let delegate = Delegate::new(mtm);
-		window.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
-		window.makeKeyAndOrderFront(None);
+			blur_view.setBlendingMode(NSVisualEffectBlendingMode(0));
+			blur_view.setMaterial(NSVisualEffectMaterial::HUDWindow);
+			blur_view.setState(NSVisualEffectState::Active);
+			blur_view.setFrame(content.bounds());
+			blur_view.setTranslatesAutoresizingMaskIntoConstraints(false);
+			blur_view.setAutoresizingMask(
+				NSAutoresizingMaskOptions::ViewWidthSizable | NSAutoresizingMaskOptions::ViewHeightSizable
+			);
 
-		delegate.ivars().window.set(window.clone()).unwrap();
+			window.makeKeyAndOrderFront(None);
+			window.setReleasedWhenClosed(false);
 
-		let app =  NSApplication::sharedApplication(mtm);
-		app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
-		#[allow(deprecated)]
-		app.activateIgnoringOtherApps(true);
+			let view = window.contentView().expect("window must have content view");
+			let mtm = MainThreadMarker::new().expect("Process must run on the Main Thread!");
 
-		Decoration {
-			mode: DecorationMode::ServerSide,
-			frame: to_c_void(&window),
-			app: to_c_void(&app),
-			backend: SurfaceBackend::MacOS { ns_view: to_c_void(&view), }
+			window.center();
+			window.setContentMinSize(NSSize::new(width, height));
+
+			let delegate = Delegate::new(mtm);
+			window.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
+			window.makeKeyAndOrderFront(None);
+
+			delegate.ivars().window.set(window.clone()).unwrap();
+
+			let app =  NSApplication::sharedApplication(mtm);
+			app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
+			#[allow(deprecated)]
+			app.activateIgnoringOtherApps(true);
+
+			Decoration {
+				mode: DecorationMode::ServerSide,
+				frame: to_c_void(&window),
+				app: to_c_void(&app),
+				backend: SurfaceBackend::MacOS { ns_view: to_c_void(&view), }
+			}
 		}
 	}
 
@@ -93,12 +121,12 @@ impl CocoaDecoration for Decoration
 	fn run(&self)
 	{
 		let app = self.app as *mut c_void as *const NSView;
-
 		unsafe { msg_send![&*app, run] }
 	}
 
 	/// Returns the NSView element from the window
-	fn get_view(&self) -> *mut c_void {
+	fn get_view(&self) -> *mut c_void
+	{
 		match self.backend {
 			SurfaceBackend::MacOS { ns_view: view } => view,
 			_ => todo!(),
