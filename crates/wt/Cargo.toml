@@ -19,3 +19,4 @@ log-panics.workspace = true
 env_logger.workspace = true
 ctor.workspace = true
 app.workspace = true
+oxygengine-ha-renderer = "0.46.1"

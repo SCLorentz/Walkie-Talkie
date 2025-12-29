@@ -8,7 +8,7 @@ on:
   pull_request:
   workflow_dispatch:
   schedule:
-    - cron: '0 3 * * *' # diário às 03:00 UTC (opcional)
+    - cron: '0 3 * * *'
 
 jobs:
   build-docs:

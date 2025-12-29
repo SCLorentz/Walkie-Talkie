@@ -1,11 +1,14 @@
 #![allow(unused_doc_comments)]
 
 use ash::Instance;
+use ash::ext::metal_surface;
 use ash::vk::{self, SurfaceKHR, RenderPass, Handle, PhysicalDevice};
-use raw_window_handle::{AppKitDisplayHandle, AppKitWindowHandle};
 use std::{error::Error, ptr::NonNull};
 use log::debug;
 use core::ffi::c_void;
+
+#[cfg(target_os = "macos")]
+use objc2::{rc::Retained, Message};
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum SurfaceBackend {
@@ -98,6 +101,45 @@ impl Renderer {
 		)
 	}
 
+	#[cfg(target_os = "macos")]
+	fn new_surface(instance: &Instance, entry: &ash::Entry, window: NonNull<c_void>) -> SurfaceKHR
+	{
+		debug!("creating metal surface");
+		use objc2_quartz_core::CALayer;
+		use objc2_foundation::NSObject;
+		use objc2::msg_send;
+
+		let ns_view: &NSObject = unsafe { window.cast().as_ref() };
+		let _: () = unsafe { msg_send![ns_view, setWantsLayer: true] };
+
+		let layer: Option<Retained<CALayer>> = unsafe { msg_send![ns_view, layer] };
+		let layer = to_c_void(
+			&layer.expect("failed making the view layer-backed")
+		);
+
+		let surface_desc = vk::MetalSurfaceCreateInfoEXT::default().layer(layer);
+		let surface = metal_surface::Instance::new(entry, instance);
+		unsafe {
+			surface.create_metal_surface(&surface_desc, None)
+				.expect("couldn't create metal surface")
+		}
+	}
+
+	// TODO
+	/*#[cfg(target_os = "linux")]
+	fn new_surface(instance: &Instance, entry: &ash::Entry, window: NonNull<c_void>) -> SurfaceKHR
+	{
+		/**
+		 * https://docs.rs/ash-window/0.13.0/src/ash_window/lib.rs.html#36-126
+		 * get window from wayland API
+		 */
+		let surface_desc = vk::WaylandSurfaceCreateInfoKHR::default()
+			.display(display.display.as_ptr())
+			.surface(window.surface.as_ptr());
+		let surface = wayland_surface::Instance::new(entry, instance);
+		surface.create_wayland_surface(&surface_desc, None)
+	}*/
+
 	/// Gets what it's needed to the renderer work
 	/// For example, MacOS with EXT_METAL_SURFACE_NAME, because it doesn't have a native vulkan renderer
 	fn detect_needed_extensions() -> Vec<*const i8>
@@ -166,32 +208,18 @@ impl Renderer {
 		 * Handlers
 		 */
 		let device = Self::get_device(&instance)?;
-		let (
-			display_handle,
-			window_handle,
-			renderpass,
-		) = (
-			AppKitDisplayHandle::new(),
-			AppKitWindowHandle::new(
-				NonNull::new(view)
-					.expect("NSView is shouldn't be null")
-					.cast()
-			),
-			Self::render_pass(&device)?,
-		);
+		let renderpass = Self::render_pass(&device)?;
 
 		/** <https://github.com/ash-rs/ash/blob/master/ash-examples/src/lib.rs>
 		 * Somehow we need to load this surface
 		 * the repo uses `let surface_loader = surface::Instance::load(&entry, &instance);`
 		 * but the way it is created is different, using `SurfaceFactory`, for that I would need winit
 		 */
-		let surface = unsafe { ash_window::create_surface(
-			&entry,
-			&instance,
-			raw_window_handle::RawDisplayHandle::AppKit(display_handle),
-			raw_window_handle::RawWindowHandle::AppKit(window_handle),
-			None
-		)? };
+		let nn_view = NonNull::new(view)
+			.expect("NSView is shouldn't be null")
+			.cast();
+
+		let surface = Self::new_surface(&instance, &entry, nn_view);
 
 		Ok(Renderer {
 			instance,
@@ -280,4 +308,11 @@ mod tests {
 		let renderer = Renderer::new(SurfaceBackend::Headless);
 		assert!(renderer.is_ok());
 	}
+}
+
+fn to_c_void<T>(ptr: &Retained<T>)
+	-> *mut c_void where T: Message
+{
+	let ptr: *mut T = Retained::<T>::as_ptr(&ptr) as *mut T;
+	ptr.cast()
 }

@@ -24,6 +24,10 @@ The main crates to build the UI are avaliable on `./crates/app`, `./crates/rende
 
 On MacOS you will need to install the vulkan SDK to be able to build the program
 
+### Linux
+
+On linux there are some packages that you will need to compile this project. Make sure you have installed `clang`, `build-essential`, `lld`, `libvulkan-dev`, `vulkan-tools` e `vulkan-validation-layers`.
+
 ### Android
 
 To build for android, make sure that the android sdk and ndk are installed and configured on your machine. You wont be able to compile the program without them. Then you can just use `cargo android-build`.
