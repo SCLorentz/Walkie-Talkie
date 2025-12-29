@@ -1,10 +1,9 @@
-#![allow(unused_imports)]
+#![allow(unused_imports, unused_doc_comments)]
 
 use std::cell::OnceCell;
 use core::ffi::c_void;
 use log::debug;
 use renderer::SurfaceBackend;
-use objc2::Message;
 
 #[cfg(target_os = "macos")]
 use objc2::{
@@ -14,6 +13,7 @@ use objc2::{
 	msg_send,
 	DefinedClass,
 	MainThreadOnly,
+	Message
 };
 
 #[cfg(target_os = "macos")]
@@ -36,17 +36,20 @@ use crate::{DecorationMode, Decoration};
 pub trait CocoaDecoration
 {
 	fn run(&self);
-	fn get_view(&self) -> *mut c_void;
-	fn new(mtm: MainThreadMarker, title: &str, width: f64, height: f64) -> Decoration;
+	fn new(title: &str, width: f64, height: f64) -> Decoration;
+	fn apply_blur(&self);
 }
 
 #[cfg(target_os = "macos")]
 impl CocoaDecoration for Decoration
 {
 	/// Creates the native window frame decoration for macOS
-	fn new(mtm: MainThreadMarker, title: &str, width: f64, height: f64) -> Decoration
+	fn new(title: &str, width: f64, height: f64) -> Decoration
 	{
 		debug!("Creating CocoaDecoration object");
+
+		let mtm = MainThreadMarker::new()
+			.expect("Process expected to be executed on the Main Thread!");
 
 		unsafe {
 			let origin = NSPoint::new(10.0, -2.3);
@@ -65,6 +68,10 @@ impl CocoaDecoration for Decoration
 				false,
 			);
 
+			/**
+			 * setting the title here even tought it will not be rendered, bc setTitleVisibility
+			 * this may change in the future when the GUI is ready
+			 */
 			window.setTitle(&NSString::from_str(title));
 
 			window.setTitlebarAppearsTransparent(true);
@@ -72,21 +79,6 @@ impl CocoaDecoration for Decoration
 			window.setBackgroundColor(
 				Some(&NSColor::colorWithSRGBRed_green_blue_alpha(0.8, 0.5, 0.5, 1.0,)
 			));
-
-			let alloc: Allocated<NSVisualEffectView> = NSVisualEffectView::alloc(mtm);
-			let blur_view = NSVisualEffectView::initWithFrame(alloc, rect);
-
-			let content = window.contentView().unwrap();
-				content.addSubview(&blur_view);
-
-			blur_view.setBlendingMode(NSVisualEffectBlendingMode(0));
-			blur_view.setMaterial(NSVisualEffectMaterial::HUDWindow);
-			blur_view.setState(NSVisualEffectState::Active);
-			blur_view.setFrame(content.bounds());
-			blur_view.setTranslatesAutoresizingMaskIntoConstraints(false);
-			blur_view.setAutoresizingMask(
-				NSAutoresizingMaskOptions::ViewWidthSizable | NSAutoresizingMaskOptions::ViewHeightSizable
-			);
 
 			window.makeKeyAndOrderFront(None);
 			window.setReleasedWhenClosed(false);
@@ -108,13 +100,58 @@ impl CocoaDecoration for Decoration
 			#[allow(deprecated)]
 			app.activateIgnoringOtherApps(true);
 
+			let backend = SurfaceBackend::MacOS {
+				ns_view: to_c_void(&view),
+				mtm: &mtm as *const MainThreadMarker as *const c_void,
+				rect: &rect as *const NSRect as *const c_void,
+			};
+
 			Decoration {
 				mode: DecorationMode::ServerSide,
 				frame: to_c_void(&window),
 				app: to_c_void(&app),
-				backend: SurfaceBackend::MacOS { ns_view: to_c_void(&view), }
+				backend,
 			}
 		}
+	}
+
+	/// Apply blur effect on the window
+	// This code is just sad
+	fn apply_blur(&self)
+	{
+		let (mtm, rect) = match self.backend {
+			SurfaceBackend::MacOS { mtm, rect, .. } => (
+				mtm as *mut MainThreadMarker,
+				rect as *const NSRect
+			),
+			_ => unreachable!(),
+		};
+
+		let window = unsafe { Retained::from_raw(self.frame as *mut NSWindow) };
+
+		/**
+		 * Blur view configs
+		 * Not using liquid glass for this part in specific
+		 * Mostly, other effects will be managed trought renderer/shaders on vulkan and not macOS
+		 */
+		let alloc: Allocated<NSVisualEffectView> = unsafe { NSVisualEffectView::alloc(*mtm) };
+		let blur_view = unsafe { NSVisualEffectView::initWithFrame(alloc, *rect) };
+
+		let content = window
+				.expect("window dropped")
+				.contentView()
+				.unwrap();
+		content.addSubview(&blur_view);
+
+		blur_view.setBlendingMode(NSVisualEffectBlendingMode(0));
+		blur_view.setMaterial(NSVisualEffectMaterial::HUDWindow);
+		blur_view.setState(NSVisualEffectState::Active);
+		blur_view.setFrame(content.bounds());
+		blur_view.setTranslatesAutoresizingMaskIntoConstraints(false);
+		blur_view.setAutoresizingMask(
+			NSAutoresizingMaskOptions::ViewWidthSizable
+				| NSAutoresizingMaskOptions::ViewHeightSizable
+		);
 	}
 
 	/// The default function to run the program, since it's required on macOS
@@ -123,15 +160,6 @@ impl CocoaDecoration for Decoration
 		let app = self.app as *mut c_void as *const NSView;
 		unsafe { msg_send![&*app, run] }
 	}
-
-	/// Returns the NSView element from the window
-	fn get_view(&self) -> *mut c_void
-	{
-		match self.backend {
-			SurfaceBackend::MacOS { ns_view: view } => view,
-			_ => todo!(),
-		}
- 	}
 
 	/*fn set_title(&self, title: &str) {
 		let ns = NSString::from_str(title);
@@ -176,6 +204,7 @@ impl Delegate {
 	}
 }
 
+#[cfg(target_os = "macos")]
 fn to_c_void<T>(ptr: &Retained<T>)
 	-> *mut c_void where T: Message
 {

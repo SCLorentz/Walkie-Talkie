@@ -1,12 +1,19 @@
+#![allow(unused_doc_comments)]
+
+#[cfg(target_os = "linux")]
 mod wayland;
+#[cfg(target_os = "macos")]
 mod cocoa;
+#[cfg(target_os = "windows")]
 mod winapi;
 
-#[allow(unused)]
-use wayland::WaylandWinDecoration;
+#[cfg(target_os = "linux")]
+use wayland::WaylandDecoration;
+#[cfg(target_os = "macos")]
 use cocoa::CocoaDecoration;
-#[allow(unused)]
-use winapi::WindowsWinDecoration;
+#[cfg(target_os = "windows")]
+use winapi::WindowsDecoration;
+
 use log::{warn, info, debug};
 use ash::vk::SurfaceKHR;
 use renderer::{Renderer, SurfaceBackend};
@@ -16,15 +23,37 @@ use core::ffi::c_void;
 /// List of Events
 #[derive(Debug, PartialEq)]
 pub enum Event {
-	MouseIn { cursor: Cursor, window: Window },
-	MouseOut { cursor: Cursor, window: Window },
-	LeftClick { cursor: Cursor, window: Window },
-	RightClick { cursor: Cursor, window: Window },
-	WindowResized { window: Window },
-	WindowMoved { window: Window },
-	ThemeChange { new_theme: ThemeOp },
-	RedrawRequest { window: Window },
-	Focused { window: Window },
+	MouseIn {
+		cursor: Cursor,
+		window: Window,
+	},
+	MouseOut {
+		cursor: Cursor,
+		window: Window
+	},
+	LeftClick {
+		cursor: Cursor,
+		window: Window
+	},
+	RightClick {
+		cursor: Cursor,
+		window: Window
+	},
+	WindowResized {
+		window: Window
+	},
+	WindowMoved {
+		window: Window
+	},
+	ThemeChange {
+		new_theme: ThemeOp
+	},
+	RedrawRequest {
+		window: Window
+	},
+	Focused {
+		window: Window
+	},
 	CloseRequest,
 }
 
@@ -114,16 +143,10 @@ impl Window {
 	/// Create a new window
 	pub fn new(title: &'static str) -> Self
 	{
-		use objc2_foundation::MainThreadMarker;
-		let mtm = MainThreadMarker::new()
-			.expect("Process expected to be executed on the Main Thread!");
+		let decoration = Decoration::new(title, 600.0, 500.0);
+		decoration.apply_blur();
 
-		let decoration = Decoration::new(mtm, title, 600.0, 500.0);
-		let view = decoration.get_view();
-
-		#[cfg(target_os = "macos")]
-		let backend = SurfaceBackend::MacOS { ns_view: view };
-
+		let backend = decoration.backend.clone();
 		let renderer = Renderer::new(backend.clone())
 			.expect("Vulkan inicialization failed");
 		let surface = renderer.surface;

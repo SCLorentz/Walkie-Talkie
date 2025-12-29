@@ -21,7 +21,7 @@ mouse_position.workspace = true
 ctor.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
-wayland-client.workspace = true
+wayland-protocols.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2.workspace = true

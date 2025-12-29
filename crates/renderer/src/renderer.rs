@@ -1,4 +1,7 @@
-use ash::vk::{self, SurfaceKHR, RenderPass};
+#![allow(unused_doc_comments)]
+
+use ash::Instance;
+use ash::vk::{self, SurfaceKHR, RenderPass, Handle, PhysicalDevice};
 use raw_window_handle::{AppKitDisplayHandle, AppKitWindowHandle};
 use std::{error::Error, ptr::NonNull};
 use log::debug;
@@ -6,29 +9,62 @@ use core::ffi::c_void;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum SurfaceBackend {
-	MacOS { ns_view: *mut c_void },
-	Windows,
-	Linux,
+	MacOS {
+		ns_view: *mut c_void,
+		mtm: *const c_void,
+		rect: *const c_void,
+	},
+	Windows {},
+	Linux {},
 	Headless,
 }
 
-#[allow(unused)]
+#[allow(dead_code)]
 pub struct Renderer {
 	pub surface: SurfaceKHR,
 	pub renderpass: RenderPass,
 	device: ash::Device,
+	instance: Instance,
 }
 
 /// The rendring interface
 impl Renderer {
-	/// Detects the phisical device
+	/**
+	 * in the future, implement a rate to pick the best device avaliable
+	 * get the device properties and check it can be used
+	 * for now returns true always, but more info here:
+	 * https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families#:~:text=isDeviceSuitable
+	 */
+	fn is_device_suitable(_device: PhysicalDevice) -> bool
+	{
+		true
+	}
+
+	/**
+	 * https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families
+	 * this will get the first graphics card avaliable
+	 */
 	fn get_device(instance: &ash::Instance) -> Result<ash::Device, Box<dyn Error>>
-	{ unsafe {
-		let physical_devices = instance.enumerate_physical_devices()?;
+	{
+		/**
+		 * C++
+		 * uint32_t deviceCount = 0;
+		 * vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+		 * same idea from ours, but ash offers less control, no need to implement verifications of support
+		 */
+		let physical_devices = unsafe { instance.enumerate_physical_devices()? };
 		let physical_device = physical_devices[0];
 
+		/**
+		 * this can be null if the function enumerate_physical_devices() didn't find any compatible gpu
+		 */
+		if physical_device.is_null() == true || !Self::is_device_suitable(physical_device)
+		{
+			panic!("failed to find a suitable GPU!");
+		}
+
 		let queue_families =
-			instance.get_physical_device_queue_family_properties(physical_device);
+			unsafe { instance.get_physical_device_queue_family_properties(physical_device) };
 
 		let graphics_queue_index = queue_families
 			.iter()
@@ -58,9 +94,9 @@ impl Renderer {
 			.enabled_extension_names(&device_extensions);
 
 		Ok(
-			instance.create_device(physical_device, &device_create_info, None)?
+			unsafe { instance.create_device(physical_device, &device_create_info, None)? }
 		)
-	}}
+	}
 
 	/// Gets what it's needed to the renderer work
 	/// For example, MacOS with EXT_METAL_SURFACE_NAME, because it doesn't have a native vulkan renderer
@@ -72,15 +108,21 @@ impl Renderer {
 	])}
 
 	/// Creates a new Vulkan render
+	/// this will be our initVulkan() from the tutorial
+	/// https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Base_code#:~:text=initVulkan()
 	pub fn new(surface_backend: SurfaceBackend) -> Result<Renderer, Box<dyn Error>>
 	{
 		let mut view: *mut c_void = std::ptr::null_mut();
 
+		/**
+		 * The Headless backend will be used to implement tests
+		 */
 		match surface_backend {
+			#[cfg(debug_assertions)]
 			SurfaceBackend::Headless => return Err(
 				Box::new("Headless not implemented yet".parse::<u32>().unwrap_err())
 			),
-			SurfaceBackend::MacOS { ns_view } => {
+			SurfaceBackend::MacOS { ns_view, .. } => {
 				view = ns_view;
 			},
 			_ => {}
@@ -88,41 +130,75 @@ impl Renderer {
 
 		debug!("Creating new vulkan render");
 
-		unsafe {
-			let entry = ash::Entry::linked();
-			let surface_extensions = Self::detect_needed_extensions();
+		/**
+		 * load vulkan in execution, otherwise one might have a problem compiling it for macos (apple beeing apple)
+		 * another problem is the inexistence of a vulkan dylib natively on mac
+		 * the solution for that problem is packaging the necessary files (dylib) inside the .app
+		 */
+		let entry = unsafe { ash::Entry::load()? };
 
-			let app_info =
-				vk::ApplicationInfo::default().api_version(vk::make_api_version(0, 1, 0, 0));
+		/**
+		 * Create Instance
+		 * https://vulkan-tutorial.com/en/Drawing_a_triangle/Setup/Instance
+		 * VkApplicationInfo appInfo{};
+		 */
+		let app_info =
+			vk::ApplicationInfo::default().api_version(vk::make_api_version(0, 1, 0, 0));
 
-			let instance_desc = vk::InstanceCreateInfo::default()
-				.application_info(&app_info)
-				.enabled_extension_names(&surface_extensions);
+		let extensions = Self::detect_needed_extensions();
+		let instance_desc = vk::InstanceCreateInfo::default()
+			.application_info(&app_info)
+			.enabled_extension_names(&extensions);
 
-			let instance = entry.create_instance(&instance_desc, None)?;
-			let display_handle = AppKitDisplayHandle::new();
+		let instance: Instance = unsafe {
+			/**
+			 * vkCreateInstance(&createInfo, nullptr, &instance) -> function from C++
+			 * in this case, createInfo is instance_desc
+			 * the Pointer to the variable that stores the handle to the new object (&instance) value isn't necessary
+			 *
+			 * VK_ERROR_INCOMPATIBLE_DRIVER:
+			 * https://vulkan-tutorial.com/en/Drawing_a_triangle/Setup/Instance#:~:text=Encountered%20VK%5FERROR%5FINCOMPATIBLE%5FDRIVER
+			 */
+			entry.create_instance(&instance_desc, None)?
+		};
 
-			let nn = NonNull::new(view)
-					.expect("NSView is shouldn't be null");
-			let window_handle = AppKitWindowHandle::new(nn.cast());
+		/**
+		 * Handlers
+		 */
+		let device = Self::get_device(&instance)?;
+		let (
+			display_handle,
+			window_handle,
+			renderpass,
+		) = (
+			AppKitDisplayHandle::new(),
+			AppKitWindowHandle::new(
+				NonNull::new(view)
+					.expect("NSView is shouldn't be null")
+					.cast()
+			),
+			Self::render_pass(&device)?,
+		);
 
-			let device = Self::get_device(&instance)?;
-			let renderpass = Self::render_pass(&device)?;
+		/** https://github.com/ash-rs/ash/blob/master/ash-examples/src/lib.rs
+		 * Somehow we need to load this surface
+		 * the repo uses `let surface_loader = surface::Instance::load(&entry, &instance);`
+		 * but the way it is created is different, using `SurfaceFactory`, for that I would need winit
+		 */
+		let surface = unsafe { ash_window::create_surface(
+			&entry,
+			&instance,
+			raw_window_handle::RawDisplayHandle::AppKit(display_handle),
+			raw_window_handle::RawWindowHandle::AppKit(window_handle),
+			None
+		)? };
 
-			let surface = ash_window::create_surface(
-				&entry,
-				&instance,
-				raw_window_handle::RawDisplayHandle::AppKit(display_handle),
-				raw_window_handle::RawWindowHandle::AppKit(window_handle),
-				None
-			)?;
-
-			Ok(Renderer {
-				surface,
-				device,
-				renderpass,
-			})
-		}
+		Ok(Renderer {
+			instance,
+			surface,
+			device,
+			renderpass,
+		})
 	}
 
 	/// Creates a new vulkan renderpass
@@ -185,6 +261,12 @@ impl Renderer {
 
 	// for now returns a generic value
 	pub fn get_surface_size(&self) -> (f32, f32) { (0.0, 0.0) }
+
+	#[allow(unused)]
+	pub fn cleanup(&self)
+	{
+		unsafe { self.instance.destroy_instance(None); }
+	}
 }
 
 #[cfg(test)]

@@ -13,28 +13,24 @@ pub struct WindowsWinDecoration {
 	pub mode: DecorationMode,
 }
 
-#[cfg(not(target_os = "windows"))]
-#[derive(Clone, PartialEq, Debug)]
-pub struct WindowsWinDecoration {}
-
+#[cfg(target_os = "windows")]
 pub trait WindowsDecoration {
-	#[cfg(target_os = "windows")]
 	fn new() -> Decoration;
-
-	#[cfg(target_os = "windows")]
-	#[allow(unused)]
 	fn make_view();
-
-	#[cfg(target_os = "windows")]
 	fn get_view(&self);
 }
 
+#[cfg(target_os = "windows")]
 impl WindowsDecoration for Decoration
 {
-	#[cfg(target_os = "windows")]
-	fn new() -> Decoration {
-		return Decoration::Windows(WindowsWinDecoration {
+	fn new() -> Decoration
+	{
+		return Decoration {
 			mode: DecorationMode::ServerSide,
-		});
+		};
 	}
+
+	fn make_view() {}
+
+	fn get_view() {}
 }
