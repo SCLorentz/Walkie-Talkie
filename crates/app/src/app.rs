@@ -1,16 +1,23 @@
 #![allow(unused_doc_comments)]
 
+// Linux dependencies --------------------
 #[cfg(target_os = "linux")]
 mod wayland;
-#[cfg(target_os = "macos")]
-mod cocoa;
-#[cfg(target_os = "windows")]
-mod winapi;
 
 #[cfg(target_os = "linux")]
 use wayland::WaylandDecoration;
+
+// MacOS dependencies --------------------
+#[cfg(target_os = "macos")]
+mod cocoa;
+
 #[cfg(target_os = "macos")]
 use cocoa::CocoaDecoration;
+
+// Windows dependencies ------------------
+#[cfg(target_os = "windows")]
+mod winapi;
+
 #[cfg(target_os = "windows")]
 use winapi::WindowsDecoration;
 
@@ -57,6 +64,12 @@ pub enum Event {
 	CloseRequest,
 }
 
+/**
+ * maybe in the future I will apply more options to the blur
+ * like acrylics, smoothness, liquid glass, alpha, etc
+ */
+pub type Blur = bool;
+
 #[allow(dead_code)]
 pub struct App {
 	/// list of active windows
@@ -66,11 +79,11 @@ pub struct App {
 }
 
 impl App {
-	pub fn new() -> Self
+	pub fn new(blur: Blur) -> Self
 	{
 		Self {
 			windows: Vec::new(),
-			theme: ThemeOp::Light,
+			theme: ThemeOp::Light { blur },
 			cursor: Cursor::get_cursor(),
 		}
 	}
@@ -78,7 +91,7 @@ impl App {
 	/// Creates a new Window element and pushes to the App
 	pub fn new_window(&mut self, title: &'static str)
 	{
-		let window = Window::new(title);
+		let window = Window::new(title, self.theme.clone());
 		self.windows.push(window);
 	}
 
@@ -135,21 +148,31 @@ pub struct Window {
 	position: (f32, f32),
 	surface_size: (f32, f32),
 	active: bool,
-	blur: bool,
+	theme: ThemeOp,
 	//id: u32,
 }
 
 impl Window {
 	/// Create a new window
-	pub fn new(title: &'static str) -> Self
+	pub fn new(title: &'static str, theme: ThemeOp) -> Self
 	{
 		let decoration = Decoration::new(title, 600.0, 500.0);
-		decoration.apply_blur();
 
 		let backend = decoration.backend.clone();
 		let renderer = Renderer::new(backend.clone())
 			.expect("Vulkan inicialization failed");
 		let surface = renderer.surface;
+
+		match theme {
+			ThemeOp::Dark { blur } => {
+				if blur { decoration.apply_blur() }
+				// surface.theme = ThemeOp::Dark
+			},
+			ThemeOp::Light { blur } => {
+				if blur { decoration.apply_blur() }
+				// surface.theme = ThemeOp::White
+			},
+		}
 
 		Window {
 			decoration,
@@ -159,7 +182,7 @@ impl Window {
 			resizable: true,
 			position: (0.0, 0.0),
 			title: String::from(title),
-			blur: false
+			theme,
 		}
 	}
 
@@ -172,8 +195,8 @@ impl Window {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ThemeOp {
-	Dark,
-	Light,
+	Dark { blur: Blur },
+	Light { blur: Blur },
 }
 
 #[allow(dead_code)]

@@ -33,7 +33,7 @@ impl Renderer {
 	 * in the future, implement a rate to pick the best device avaliable
 	 * get the device properties and check it can be used
 	 * for now returns true always, but more info here:
-	 * https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families#:~:text=isDeviceSuitable
+	 * <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families#:~:text=isDeviceSuitable>
 	 */
 	fn is_device_suitable(_device: PhysicalDevice) -> bool
 	{
@@ -41,7 +41,7 @@ impl Renderer {
 	}
 
 	/**
-	 * https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families
+	 * <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families>
 	 * this will get the first graphics card avaliable
 	 */
 	fn get_device(instance: &ash::Instance) -> Result<ash::Device, Box<dyn Error>>
@@ -109,7 +109,7 @@ impl Renderer {
 
 	/// Creates a new Vulkan render
 	/// this will be our initVulkan() from the tutorial
-	/// https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Base_code#:~:text=initVulkan()
+	/// <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Base_code#:~:text=initVulkan()>
 	pub fn new(surface_backend: SurfaceBackend) -> Result<Renderer, Box<dyn Error>>
 	{
 		let mut view: *mut c_void = std::ptr::null_mut();
@@ -139,7 +139,7 @@ impl Renderer {
 
 		/**
 		 * Create Instance
-		 * https://vulkan-tutorial.com/en/Drawing_a_triangle/Setup/Instance
+		 * <https://vulkan-tutorial.com/en/Drawing_a_triangle/Setup/Instance>
 		 * VkApplicationInfo appInfo{};
 		 */
 		let app_info =
@@ -157,7 +157,7 @@ impl Renderer {
 			 * the Pointer to the variable that stores the handle to the new object (&instance) value isn't necessary
 			 *
 			 * VK_ERROR_INCOMPATIBLE_DRIVER:
-			 * https://vulkan-tutorial.com/en/Drawing_a_triangle/Setup/Instance#:~:text=Encountered%20VK%5FERROR%5FINCOMPATIBLE%5FDRIVER
+			 * <https://vulkan-tutorial.com/en/Drawing_a_triangle/Setup/Instance#:~:text=Encountered%20VK%5FERROR%5FINCOMPATIBLE%5FDRIVER>
 			 */
 			entry.create_instance(&instance_desc, None)?
 		};
@@ -180,7 +180,7 @@ impl Renderer {
 			Self::render_pass(&device)?,
 		);
 
-		/** https://github.com/ash-rs/ash/blob/master/ash-examples/src/lib.rs
+		/** <https://github.com/ash-rs/ash/blob/master/ash-examples/src/lib.rs>
 		 * Somehow we need to load this surface
 		 * the repo uses `let surface_loader = surface::Instance::load(&entry, &instance);`
 		 * but the way it is created is different, using `SurfaceFactory`, for that I would need winit
@@ -202,7 +202,7 @@ impl Renderer {
 	}
 
 	/// Creates a new vulkan renderpass
-	/// here's an oficial example: https://github.com/ash-rs/ash/blob/master/ash-examples/src/bin/texture.rs
+	/// here's an oficial example: <https://github.com/ash-rs/ash/blob/master/ash-examples/src/bin/texture.rs>
 	pub fn render_pass(device: &ash::Device) -> Result<RenderPass, Box<dyn Error>>
 	{
 		let renderpass_attachments = [

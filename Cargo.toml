@@ -17,42 +17,49 @@ edition = "2024"
 
 [workspace.dependencies]
 app = { path = "crates/app" }
+#android = { path = "crates/android" }
+#auth = { path = "crates/auth" }
+#gui = { path = "crates/gui" }
+#api = { path = "crates/api" }
 renderer = { path = "crates/renderer" }
-#
+# logging
 log = "0.4.28"
 env_logger = "0.11"
 log-panics = "2.1.0"
 ctor = "0.6.3"
-tracing-subscriber = "0.3.20"
-url = "2.5.7"
-mouse_position = "0.1.4"
+#url = "2.5.7"
+mouse_position = "0.1.4" # in the future, remove the necessity of this dependency
 # renderer
 ash-window = "0.13.0"
 raw-window-handle = "0.6.2"
 # linux
 wayland-client = "0.31"
 smithay-client-toolkit = "0.18"
-wayland-protocols = "0.32.9"
 # macos
 objc2 = "0.6.3"
 objc2-app-kit = "0.3.2"
 objc2-foundation = "0.3.2"
-# windows
-windows = { version = ">=0.59, <=0.62", features = [
-	"Data_Xml_Dom",
-	"Win32_Security",
-	"Win32_System_Threading",
-	"Win32_UI_WindowsAndMessaging",
-]}
 # android
 ndk-sys = "0.6.0"
+
+[workspace.dependencies.wayland-protocols]
+version = "0.32.9"
 
 [workspace.dependencies.ash]
 version = "0.38.0"
 default-features = false
 features = ["debug", "loaded"]
 
-[profile.dev]
+[workspace.dependencies.windows]
+version = ">=0.59, <=0.62"
+features = [
+	"Data_Xml_Dom",
+	"Win32_Security",
+	"Win32_System_Threading",
+	"Win32_UI_WindowsAndMessaging",
+]
+
+# ---- Lints ----------------------
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "allow" }
@@ -60,6 +67,10 @@ unexpected_cfgs = { level = "allow" }
 [workspace.lints.clippy]
 dbg_macro = "deny"
 todo = "deny"
+
+# ---- Profiles -------------------
+
+[profile.dev]
 
 [profile.release]
 debug = "limited"
@@ -74,6 +85,3 @@ lto = true
 codegen-units = 1
 panic = 'abort'
 strip = 'debuginfo'
-
-[profile.android]
-inherits = "release"

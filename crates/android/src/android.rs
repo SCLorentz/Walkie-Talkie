@@ -4,7 +4,7 @@ use std::ffi::c_void;
 use log::debug;
 
 /// Android program init funcion
-/// source example https://docs.rs/ndk-sys/latest/ndk_sys/fn.ANativeActivity_onCreate.html
+/// source example <https://docs.rs/ndk-sys/latest/ndk_sys/fn.ANativeActivity_onCreate.html>
 #[cfg(target_os = "android")]
 #[no_mangle]
 pub unsafe extern "C" fn ANativeActivity_onCreate(

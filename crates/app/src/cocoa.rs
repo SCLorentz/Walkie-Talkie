@@ -5,7 +5,6 @@ use core::ffi::c_void;
 use log::debug;
 use renderer::SurfaceBackend;
 
-#[cfg(target_os = "macos")]
 use objc2::{
 	rc::{Retained, Allocated},
 	runtime::ProtocolObject,
@@ -16,7 +15,6 @@ use objc2::{
 	Message
 };
 
-#[cfg(target_os = "macos")]
 use objc2_app_kit::{
 	NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate,
 	NSBackingStoreType, NSColor, NSFont, NSTextAlignment, NSTextField, NSWindow, NSWindowDelegate,
@@ -24,7 +22,6 @@ use objc2_app_kit::{
 	NSVisualEffectView, NSVisualEffectMaterial, NSVisualEffectState, NSAutoresizingMaskOptions
 };
 
-#[cfg(target_os = "macos")]
 use objc2_foundation::{
 	MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSPoint, NSRect,
 	NSSize, NSString,
@@ -32,7 +29,6 @@ use objc2_foundation::{
 
 use crate::{DecorationMode, Decoration};
 
-#[cfg(target_os = "macos")]
 pub trait CocoaDecoration
 {
 	fn run(&self);
@@ -40,7 +36,6 @@ pub trait CocoaDecoration
 	fn apply_blur(&self);
 }
 
-#[cfg(target_os = "macos")]
 impl CocoaDecoration for Decoration
 {
 	/// Creates the native window frame decoration for macOS
@@ -167,13 +162,11 @@ impl CocoaDecoration for Decoration
 	}*/
 }
 
-#[cfg(target_os = "macos")]
 #[derive(Debug, Default)]
 struct AppDelegateIvars {
 	window: OnceCell<Retained<NSWindow>>,
 }
 
-#[cfg(target_os = "macos")]
 define_class!(
 	#[unsafe(super = NSObject)]
 	#[thread_kind = MainThreadOnly]
@@ -196,7 +189,6 @@ define_class!(
 	}
 );
 
-#[cfg(target_os = "macos")]
 impl Delegate {
 	fn new(mtm: MainThreadMarker) -> Retained<Self> {
 		let this = Self::alloc(mtm).set_ivars(AppDelegateIvars::default());
@@ -204,7 +196,6 @@ impl Delegate {
 	}
 }
 
-#[cfg(target_os = "macos")]
 fn to_c_void<T>(ptr: &Retained<T>)
 	-> *mut c_void where T: Message
 {
