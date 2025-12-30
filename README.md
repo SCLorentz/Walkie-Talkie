@@ -8,7 +8,7 @@ Chatting apps like whatsapp, discord, snapchat, messager, telegram, etc are upse
 
 None of the options for creating user interfaces for multiplatform pleased me, so I'm doing one from scratch using the Vulkan rendering API and the native calls from macOS, android, windows and linux. The main objective is to create something minimalistic portable and native in all platforms and desktops. I want to be able to use those crates on other projects as well and in the future, move them to their own repo.
 
-!["GUI app with 514 KB"]("./doc/sources/514.png")
+<img src="./doc/sources/514.png" alt="Alt Text" width="500">
 
 ### Linux
 
