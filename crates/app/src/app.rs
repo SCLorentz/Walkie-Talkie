@@ -1,32 +1,8 @@
 #![allow(unused_doc_comments)]
 
-// Linux dependencies --------------------
-#[cfg(all(target_os = "linux", not(feature = "gnome")))]
-mod wayland;
+mod platform;
 
-#[cfg(all(target_os = "linux", not(feature = "gnome")))]
-use wayland::WaylandDecoration;
-
-#[cfg(all(target_os = "linux", feature = "gnome"))]
-mod gnome;
-
-#[cfg(all(target_os = "linux", feature = "gnome"))]
-use gnome::GnomeDecoration;
-
-// MacOS dependencies --------------------
-#[cfg(target_os = "macos")]
-mod cocoa;
-
-#[cfg(target_os = "macos")]
-use cocoa::CocoaDecoration;
-
-// Windows dependencies ------------------
-#[cfg(target_os = "windows")]
-mod winapi;
-
-#[cfg(target_os = "windows")]
-use winapi::WindowsDecoration;
-
+use platform::NativeDecoration;
 use log::info;
 use ash::vk::SurfaceKHR;
 use renderer::{Renderer, SurfaceBackend};
@@ -34,8 +10,8 @@ use std::path::Path;
 use core::ffi::c_void;
 
 /**
- * maybe in the future I will apply more options to the blur
- * like acrylics, smoothness, liquid glass, alpha, etc
+ * maybe in the future I will apply more options to the blur, converting it into a struct,
+ * maybe acrylics, smoothness, liquid glass, alpha, etc
  */
 pub type Blur = bool;
 
@@ -70,7 +46,7 @@ impl App {
 	#[cfg(target_os = "macos")]
 	pub fn exec_loop(&self, run: fn(e: Option<Event>))
 	{
-		let _state = EventState { exit: false }
+		let _state = EventState { exit: false };
 
 		std::thread::spawn(move || {
 			loop { run(None); }
@@ -362,6 +338,7 @@ pub enum Event {
 	CloseRequest,
 }
 
+#[allow(unused)]
 struct EventState {
 	exit: bool
 }

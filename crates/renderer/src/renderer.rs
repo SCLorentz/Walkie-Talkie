@@ -205,23 +205,8 @@ impl Renderer {
 	/// <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Base_code#:~:text=initVulkan()>
 	pub fn new(surface_backend: SurfaceBackend) -> Result<Renderer, Box<dyn Error>>
 	{
-		let mut view: *mut c_void = std::ptr::null_mut();
-
-		/**
-		 * The Headless backend will be used to implement tests
-		 */
-		match surface_backend {
-			#[cfg(debug_assertions)]
-			SurfaceBackend::Headless => return Err(
-				Box::new("Headless not implemented yet".parse::<u32>().unwrap_err())
-			),
-			SurfaceBackend::MacOS { ns_view, .. } => {
-				view = ns_view;
-			},
-			_ => {}
-		}
-
 		debug!("Creating new vulkan render");
+		let mut view: *mut c_void = std::ptr::null_mut();
 
 		/**
 		 * load vulkan in execution, otherwise one might have a problem compiling it for macos (apple beeing apple)
@@ -229,9 +214,6 @@ impl Renderer {
 		 * the solution for that problem is packaging the necessary files (dylib) inside the .app
 		 * <https://stackoverflow.com/questions/39204908/how-to-check-release-debug-builds-using-cfg-in-rust>
 		 */
-		//#[cfg(target_os = "linux")]
-		//let entry: ash::Entry = unsafe { ash::Entry::linked() };
-
 		let entry = unsafe { ash::Entry::load()? };
 
 		/**
@@ -266,15 +248,25 @@ impl Renderer {
 		let renderpass = Self::render_pass(&device)?;
 
 		/** <https://github.com/ash-rs/ash/blob/master/ash-examples/src/lib.rs>
-		 * Somehow we need to load this surface
+		 * The Headless backend will be used to implement tests
 		 * the repo uses `let surface_loader = surface::Instance::load(&entry, &instance);`
 		 * but the way it is created is different, using `SurfaceFactory`, for that I would need winit
 		 */
-		let nn_view = NonNull::new(view)
-			.expect("NSView is shouldn't be null")
-			.cast();
 
-		let surface = Self::new_surface(&instance, &entry, nn_view);
+		let surface = match surface_backend {
+			#[cfg(debug_assertions)]
+			SurfaceBackend::Headless =>
+				SurfaceKHR::default(),
+			SurfaceBackend::MacOS { ns_view, .. } =>
+			{
+				let nn_view = NonNull::new(ns_view)
+					.expect("NSView is shouldn't be null")
+					.cast();
+
+				Self::new_surface(&instance, &entry, nn_view)
+			},
+			_ => todo!()
+		};
 
 		Ok(Renderer {
 			instance,

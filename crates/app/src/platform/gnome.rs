@@ -1,4 +1,5 @@
 #![allow(unused_doc_comments)]
+// if you are reading this, you have been gnomed
 
 use crate::{DecorationMode, Decoration};
 use std::env;
