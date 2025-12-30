@@ -206,7 +206,7 @@ impl Renderer {
 	pub fn new(surface_backend: SurfaceBackend) -> Result<Renderer, Box<dyn Error>>
 	{
 		debug!("Creating new vulkan render");
-		let mut view: *mut c_void = std::ptr::null_mut();
+		//let view: *mut c_void = std::ptr::null_mut();
 
 		/**
 		 * load vulkan in execution, otherwise one might have a problem compiling it for macos (apple beeing apple)

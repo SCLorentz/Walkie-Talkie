@@ -1,5 +1,7 @@
 use app::{App, Event};
 use log::{info, debug};
+use auth::login;
+use url::Url;
 
 fn main() {
 	simple_logger::SimpleLogger::new()
@@ -10,6 +12,8 @@ fn main() {
 
 	let mut app = App::new(true);
 	app.new_window("walkie talkie");
+
+	//login(None);
 	app.exec_loop(app_loop);
 }
 

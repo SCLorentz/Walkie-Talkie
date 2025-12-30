@@ -1,0 +1,17 @@
+[package]
+name = "auth"
+version = "0.0.1"
+edition.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+path = "src/login.rs"
+doctest = false
+
+[dependencies]
+log.workspace = true
+matrix-sdk.workspace = true
+url.workspace = true
