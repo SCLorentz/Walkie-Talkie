@@ -1,7 +1,6 @@
 #![allow(unused_doc_comments)]
 
 use ash::Instance;
-use ash::ext::metal_surface;
 use ash::vk::{self, SurfaceKHR, RenderPass, Handle, PhysicalDevice};
 use std::{error::Error, ptr::NonNull};
 use log::debug;
@@ -104,10 +103,11 @@ impl Renderer {
 	#[cfg(target_os = "macos")]
 	fn new_surface(instance: &Instance, entry: &ash::Entry, window: NonNull<c_void>) -> SurfaceKHR
 	{
-		debug!("creating metal surface");
+		use ash::ext::metal_surface;
 		use objc2_quartz_core::CALayer;
 		use objc2_foundation::NSObject;
 		use objc2::msg_send;
+		debug!("creating metal surface");
 
 		let ns_view: &NSObject = unsafe { window.cast().as_ref() };
 		let _: () = unsafe { msg_send![ns_view, setWantsLayer: true] };
@@ -125,10 +125,12 @@ impl Renderer {
 		}
 	}
 
-	// TODO
-	/*#[cfg(target_os = "linux")]
+	// WARN: this is just a model and is not complete. The code will fail.
+	#[cfg(target_os = "linux")]
 	fn new_surface(instance: &Instance, entry: &ash::Entry, window: NonNull<c_void>) -> SurfaceKHR
 	{
+		use ash::khr::wayland_surface;
+		debug!("creating linux wayland surface");
 		/**
 		 * https://docs.rs/ash-window/0.13.0/src/ash_window/lib.rs.html#36-126
 		 * get window from wayland API
@@ -138,10 +140,11 @@ impl Renderer {
 			.surface(window.surface.as_ptr());
 		let surface = wayland_surface::Instance::new(entry, instance);
 		surface.create_wayland_surface(&surface_desc, None)
-	}*/
+			.expect("couldn't create wayland surface")
+	}
 
 	/// Gets what it's needed to the renderer work
-	/// For example, MacOS with EXT_METAL_SURFACE_NAME, because it doesn't have a native vulkan renderer
+	/// For example, MacOS with `EXT_METAL_SURFACE_NAME`, because it doesn't have a native vulkan renderer
 	fn detect_needed_extensions() -> Vec<*const i8>
 	{Vec::from([
 		vk::KHR_PORTABILITY_ENUMERATION_NAME.as_ptr(),
@@ -310,6 +313,7 @@ mod tests {
 	}
 }
 
+#[cfg(target_os = "macos")]
 fn to_c_void<T>(ptr: &Retained<T>)
 	-> *mut c_void where T: Message
 {

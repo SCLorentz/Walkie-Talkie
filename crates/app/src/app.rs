@@ -21,48 +21,11 @@ mod winapi;
 #[cfg(target_os = "windows")]
 use winapi::WindowsDecoration;
 
-use log::{warn, info, debug};
+use log::{info, debug};
 use ash::vk::SurfaceKHR;
 use renderer::{Renderer, SurfaceBackend};
 use std::path::Path;
 use core::ffi::c_void;
-
-/// List of Events
-#[derive(Debug, PartialEq)]
-pub enum Event {
-	MouseIn {
-		cursor: Cursor,
-		window: Window,
-	},
-	MouseOut {
-		cursor: Cursor,
-		window: Window
-	},
-	LeftClick {
-		cursor: Cursor,
-		window: Window
-	},
-	RightClick {
-		cursor: Cursor,
-		window: Window
-	},
-	WindowResized {
-		window: Window
-	},
-	WindowMoved {
-		window: Window
-	},
-	ThemeChange {
-		new_theme: ThemeOp
-	},
-	RedrawRequest {
-		window: Window
-	},
-	Focused {
-		window: Window
-	},
-	CloseRequest,
-}
 
 /**
  * maybe in the future I will apply more options to the blur
@@ -123,7 +86,7 @@ pub enum DecorationMode {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-struct Decoration {
+pub struct Decoration {
 	frame: *const c_void,
 	backend: SurfaceBackend,
 	mode: DecorationMode,
@@ -158,11 +121,6 @@ impl Window {
 	{
 		let decoration = Decoration::new(title, 600.0, 500.0);
 
-		let backend = decoration.backend.clone();
-		let renderer = Renderer::new(backend.clone())
-			.expect("Vulkan inicialization failed");
-		let surface = renderer.surface;
-
 		match theme {
 			ThemeOp::Dark { blur } => {
 				if blur { decoration.apply_blur() }
@@ -174,9 +132,11 @@ impl Window {
 			},
 		}
 
+		let renderer = Self::connect_vulkan_renderer(decoration.backend.clone());
+
 		Window {
 			decoration,
-			surface,
+			surface: renderer.surface,
 			surface_size: renderer.get_surface_size(),
 			active: false,
 			resizable: true,
@@ -191,6 +151,20 @@ impl Window {
 
 	#[allow(unused)]
 	pub fn close_window(&self) {}
+}
+
+// Todo: move this trait somewhere to remove dependency of renderer crate on this one
+pub trait RenderWindow {
+	fn connect_vulkan_renderer(backend: SurfaceBackend) -> Renderer;
+}
+
+impl RenderWindow for Window {
+	fn connect_vulkan_renderer(backend: SurfaceBackend) -> Renderer
+	{
+		let renderer = Renderer::new(backend)
+			.expect("Vulkan inicialization failed");
+		renderer
+	}
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -231,7 +205,7 @@ pub enum CursorType {
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Clone)]
 pub struct Cursor {
-	position: (f32, f32),
+	position: (f64, f64),
 	r#type: CursorType,
 	visible: bool,
 	disabled: bool,
@@ -255,32 +229,29 @@ impl Cursor {
 	pub fn get_relative_position() {}
 
 	/// Returns the current position of the cursor
-	pub fn get_position() -> (f32, f32)
+	pub fn get_position() -> (f64, f64)
 	{
-		use mouse_position::mouse_position::{Mouse};
+		#[cfg(target_os = "macos")]
+		let pos = objc2_app_kit::NSEvent::mouseLocation();
 
-		let position = Mouse::get_mouse_position();
-		let pos = match position {
-			Mouse::Position { x, y } => (x as f32, y as f32),
-			Mouse::Error => {
-				warn!("Couldn't get cursor position. Returning (0.0, 0.0)");
-				(0.0, 0.0)
-			},
-		};
+		#[cfg(not(target_os = "macos"))]
+		todo!();
 
-		pos
+		(pos.x, pos.y)
 	}
 
 	/// Modify the cursor position
-	pub fn change_position(&mut self, _new_pos: (f32, f32)) {}
+	pub fn change_position(&mut self, _new_pos: (f64, f64)) {}
 
 	/// Modify the cursor position relative to the window
-	pub fn change_relative_position(&mut self, _new_pos: (f32, f32)) {}
+	pub fn change_relative_position(&mut self, _new_pos: (f64, f64)) {}
 
 	/// Hides the Cursor
 	/// If the cursor is already hidden, it does nothing
 	pub fn hide(&mut self)
 	{
+		#[cfg(target_os = "macos")]
+		objc2_core_graphics::CGDisplayHideCursor(0);
 		self.visible = false;
 	}
 
@@ -288,6 +259,8 @@ impl Cursor {
 	/// If the cursor is already visible, it does nothing
 	pub fn show(&mut self)
 	{
+		#[cfg(target_os = "macos")]
+		objc2_core_graphics::CGDisplayShowCursor(0);
 		self.visible = true;
 	}
 
@@ -309,7 +282,48 @@ impl Cursor {
 
 #[ctor::ctor]
 fn logger() {
-	env_logger::init();
+	simple_logger::SimpleLogger::new()
+		.init()
+		.unwrap();
 	log_panics::init();
 	debug!("starting program");
+}
+
+/// List of Events
+#[derive(Debug, PartialEq)]
+pub enum Event {
+	MouseIn {
+		cursor: Cursor,
+		window: Window,
+	},
+	MouseOut {
+		cursor: Cursor,
+		window: Window
+	},
+	LeftClick {
+		cursor: Cursor,
+		window: Window
+	},
+	RightClick {
+		cursor: Cursor,
+		window: Window
+	},
+	WindowResized {
+		window: Window,
+		new_size: (f64, f64)
+	},
+	WindowMoved {
+		window: Window,
+		new_positon: (f64, f64)
+	},
+	ThemeChange {
+		new_theme: ThemeOp
+	},
+	RedrawRequest {
+		window: Window
+	},
+	Focused {
+		window: Window
+	},
+	CloseRequest,
 }

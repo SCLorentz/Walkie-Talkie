@@ -13,11 +13,10 @@ doctest = false
 
 [dependencies]
 log.workspace = true
-log-panics.workspace = true
 ash.workspace = true
-objc2-quartz-core.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-app-kit.workspace = true
 objc2-foundation.workspace = true
 objc2.workspace = true
+objc2-quartz-core.workspace = true

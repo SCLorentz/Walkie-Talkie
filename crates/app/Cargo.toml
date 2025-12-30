@@ -14,10 +14,9 @@ doctest = false
 [dependencies]
 log.workspace = true
 log-panics.workspace = true
-env_logger.workspace = true
+simple_logger.workspace = true
 ash.workspace = true
 renderer.workspace = true
-mouse_position.workspace = true
 ctor.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
@@ -27,6 +26,7 @@ wayland-protocols.workspace = true
 objc2.workspace = true
 objc2-app-kit.workspace = true
 objc2-foundation.workspace = true
+objc2-core-graphics.workspace = true
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows.workspace = true
