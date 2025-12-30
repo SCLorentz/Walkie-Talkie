@@ -1,6 +1,9 @@
 [alias]
 build-linux = "build --target x86_64-unknown-linux-gnu"
 
+[alias]
+release-small = "build --profile release-smaller"
+
 [target.x86_64-unknown-linux-gnu]
 linker = "clang"
 rustflags = [

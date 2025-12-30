@@ -21,7 +21,7 @@ mod winapi;
 #[cfg(target_os = "windows")]
 use winapi::WindowsDecoration;
 
-use log::{info, debug};
+use log::info;
 use ash::vk::SurfaceKHR;
 use renderer::{Renderer, SurfaceBackend};
 use std::path::Path;
@@ -278,15 +278,6 @@ impl Cursor {
 	{
 		self.r#type = appearence;
 	}
-}
-
-#[ctor::ctor]
-fn logger() {
-	simple_logger::SimpleLogger::new()
-		.init()
-		.unwrap();
-	log_panics::init();
-	debug!("starting program");
 }
 
 /// List of Events

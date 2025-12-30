@@ -6,9 +6,6 @@ use std::{error::Error, ptr::NonNull};
 use log::debug;
 use core::ffi::c_void;
 
-#[cfg(target_os = "macos")]
-use objc2::{rc::Retained, Message};
-
 #[derive(Clone, PartialEq, Debug)]
 pub enum SurfaceBackend {
 	MacOS {
@@ -100,6 +97,56 @@ impl Renderer {
 		)
 	}
 
+	// TODO: make this work (yes, I know it's ugly)
+	// For some reason it returns `Vulkan inicialization failed: ERROR_INCOMPATIBLE_DRIVER`
+	// it shouldn't happen because of the MoltenVK_icd.json
+	/*#[cfg(target_os = "macos")]
+	fn vulkan_entry() -> ash::Entry
+	{
+		use std::env;
+
+		/**
+		 * MacOS does not have vulkan natively, so, we need to load the libs ourselves
+		 * Get the self.app path and load dependencies packaged inside Resources/ and Frameworks/
+		 */
+		#[cfg(not(debug_assertions))]
+		use std::path::PathBuf;
+
+		#[cfg(not(debug_assertions))]
+		let exe = env::current_exe().unwrap();
+
+		#[cfg(not(debug_assertions))]
+		let contents = exe.parent()
+			.unwrap()
+			.parent()
+			.unwrap();
+
+		#[cfg(not(debug_assertions))]
+		let icd = contents
+			.join("Resources/vulkan/icd.d/MoltenVK_icd.json");
+
+		#[cfg(not(debug_assertions))]
+		let loader = contents
+			.join("Frameworks/libvulkan.dylib");
+
+		/**
+		 * Debug
+		 * this env wont be inside .app but on target/debug/, so we will need to get the libs from the global install
+		 */
+		#[cfg(debug_assertions)]
+		let icd = "/opt/homebrew/Cellar/molten-vk/1.4.0/etc/vulkan/icd.d/MoltenVK_icd.json";
+
+		#[cfg(debug_assertions)]
+		let loader = "/opt/homebrew/lib/libvulkan.dylib";
+
+		unsafe {
+			env::set_var("VK_ICD_FILENAMES", icd);
+
+			ash::Entry::load_from(loader)
+				.expect("error loading MoltenVK")
+		}
+	}*/
+
 	#[cfg(target_os = "macos")]
 	fn new_surface(instance: &Instance, entry: &ash::Entry, window: NonNull<c_void>) -> SurfaceKHR
 	{
@@ -179,7 +226,12 @@ impl Renderer {
 		 * load vulkan in execution, otherwise one might have a problem compiling it for macos (apple beeing apple)
 		 * another problem is the inexistence of a vulkan dylib natively on mac
 		 * the solution for that problem is packaging the necessary files (dylib) inside the .app
+		 * <https://stackoverflow.com/questions/39204908/how-to-check-release-debug-builds-using-cfg-in-rust>
 		 */
+		#[cfg(target_os = "linux")]
+		let entry: ash::Entry = unsafe { ash::Entry::linked() };
+
+		#[cfg(not(target_os = "linux"))]
 		let entry = unsafe { ash::Entry::load()? };
 
 		/**
@@ -312,6 +364,10 @@ mod tests {
 		assert!(renderer.is_ok());
 	}
 }
+
+// This is duplicate! Also avaliable on crates/app/cocoa.rs
+#[cfg(target_os = "macos")]
+use objc2::{rc::Retained, Message};
 
 #[cfg(target_os = "macos")]
 fn to_c_void<T>(ptr: &Retained<T>)

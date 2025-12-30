@@ -8,6 +8,8 @@ Chatting apps like whatsapp, discord, snapchat, messager, telegram, etc are upse
 
 None of the options for creating user interfaces for multiplatform pleased me, so I'm doing one from scratch using the Vulkan rendering API and the native calls from macOS, android, windows and linux. The main objective is to create something minimalistic portable and native in all platforms and desktops. I want to be able to use those crates on other projects as well and in the future, move them to their own repo.
 
+!["GUI app with 514 KB"]("./doc/sources/514.png")
+
 ### Linux
 
 Different from windows, macOS and android, the linux implementation has a lot of checks in runtime. By default it would be preferible to use server side decorations everywhere, but sice some DEs like Gnome don't offer support for the XDG_DECORATION wayland protocol, checking the necessity to render a CSD it's not an option. For now I don't bother to create a CSD, but the option is avaliable and maybe someday I will implement it.
@@ -22,11 +24,11 @@ The main crates to build the UI are avaliable on `./crates/app`, `./crates/rende
 
 ### MacOS
 
-On MacOS you will need to install the vulkan SDK to be able to build the program
+On MacOS you will need to install the vulkan SDK to be able to build the program. Make sure you have `VULKAN_SDK=/opt/homebrew/lib/libvulkan.dylib` set and `/opt/homebrew/bin` on your PATH.
 
 ### Linux
 
-On linux there are some packages that you will need to compile this project. Make sure you have installed `clang`, `build-essential`, `lld`, `libvulkan-dev`, `vulkan-tools` e `vulkan-validation-layers`.
+On linux there are some packages that you will need to compile this project. Make sure you have installed `clang`, `build-essential`, `lld`, `libvulkan-dev`, `vulkan-tools` and `vulkan-validation-layers`.
 
 ### Android
 

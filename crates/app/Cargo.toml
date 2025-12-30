@@ -17,7 +17,6 @@ log-panics.workspace = true
 simple_logger.workspace = true
 ash.workspace = true
 renderer.workspace = true
-ctor.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 wayland-protocols.workspace = true

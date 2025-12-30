@@ -1,7 +1,13 @@
 use app::{App, Event};
-use log::info;
+use log::{info, debug};
 
 fn main() {
+	simple_logger::SimpleLogger::new()
+		.init()
+		.unwrap();
+	log_panics::init();
+	debug!("starting program");
+
 	let mut app = App::new(true);
 	app.new_window("walkie talkie");
 	app.exec_loop(app_loop);
