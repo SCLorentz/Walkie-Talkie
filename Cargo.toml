@@ -27,8 +27,10 @@ log = "0.4.28"
 log-panics = "2.1.0"
 #url = "2.5.7"
 # linux
-wayland-client = "0.31"
+wayland-client = "0.31.11"
+wayland-protocols-experimental = "20250721.0.1"
 smithay-client-toolkit = "0.18"
+#dbus = "0.9.10"
 # macos
 objc2 = "0.6.3"
 objc2-app-kit = "0.3.2"
@@ -45,6 +47,7 @@ features = []
 
 [workspace.dependencies.wayland-protocols]
 version = "0.32.9"
+features = ["unstable"]
 
 [workspace.dependencies.ash]
 version = "0.38.0"

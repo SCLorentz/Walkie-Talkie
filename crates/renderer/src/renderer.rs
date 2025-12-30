@@ -174,20 +174,21 @@ impl Renderer {
 
 	// WARN: this is just a model and is not complete. The code will fail.
 	#[cfg(target_os = "linux")]
-	fn new_surface(instance: &Instance, entry: &ash::Entry, window: NonNull<c_void>) -> SurfaceKHR
+	fn new_surface(_instance: &Instance, _entry: &ash::Entry, _window: NonNull<c_void>) -> SurfaceKHR
 	{
-		use ash::khr::wayland_surface;
+		//use ash::khr::wayland_surface;
 		debug!("creating linux wayland surface");
 		/**
 		 * https://docs.rs/ash-window/0.13.0/src/ash_window/lib.rs.html#36-126
 		 * get window from wayland API
 		 */
-		let surface_desc = vk::WaylandSurfaceCreateInfoKHR::default()
+		/*let surface_desc = vk::WaylandSurfaceCreateInfoKHR::default()
 			.display(display.display.as_ptr())
 			.surface(window.surface.as_ptr());
 		let surface = wayland_surface::Instance::new(entry, instance);
 		surface.create_wayland_surface(&surface_desc, None)
-			.expect("couldn't create wayland surface")
+			.expect("couldn't create wayland surface")*/
+		SurfaceKHR::default()
 	}
 
 	/// Gets what it's needed to the renderer work
@@ -228,10 +229,9 @@ impl Renderer {
 		 * the solution for that problem is packaging the necessary files (dylib) inside the .app
 		 * <https://stackoverflow.com/questions/39204908/how-to-check-release-debug-builds-using-cfg-in-rust>
 		 */
-		#[cfg(target_os = "linux")]
-		let entry: ash::Entry = unsafe { ash::Entry::linked() };
+		//#[cfg(target_os = "linux")]
+		//let entry: ash::Entry = unsafe { ash::Entry::linked() };
 
-		#[cfg(not(target_os = "linux"))]
 		let entry = unsafe { ash::Entry::load()? };
 
 		/**
@@ -288,6 +288,7 @@ impl Renderer {
 	/// here's an oficial example: <https://github.com/ash-rs/ash/blob/master/ash-examples/src/bin/texture.rs>
 	pub fn render_pass(device: &ash::Device) -> Result<RenderPass, Box<dyn Error>>
 	{
+		// tbh, I have no idea what does this do
 		let renderpass_attachments = [
 			vk::AttachmentDescription {
 				samples: vk::SampleCountFlags::TYPE_1,

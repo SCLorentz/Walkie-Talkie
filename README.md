@@ -28,7 +28,11 @@ On MacOS you will need to install the vulkan SDK to be able to build the program
 
 ### Linux
 
-On linux there are some packages that you will need to compile this project. Make sure you have installed `clang`, `build-essential`, `lld`, `libvulkan-dev`, `vulkan-tools` and `vulkan-validation-layers`.
+On linux there are some packages that you will need to compile this project. Make sure you have installed `clang`, `build-essential`, `lld`, `libvulkan-dev`, `vulkan-tools` and `vulkan-validation-layers`. To build for linux simply use `cargo build-linux-x64`
+
+### GNOME
+
+GNOME has an especific build with limited features. Most of the protocols implemented in the app aren't supported by gnome as a design choice, but GNOME is a really popular DE on linux, so support for it is not an option. To build for gnome simply use `cargo build-gnome-x64` for x86_64 or `cargo build-gnome-a64` for aarch64.
 
 ### Android
 

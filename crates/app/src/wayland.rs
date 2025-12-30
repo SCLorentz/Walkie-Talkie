@@ -6,23 +6,13 @@ use core::ffi::c_void;
 use renderer::SurfaceBackend;
 use log::warn;
 
+//use wayland_client::Connection;
 //use wayland_protocols::xdg::zv1::client::zxdg_decoration_manager_v1::ZxdgDecorationManagerV1;
+//use wayland_protocols::xdg_shell::client::xdg_wm_base;
 
-/// Detects if the DE/WM prefers CSD or SSD
-pub fn get_decoration_mode() -> DecorationMode
+pub fn supports_blur() -> bool
 {
-	if get_de() == DE::Gnome {
-		warn!("GNOME DE detected! Client side decoration not implemented");
-		return DecorationMode::ClientSide
-	}
-
-	//let toplevel_decoration = ZxdgDecorationManagerV1::get_toplevel_decoration();
-	/**
-	 * <https://wayland.app/protocols/xdg-decoration-unstable-v1>
-	 * Every major compositor (except of course GNOME) has implemented the XDG_DECORATION protocol
-	 * get_toplevel_decoration(id: new_id<zxdg_toplevel_decoration_v1>, toplevel: object<xdg_toplevel>)
-	 */
-	DecorationMode::ServerSide
+	true
 }
 
 /// List of supported DEs/WMs
@@ -30,7 +20,6 @@ pub fn get_decoration_mode() -> DecorationMode
 enum DE {
 	Hyprland,
 	Kde,
-	Gnome,
 	Other,
 	Unknown,
 }
@@ -40,16 +29,10 @@ fn get_de() -> DE
 {
 	match env::var("XDG_CURRENT_DESKTOP") {
 		Ok(desktop) if desktop.contains("KDE") => DE::Kde,
-		Ok(desktop) if desktop.contains("GNOME") => DE::Gnome,
 		Ok(desktop) if desktop.contains("Hyprland") => DE::Hyprland,
 		Ok(_) => DE::Other,
 		Err(_) => DE::Unknown,
 	}
-}
-
-pub fn supports_blur() -> bool
-{
-	true
 }
 
 pub trait WaylandDecoration
@@ -62,10 +45,11 @@ pub trait WaylandDecoration
 
 impl WaylandDecoration for Decoration
 {
-	#[allow(unused)]
-	fn new(title: &str, width: f64, height: f64) -> Decoration
+	fn new(_title: &str, _width: f64, _height: f64) -> Decoration
 	{
 		/**
+		 * This version will include SSDs and DBusMenu
+		 * <https://docs.rs/dbusmenu-glib/latest/dbusmenu_glib/>
 		 * On KDE, implement:
 		 * - <https://wayland.app/protocols/kde-blur>
 		 * - <https://wayland.app/protocols/kde-appmenu>
@@ -75,9 +59,9 @@ impl WaylandDecoration for Decoration
 		 * - popups, notifications, tablet, ext_background_effect_manager_v1
 		 */
 		return Decoration {
-			mode: get_decoration_mode(),
-			frame: 1 as *const c_void,
-			app: 1 as *const c_void,
+			mode: DecorationMode::ServerSide,
+			frame: std::ptr::null_mut() as *const c_void,
+			app: std::ptr::null_mut() as *const c_void,
 			backend: SurfaceBackend::Linux {}
 		};
 	}

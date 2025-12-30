@@ -20,6 +20,9 @@ renderer.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 wayland-protocols.workspace = true
+wayland-protocols-experimental.workspace = true
+#dbus.workspace = true
+wayland-client.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2.workspace = true

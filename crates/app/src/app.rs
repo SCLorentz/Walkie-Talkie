@@ -1,11 +1,17 @@
 #![allow(unused_doc_comments)]
 
 // Linux dependencies --------------------
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", not(feature = "gnome")))]
 mod wayland;
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", not(feature = "gnome")))]
 use wayland::WaylandDecoration;
+
+#[cfg(all(target_os = "linux", feature = "gnome"))]
+mod gnome;
+
+#[cfg(all(target_os = "linux", feature = "gnome"))]
+use gnome::GnomeDecoration;
 
 // MacOS dependencies --------------------
 #[cfg(target_os = "macos")]
@@ -58,20 +64,54 @@ impl App {
 		self.windows.push(window);
 	}
 
-	/// The execution loop to be executed on the program.
-	/// Can be used to handle with events.
+	/**
+	 * In the future, merge the target macos and linux exec_loop() into one single
+	 */
+	#[cfg(target_os = "macos")]
 	pub fn exec_loop(&self, run: fn(e: Option<Event>))
 	{
+		let _state = EventState { exit: false }
+
 		std::thread::spawn(move || {
-			loop { run(App::event()); }
+			loop { run(None); }
 		});
 
-		// TODO: be careful with that
-		#[cfg(target_os = "macos")]
 		self.windows[0].decoration.run();
 	}
 
-	fn event() -> Option<Event>
+	/// The execution loop to be executed on the program.
+	/// Can be used to handle with events.
+	#[cfg(target_os = "linux")]
+	pub fn exec_loop(&self, run: fn(e: Option<Event>))
+	{
+		let mut event_queue: wayland_client::EventQueue<EventState> = Self::init_event_state();
+		let mut state = EventState { exit: false };
+
+		std::thread::spawn(move || {
+			loop {
+				event_queue.blocking_dispatch(&mut state).unwrap();
+				let event = Self::event(&state);
+
+				if state.exit { break }
+
+				run(None);
+			}
+		});
+	}
+
+	#[cfg(target_os = "linux")]
+	fn init_event_state() -> wayland_client::EventQueue<EventState>
+	{
+		use wayland_client::{Connection, EventQueue};
+
+		let connection = Connection::connect_to_env().unwrap();
+		let event_queue: EventQueue<EventState> = connection.new_event_queue();
+
+		event_queue
+	}
+
+	#[cfg(target_os = "linux")]
+	fn event(state: &EventState) -> Option<Event>
 	{
 		None
 	}
@@ -235,9 +275,12 @@ impl Cursor {
 		let pos = objc2_app_kit::NSEvent::mouseLocation();
 
 		#[cfg(not(target_os = "macos"))]
-		todo!();
+		let (x, y) = (0.0, 0.0);
 
-		(pos.x, pos.y)
+		#[cfg(target_os = "macos")]
+		let (x, y) = (pos.x, pos.y);
+
+		(x, y)
 	}
 
 	/// Modify the cursor position
@@ -317,4 +360,8 @@ pub enum Event {
 		window: Window
 	},
 	CloseRequest,
+}
+
+struct EventState {
+	exit: bool
 }

@@ -1,8 +1,8 @@
 [alias]
-build-linux = "build --target x86_64-unknown-linux-gnu"
-
-[alias]
-release-small = "build --profile release-smaller"
+build-linux-x64 = "build --target x86_64-unknown-linux-gnu"
+release-package = "exec python3 ./.cargo/package.py"
+build-gnome-x64 = "build --target x86_64-unknown-linux-gnu --features gnome"
+build-linux-a64 = "build --target aarch64-unknown-linux-gnu"
 
 [target.x86_64-unknown-linux-gnu]
 linker = "clang"
