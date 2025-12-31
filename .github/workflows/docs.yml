@@ -49,6 +49,11 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
+      - name: sanity check
+        run: |
+          ls -lah target/doc
+          ls -lah target/doc/app
+
       - name: Download built docs artifact
         uses: actions/download-artifact@v4
         with:
@@ -58,7 +63,7 @@ jobs:
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v3
         with:
-          publish_dir: ./site/target/doc
+          publish_dir: ./target/doc
           publish_branch: gh-pages
           allow_empty_commit: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
