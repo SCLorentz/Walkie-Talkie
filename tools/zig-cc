@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+set -e
+
+TARGET="x86_64-linux-musl"
+
+# tenta achar musl via musl-gcc
+MUSL_GCC="$(command -v musl-gcc || true)"
+
+if [ -z "$CC_x86_64_unknown_linux_musl" ]; then
+	echo "CC_x86_64_unknown_linux_musl não definido (entre no nix shell)" >&2
+	exit 1
+fi
+
+MUSL_PREFIX="$(dirname "$(dirname "$MUSL_GCC")")"
+
+CONF="$(mktemp)"
+cat > "$CONF" <<EOF
+include_dir=$MUSL_PREFIX/include
+sys_include_dir=$MUSL_PREFIX/include
+crt_dir=$MUSL_PREFIX/lib
+lib_dir=$MUSL_PREFIX/lib
+EOF
+
+exec zig cc \
+	-target x86_64-linux-musl \
+	--gcc-toolchain="$(dirname "$(dirname "$CC_x86_64_unknown_linux_musl")")" \
+	-static \
+	"$@"

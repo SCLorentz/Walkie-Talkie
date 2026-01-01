@@ -1,6 +1,7 @@
 #![allow(unused_doc_comments)]
 
 use crate::{DecorationMode, Decoration};
+use crate::platform::linux::DE;
 
 use std::env;
 use core::ffi::c_void;

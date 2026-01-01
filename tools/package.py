@@ -2,6 +2,7 @@ import subprocess
 
 print("building project...")
 subprocess.run('cargo build --profile release-smaller', shell=True)
+subprocess.run('strip target/release-smaller/wt', shell=True)
 print("packaging project...")
 
 # create packaging system:

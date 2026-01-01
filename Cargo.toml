@@ -26,7 +26,6 @@ renderer = { path = "crates/renderer" }
 log = "0.4.28"
 log-panics = "2.1.0"
 url = "2.5.7"
-matrix-sdk = "0.16.0"
 # linux
 wayland-client = "0.31.11"
 wayland-protocols-experimental = "20250721.0.1"
@@ -56,6 +55,7 @@ default-features = false
 features = ["debug", "loaded"]
 
 [workspace.dependencies.windows]
+default-features = false
 version = ">=0.59, <=0.62"
 features = [
 	"Data_Xml_Dom",
@@ -63,6 +63,11 @@ features = [
 	"Win32_System_Threading",
 	"Win32_UI_WindowsAndMessaging",
 ]
+
+[workspace.dependencies.matrix-sdk]
+version = "0.16.0"
+default-features = false
+features = ["rustls-tls"]
 
 # ---- Lints ----------------------
 

@@ -1,8 +1,7 @@
 use app::{App, Event};
 use log::{info, debug};
 
-#[allow(unused)]
-use auth::login;
+//use auth::login;
 //use url::Url;
 
 fn main() {

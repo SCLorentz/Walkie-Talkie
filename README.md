@@ -55,7 +55,7 @@ supported DE's:
 | source                                              | name                    | DE support             |
 |-----------------------------------------------------|-------------------------|------------------------|
 | https://wayland.app/protocols/xdg-dialog-v1         | xdg_dialog              | KDE / Hyprland / GNOME |
-| https://wayland.app/protocols/linux-drm-syncobj-v1  | linux-drm-syncobj       | ALL                    |
+| https://wayland.app/protocols/linux-drm-syncobj-v1  | linux-drm-syncobj       | All                    |
 | https://wayland.app/protocols/cursor-shape-v1       | cursor-shape            | All                    |
 | https://wayland.app/protocols/wayland-protocols/461 | xdg_decoration_theme    | Not implemented        |
 | https://wayland.app/protocols/wayland-protocols/449 | xdg_surface_shape       | Not implemented        |
