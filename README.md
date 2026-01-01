@@ -2,7 +2,11 @@
 
 My own implementation of the Client-Server API on a fast and optimized client program.
 
-Chatting apps like whatsapp, discord, snapchat, messager, telegram, etc are upsetting. All those apps are heavy, specially on computers, since most of those are made in electron or not optimized. Whatsapp on my macOS occupies 487MB of space; They are bloated with AI features like meta AI and trackers to sell your data to other companies; This apps are simply not optimized to be run with high resource usage computers, like in gaming, specially for low end computers; And most importantly, they are closed source.
+Modern chat apps are resource-heavy, closed-source, and often built with Electron, making them inefficient on desktop systems. They are bloated with AI features and trackers to sell your data to other companies; These apps are simply not optimized to be run with high resource usage computers, like in gaming, especially for low end computers; And most importantly, they are closed source.
+
+## Project Status
+
+This project is experimental and under active development. It is not yet intended for daily use. Mostly only the beggining of the backend implemented, optimized multiplatform vulkan powered rendering engines are hard to build.
 
 ## Development
 
@@ -12,7 +16,7 @@ None of the options for creating user interfaces for multiplatform pleased me, s
 
 ### Linux
 
-Different from windows, macOS and android, the linux implementation has a lot of checks in runtime. By default it would be preferible to use server side decorations everywhere, but sice some DEs like Gnome don't offer support for the XDG_DECORATION wayland protocol, checking the necessity to render a CSD it's not an option. For now I don't bother to create a CSD, but the option is avaliable and maybe someday I will implement it.
+Different from windows, macOS and android, the linux implementation has a lot of checks in runtime. By default it would be preferable to use server side decorations everywhere, but since some DEs like Gnome don't offer support for the XDG_DECORATION wayland protocol, checking the necessity to render a CSD it's not an option. For now I don't bother to create a CSD, but the option is avaliable and maybe someday I will implement it.
 
 ### Vulkan
 
@@ -32,8 +36,42 @@ On linux there are some packages that you will need to compile this project. Mak
 
 ### GNOME
 
-GNOME has an especific build with limited features. Most of the protocols implemented in the app aren't supported by gnome as a design choice, but GNOME is a really popular DE on linux, so support for it is not an option. To build for gnome simply use `cargo build-gnome-x64` for x86_64 or `cargo build-gnome-a64` for aarch64.
+GNOME has a specific build with limited features. Most of the protocols implemented in the app aren't supported by gnome as their team design choice, to respect that this program includes a specific build for it. To compile yourself, simply use `cargo build-gnome-x64` for x86_64 or `cargo build-gnome-a64` for aarch64.
 
 ### Android
 
 To build for android, make sure that the android sdk and ndk are installed and configured on your machine. You wont be able to compile the program without them. Then you can just use `cargo android-build`.
+
+## Wayland Protocols I want to support on 'Linux'
+
+supported DE's:
+
+- KDE (primary focus)
+- GNOME (separate bin)
+- COSMIC
+- SWAY
+- HYPRLAND
+
+| source                                              | name                    | DE support             |
+|-----------------------------------------------------|-------------------------|------------------------|
+| https://wayland.app/protocols/xdg-dialog-v1         | xdg_dialog              | KDE / Hyprland / GNOME |
+| https://wayland.app/protocols/linux-drm-syncobj-v1  | linux-drm-syncobj       | ALL                    |
+| https://wayland.app/protocols/cursor-shape-v1       | cursor-shape            | All                    |
+| https://wayland.app/protocols/wayland-protocols/461 | xdg_decoration_theme    | Not implemented        |
+| https://wayland.app/protocols/wayland-protocols/449 | xdg_surface_shape       | Not implemented        |
+| None                                                | xdg_chrome_capabilities | Not implemented        |
+
+### xdg_chrome_capabilities
+
+Idea similar to cocoa functionallity with the Quartz compositor on apple, but the implementation doesn't relly on the client side decoration like on apple, insted it asks _politely_ to the server to handle that.
+
+```Rust
+window.setTitlebarAppearsTransparent(true);
+window.setTitleVisibility(NSWindowTitleVisibility(1));
+```
+code from './crates/app/src/platform/cocoa.rs'
+
+The best of both CSD and SSD, no anoying title bar using vertical space and native decorations.
+Currentlly on wlroots local test.
+
+<img src="./doc/sources/xdg_chrome_capabilities.jpg" alt="xdg_chrome_capabilities examplification" width="600">

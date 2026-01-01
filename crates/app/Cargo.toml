@@ -3,6 +3,7 @@ name = "app"
 version = "0.0.1"
 edition.workspace = true
 publish.workspace = true
+authors = ["SCLorentz <sclorentz@proton.me>"]
 
 [lints]
 workspace = true
@@ -32,3 +33,9 @@ objc2-core-graphics.workspace = true
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows.workspace = true
+
+# ---- Features -------------------
+
+[features]
+x11 = []
+gnome = []

@@ -1,9 +1,9 @@
-use std::io::Write;
+//use std::io::Write;
 use std::error::Error;
 use matrix_sdk::{
 	Client,
 	authentication::oauth::{
-		qrcode::{LoginProgress, QrCodeData, QrCodeModeData},
+		qrcode::{/*LoginProgress,*/ QrCodeData, QrCodeModeData},
 		registration::{ApplicationType, ClientMetadata, Localized, OAuthGrantType},
 	},
 	ruma::serde::Raw,
@@ -74,10 +74,7 @@ async fn print_devices(client: &Client) -> Result<(), Box<dyn Error>>
 	Ok(())
 }
 
-pub async fn login
-(
-	proxy: Option<Url>
-) -> Result<(), Box<dyn Error>>
+pub async fn login(proxy: Option<Url>) -> Result<(), Box<dyn Error>>
 {
 	info!("user must login");
 

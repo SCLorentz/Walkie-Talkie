@@ -20,6 +20,7 @@ pub fn supports_blur() -> bool
 enum DE {
 	Hyprland,
 	Kde,
+	Sway,
 	Other,
 	Unknown,
 }
@@ -27,12 +28,12 @@ enum DE {
 /// Detect the current DE/WM that the program is beeing executed
 fn get_de() -> DE
 {
-	match env::var("XDG_CURRENT_DESKTOP") {
-		Ok(desktop) if desktop.contains("KDE") => DE::Kde,
-		Ok(desktop) if desktop.contains("Hyprland") => DE::Hyprland,
-		Ok(_) => DE::Other,
-		Err(_) => DE::Unknown,
-	}
+	let Some(desktop) = env::var("XDG_CURRENT_DESKTOP") else { return DE::Unknown };
+
+	if desktop.contains("KDE") { return DE::Kde }
+	if desktop.contains("Hyprland") { return DE::Hyprland }
+
+	DE::Other
 }
 
 pub trait WaylandDecoration

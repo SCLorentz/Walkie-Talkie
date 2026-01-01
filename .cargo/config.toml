@@ -1,8 +1,13 @@
 [alias]
-build-linux-x64 = "build --target x86_64-unknown-linux-gnu"
 release-package = "exec python3 ./.cargo/package.py"
-build-gnome-x64 = "build --target x86_64-unknown-linux-gnu --features gnome"
-build-linux-a64 = "build --target aarch64-unknown-linux-gnu"
+# linux specific (defaults to wayland)
+build-linux-x64			= "build --target x86_64-unknown-linux-gnu"
+build-linux-a64			= "build --target aarch64-unknown-linux-gnu"
+#
+build-linux-x64-x11		= "build-linux-x64 --features x11"
+build-linux-a64-x11		= "build-linux-a64 --features x11"
+build-gnome-x64			= "build-linux-x64 --features gnome"
+build-gnome-a64			= "build-linux-a64 --features gnome"
 
 [target.x86_64-unknown-linux-gnu]
 linker = "clang"

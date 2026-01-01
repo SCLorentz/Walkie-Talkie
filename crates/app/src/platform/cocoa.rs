@@ -46,67 +46,65 @@ impl CocoaDecoration for Decoration
 		let mtm = MainThreadMarker::new()
 			.expect("Process expected to be executed on the Main Thread!");
 
-		unsafe {
-			let origin = NSPoint::new(10.0, -2.3);
-			let size = NSSize::new(width, height);
-			let rect = NSRect::new(origin, size);
+		let origin = NSPoint::new(10.0, -2.3);
+		let size = NSSize::new(width, height);
+		let rect = NSRect::new(origin, size);
 
-			let window = NSWindow::initWithContentRect_styleMask_backing_defer(
-				NSWindow::alloc(mtm),
-				rect,
-				NSWindowStyleMask::Titled
-					| NSWindowStyleMask::Closable
-					| NSWindowStyleMask::Miniaturizable
-					| NSWindowStyleMask::Resizable
-					| NSWindowStyleMask::FullSizeContentView,
-				NSBackingStoreType::Buffered,
-				false,
-			);
+		let window = unsafe { NSWindow::initWithContentRect_styleMask_backing_defer(
+			NSWindow::alloc(mtm),
+			rect,
+			NSWindowStyleMask::Titled
+				| NSWindowStyleMask::Closable
+				| NSWindowStyleMask::Miniaturizable
+				| NSWindowStyleMask::Resizable
+				| NSWindowStyleMask::FullSizeContentView,
+			NSBackingStoreType::Buffered,
+			false,
+		)};
 
-			/**
-			 * setting the title here even tought it will not be rendered, bc setTitleVisibility
-			 * this may change in the future when the GUI is ready
-			 */
-			window.setTitle(&NSString::from_str(title));
+		/**
+		 * setting the title here even tought it will not be rendered, bc setTitleVisibility
+		 * this may change in the future when the GUI is ready
+		 */
+		window.setTitle(&NSString::from_str(title));
 
-			window.setTitlebarAppearsTransparent(true);
-			window.setTitleVisibility(NSWindowTitleVisibility(1));
-			window.setBackgroundColor(
-				Some(&NSColor::colorWithSRGBRed_green_blue_alpha(0.8, 0.5, 0.5, 1.0,)
-			));
+		window.setTitlebarAppearsTransparent(true);
+		window.setTitleVisibility(NSWindowTitleVisibility(1));
+		window.setBackgroundColor(
+			Some(&NSColor::colorWithSRGBRed_green_blue_alpha(0.8, 0.5, 0.5, 1.0,)
+		));
 
-			window.makeKeyAndOrderFront(None);
-			window.setReleasedWhenClosed(false);
+		window.makeKeyAndOrderFront(None);
+		unsafe { window.setReleasedWhenClosed(false) };
 
-			let view = window.contentView().expect("window must have content view");
-			let mtm = MainThreadMarker::new().expect("Process must run on the Main Thread!");
+		let view = window.contentView().expect("window must have content view");
+		let mtm = MainThreadMarker::new().expect("Process must run on the Main Thread!");
 
-			window.center();
-			window.setContentMinSize(NSSize::new(width, height));
+		window.center();
+		window.setContentMinSize(NSSize::new(width, height));
 
-			let delegate = Delegate::new(mtm);
-			window.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
-			window.makeKeyAndOrderFront(None);
+		let delegate = Delegate::new(mtm);
+		window.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
+		window.makeKeyAndOrderFront(None);
 
-			delegate.ivars().window.set(window.clone()).unwrap();
+		delegate.ivars().window.set(window.clone()).unwrap();
 
-			let app =  NSApplication::sharedApplication(mtm);
-			app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
-			#[allow(deprecated)]
-			app.activateIgnoringOtherApps(true);
+		let app =  NSApplication::sharedApplication(mtm);
+		app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
+		#[allow(deprecated)]
+		app.activateIgnoringOtherApps(true);
 
-			let backend = SurfaceBackend::MacOS {
-				ns_view: to_c_void(&view),
-				mtm: &mtm as *const MainThreadMarker as *const c_void,
-				rect: &rect as *const NSRect as *const c_void,
-			};
+		let backend = SurfaceBackend::MacOS {
+			ns_view: to_c_void(&view),
+			mtm: &mtm as *const MainThreadMarker as *const c_void,
+			rect: &rect as *const NSRect as *const c_void,
+		};
 
-			Decoration {
-				mode: DecorationMode::ServerSide,
-				frame: to_c_void(&window),
-				app: to_c_void(&app),
-				backend,
-			}
+		Decoration {
+			mode: DecorationMode::ServerSide,
+			frame: to_c_void(&window),
+			app: to_c_void(&app),
+			backend,
 		}
 	}
 

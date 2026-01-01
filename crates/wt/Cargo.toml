@@ -20,3 +20,9 @@ auth.workspace = true
 url.workspace = true
 log-panics.workspace = true
 simple_logger.workspace = true
+
+# ---- Features -------------------
+
+[features]
+x11 = []
+gnome = []

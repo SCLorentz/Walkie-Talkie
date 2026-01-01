@@ -1,7 +1,9 @@
 use app::{App, Event};
 use log::{info, debug};
+
+#[allow(unused)]
 use auth::login;
-use url::Url;
+//use url::Url;
 
 fn main() {
 	simple_logger::SimpleLogger::new()

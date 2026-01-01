@@ -3,6 +3,7 @@ name = "auth"
 version = "0.0.1"
 edition.workspace = true
 publish.workspace = true
+authors = ["SCLorentz <sclorentz@proton.me>"]
 
 [lints]
 workspace = true

@@ -30,7 +30,5 @@ impl GnomeDecoration for Decoration
 	fn make_view() {}
 
 	fn apply_blur(&self)
-	{
-		warn!("Sorry, this version of the executable doesn't offer support for blur");
-	}
+		{ warn!("Sorry, this version of the executable doesn't offer support for blur"); }
 }

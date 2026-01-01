@@ -1,5 +1,11 @@
 #![allow(unused_doc_comments)]
 
+#[cfg(target_os = "bsd")]
+compile_error!("bsd not supported");
+
+#[cfg(target_os = "redox")]
+compile_error!("redox not supported");
+
 mod platform;
 
 use platform::NativeDecoration;
@@ -137,15 +143,13 @@ impl Window {
 	{
 		let decoration = Decoration::new(title, 600.0, 500.0);
 
-		match theme {
-			ThemeOp::Dark { blur } => {
-				if blur { decoration.apply_blur() }
-				// surface.theme = ThemeOp::Dark
-			},
-			ThemeOp::Light { blur } => {
-				if blur { decoration.apply_blur() }
-				// surface.theme = ThemeOp::White
-			},
+		let blur = match theme {
+			ThemeOp::Dark { blur } => blur,
+			ThemeOp::Light { blur } => blur,
+		};
+
+		if blur {
+			decoration.apply_blur();
 		}
 
 		let renderer = Self::connect_vulkan_renderer(decoration.backend.clone());
