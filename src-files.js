@@ -1,0 +1,2 @@
+createSrcSidebar('[["app",["",[["platform",[["linux",[],["mod.rs","wayland.rs"]]],["mod.rs"]]],["app.rs"]]],["app",["",[],["app.rs","wayland.rs"]]],["renderer",["",[],["renderer.rs"]]],["wt",["",[],["main.rs"]]]]');
+//{"start":19,"fragment_lengths":[88,40,37,27]}
