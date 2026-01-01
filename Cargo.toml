@@ -66,6 +66,7 @@ features = [
 	"Win32_UI_WindowsAndMessaging",
 ]
 
+# maybe at some point I will ditch this and create my own
 [workspace.dependencies.matrix-sdk]
 version = "0.16.0"
 default-features = false

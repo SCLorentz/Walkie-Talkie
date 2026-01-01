@@ -345,7 +345,7 @@ impl Renderer {
 	}
 }
 
-#[cfg(test)]
+#[cfg(test)] // this wont work on linux for some reason
 mod tests {
 	use super::*;
 

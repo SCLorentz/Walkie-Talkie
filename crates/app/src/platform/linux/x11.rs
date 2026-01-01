@@ -16,8 +16,15 @@ pub fn supports_blur() -> bool
 /// Detect the current DE/WM that the program is beeing executed
 fn get_de() -> DE
 {
-	let Some(desktop) = env::var("XDG_CURRENT_DESKTOP") else { return DE::Unknown };
+	let desktop = env::var("XDG_CURRENT_DESKTOP")
+		.unwrap_or_else(|_| {
+			warn!("missing XDG_CURRENT_DESKTOP");
+			String::from("")
+		});
 
+	if desktop.contains("XFCE") { return DE::Xfce }
+
+	if desktop == "" { return DE::Unknown }
 	DE::Other
 }
 
@@ -33,17 +40,6 @@ impl XDecoration for Decoration
 {
 	fn new(_title: &str, _width: f64, _height: f64) -> Decoration
 	{
-		/**
-		 * This version will include SSDs and DBusMenu
-		 * <https://docs.rs/dbusmenu-glib/latest/dbusmenu_glib/>
-		 * On KDE, implement:
-		 * - <https://wayland.app/protocols/kde-blur>
-		 * - <https://wayland.app/protocols/kde-appmenu>
-		 * On Hyprland, implement:
-		 * - <https://wayland.app/protocols/hyprland-surface-v1>
-		 * Other future (optional) implementations may include:
-		 * - popups, notifications, tablet, ext_background_effect_manager_v1
-		 */
 		return Decoration {
 			mode: DecorationMode::ServerSide,
 			frame: std::ptr::null_mut() as *const c_void,

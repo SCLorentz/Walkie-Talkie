@@ -1,9 +1,18 @@
 #![allow(unused)]
+#![windows_subsystem = "windows"]
+// https://github.com/microsoft/windows-rs/blob/master/crates/samples/windows/core_app/src/main.rs
+// TODO: make a VM and test this on windows (fix all problems)
+
 use crate::{DecorationMode, Decoration};
 
 use windows::{
-	core::*, Data::Xml::Dom::*, Win32::Foundation::*, Win32::System::Threading::*,
-	Win32::UI::WindowsAndMessaging::*,
+	core::*,
+	ApplicationModel::{Core::*, Package},
+	Win32::{
+		System::Com::*,
+		UI::WindowsAndMessaging::{MessageBoxW, MB_ICONSTOP, MB_OK},
+	},
+	UI::Core::*,
 };
 
 pub trait WindowsDecoration {
@@ -16,11 +25,70 @@ impl WindowsDecoration for Decoration
 {
 	fn new() -> Decoration
 	{
+		unsafe {
+			CoInitializeEx(None, COINIT_MULTITHREADED).ok()?;
+
+			if let Err(result) = Package::Current() {
+				MessageBoxW(
+					None,
+					w!("This sample must be registered (via register.cmd) and launched from Start."),
+					w!("Error"),
+					MB_ICONSTOP | MB_OK,
+				);
+				return Err(result);
+			}
+		}
+
+		let app: IFrameworkViewSource = CoreApp().into();
+		CoreApplication::Run(&app)?;
+		Ok(())
+
 		return Decoration {
 			mode: DecorationMode::ServerSide,
+			app
 		};
 	}
 
 	fn make_view() {}
 	fn apply_blur(&self) {}
+}
+
+#[implement(IFrameworkViewSource)]
+struct CoreApp();
+
+impl IFrameworkViewSource_Impl for CoreApp_Impl
+{
+	fn CreateView(&self) -> Result<IFrameworkView>
+	{
+		Ok(CoreAppView().into())
+	}
+}
+
+#[implement(IFrameworkView)]
+struct CoreAppView();
+
+impl IFrameworkView_Impl for CoreAppView_Impl
+{
+	fn Initialize(&self, _: Ref<CoreApplicationView>) -> Result<()>
+		{ Ok(()) }
+
+	fn Load(&self, _: &HSTRING) -> Result<()>
+		{ Ok(()) }
+
+	fn Uninitialize(&self) -> Result<()>
+		{ Ok(()) }
+
+	fn Run(&self) -> Result<()>
+	{
+		let window = CoreWindow::GetForCurrentThread()?;
+		window.Activate()?;
+
+		let dispatcher = window.Dispatcher()?;
+		dispatcher.ProcessEvents(CoreProcessEventsOption::ProcessUntilQuit)?;
+
+		Ok(())
+	}
+
+	fn SetWindow(&self, _: Ref<CoreWindow>) -> Result<()>
+		{ Ok(()) }
 }
