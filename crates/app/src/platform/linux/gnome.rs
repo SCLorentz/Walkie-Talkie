@@ -2,6 +2,7 @@
 // if you are reading this, you have been gnomed
 
 use crate::{DecorationMode, Decoration};
+
 use std::env;
 use core::ffi::c_void;
 use renderer::SurfaceBackend;

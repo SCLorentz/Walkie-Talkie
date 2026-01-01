@@ -1,6 +1,7 @@
 #![allow(unused_doc_comments)]
 
 use crate::{DecorationMode, Decoration};
+
 use std::env;
 use core::ffi::c_void;
 use renderer::SurfaceBackend;
@@ -9,14 +10,6 @@ use log::warn;
 pub fn supports_blur() -> bool
 {
 	true
-}
-
-/// List of supported DEs/WMs
-#[derive(Debug, PartialEq)]
-enum DE {
-	Xfce,
-	Other,
-	Unknown,
 }
 
 /// Detect the current DE/WM that the program is beeing executed

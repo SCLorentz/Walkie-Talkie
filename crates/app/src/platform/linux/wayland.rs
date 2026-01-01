@@ -1,6 +1,7 @@
 #![allow(unused_doc_comments)]
 
 use crate::{DecorationMode, Decoration};
+
 use std::env;
 use core::ffi::c_void;
 use renderer::SurfaceBackend;
@@ -15,20 +16,11 @@ pub fn supports_blur() -> bool
 	true
 }
 
-/// List of supported DEs/WMs
-#[derive(Debug, PartialEq)]
-enum DE {
-	Hyprland,
-	Kde,
-	Sway,
-	Other,
-	Unknown,
-}
-
 /// Detect the current DE/WM that the program is beeing executed
 fn get_de() -> DE
 {
-	let Some(desktop) = env::var("XDG_CURRENT_DESKTOP") else { return DE::Unknown };
+	let desktop = env::var("XDG_CURRENT_DESKTOP")
+		.unwrap_or_else(|_| { return DE::Unknown });
 
 	if desktop.contains("KDE") { return DE::Kde }
 	if desktop.contains("Hyprland") { return DE::Hyprland }

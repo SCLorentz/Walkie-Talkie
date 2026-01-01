@@ -112,7 +112,7 @@ pub async fn login(proxy: Option<Url>) -> Result<(), Box<dyn Error>>
 	let registration_data = client_metadata().into();
 	let oauth = client.oauth();
 
-	let login_client = oauth.login_with_qr_code(Some(&registration_data));
+	let _login_client = oauth.login_with_qr_code(Some(&registration_data));
 	//let mut subscriber = login_client.subscribe_to_progress();
 
 	/*let task = std::thread::spawn(async move || {
