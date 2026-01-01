@@ -5,7 +5,7 @@ members = [
 	"crates/wt",
 	"crates/renderer",
 	#"crates/android",
-	"crates/auth",
+	#"crates/auth",
 	#"crates/api",
 	#"crates/gui",
 ]
@@ -18,7 +18,7 @@ edition = "2024"
 [workspace.dependencies]
 app = { path = "crates/app" }
 #android = { path = "crates/android" }
-auth = { path = "crates/auth" }
+#auth = { path = "crates/auth" }
 #gui = { path = "crates/gui" }
 #api = { path = "crates/api" }
 renderer = { path = "crates/renderer" }
