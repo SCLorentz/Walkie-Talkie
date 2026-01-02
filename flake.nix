@@ -14,6 +14,7 @@
 				pkgs.zig
 				cross.stdenv.cc
 				cross.pkg-config
+				pkgs.python312Packages.toml
 			];
 
 			shellHook = ''
