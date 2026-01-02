@@ -1,6 +1,8 @@
 .DS_store
 target/
 .vscode/
+**/*.tar.gz
+wt.app/*
 
 # Added by cargo
 

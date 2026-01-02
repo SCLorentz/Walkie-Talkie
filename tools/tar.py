@@ -1,13 +1,12 @@
 # https://realpython.com/ref/stdlib/tarfile/
-import tarfile, pathlib
+import tarfile, pathlib, shutil, os
 
 def create_generic_package(release):
-	archive_name =
-		pathlib.Path(f"wt_{release}.tar.gz")
+	archive_name = pathlib.Path(f"wt_{release}.tar.gz")
+	shutil.copyfile("target/x86_64-unknown-linux-musl/release-smaller/wt", "wt")
 
-	if not archive:
-		return
 	with tarfile.open(archive_name, mode="w:gz") as tar_file:
-		tar_file
-			.add("target/x86_64-unknown-linux-musl/release-smaller/wt")
+		# for some reason recursive=False does not change a thing
+		tar_file.add("wt")
+		os.remove("wt")
 		return archive_name
