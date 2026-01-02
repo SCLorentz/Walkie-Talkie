@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["SurfaceBackend"],"struct":["Renderer"]};
+window.SIDEBAR_ITEMS = {"struct":["Renderer"]};
