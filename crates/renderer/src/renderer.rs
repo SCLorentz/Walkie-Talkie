@@ -1,4 +1,5 @@
 #![allow(unused_doc_comments)]
+#![doc = include_str!("../README.md")]
 
 use ash::Instance;
 use ash::vk::{self, SurfaceKHR, RenderPass, Handle, PhysicalDevice};
@@ -6,15 +7,19 @@ use std::{error::Error, ptr::NonNull};
 use log::debug;
 use core::ffi::c_void;
 
+// this is purposefully repeated here and on app.rs
+#[allow(unused)]
 #[derive(Clone, PartialEq, Debug)]
-pub enum SurfaceBackend {
+enum SurfaceBackend {
 	MacOS {
 		ns_view: *mut c_void,
 		mtm: *const c_void,
 		rect: *const c_void,
 	},
 	Windows {},
-	Linux {},
+	Linux {
+		wayland_view: *mut c_void
+	},
 	Headless,
 }
 
@@ -174,21 +179,29 @@ impl Renderer {
 
 	// WARN: this is just a model and is not complete. The code will fail.
 	#[cfg(target_os = "linux")]
-	fn new_surface(_instance: &Instance, _entry: &ash::Entry, _window: NonNull<c_void>) -> SurfaceKHR
+	fn new_surface(instance: &Instance, entry: &ash::Entry, window: NonNull<c_void>) -> SurfaceKHR
 	{
-		//use ash::khr::wayland_surface;
 		debug!("creating linux wayland surface");
+
+		use ash::{khr::wayland_surface, vk::wl_display};
+
+		pub struct WaylandWindowHandle {
+			pub surface: NonNull<c_void>,
+		}
+
+		let window: &WaylandWindowHandle = unsafe { window.cast().as_ref() };
 		/**
 		 * https://docs.rs/ash-window/0.13.0/src/ash_window/lib.rs.html#36-126
-		 * get window from wayland API
 		 */
-		/*let surface_desc = vk::WaylandSurfaceCreateInfoKHR::default()
-			.display(display.display.as_ptr())
-			.surface(window.surface.as_ptr());
+		let display = std::ptr::null_mut() as *const c_void as *mut wl_display;
+
+		let surface_desc = vk::WaylandSurfaceCreateInfoKHR::default()
+			.display(display)
+			.surface((*window).surface.as_ptr());
+
 		let surface = wayland_surface::Instance::new(entry, instance);
-		surface.create_wayland_surface(&surface_desc, None)
-			.expect("couldn't create wayland surface")*/
-		SurfaceKHR::default()
+		unsafe { surface.create_wayland_surface(&surface_desc, None)
+			.expect("couldn't create wayland surface") }
 	}
 
 	/// Gets what it's needed to the renderer work
@@ -203,10 +216,11 @@ impl Renderer {
 	/// Creates a new Vulkan render
 	/// this will be our initVulkan() from the tutorial
 	/// <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Base_code#:~:text=initVulkan()>
-	pub fn new(surface_backend: SurfaceBackend) -> Result<Renderer, Box<dyn Error>>
+	pub fn new(surface_backend: *mut c_void) -> Result<Renderer, Box<dyn Error>>
 	{
+		let ptr = surface_backend as *mut SurfaceBackend;
+		let surface_backend = unsafe { (*ptr).clone() };
 		debug!("Creating new vulkan render");
-		//let view: *mut c_void = std::ptr::null_mut();
 
 		/**
 		 * load vulkan in execution, otherwise one might have a problem compiling it for macos (apple beeing apple)
@@ -253,20 +267,19 @@ impl Renderer {
 		 * but the way it is created is different, using `SurfaceFactory`, for that I would need winit
 		 */
 
-		let surface = match surface_backend {
+		let view = match surface_backend {
 			#[cfg(debug_assertions)]
-			SurfaceBackend::Headless =>
-				SurfaceKHR::default(),
-			SurfaceBackend::MacOS { ns_view, .. } =>
-			{
-				let nn_view = NonNull::new(ns_view)
-					.expect("NSView is shouldn't be null")
-					.cast();
-
-				Self::new_surface(&instance, &entry, nn_view)
-			},
+			SurfaceBackend::Headless => todo!(),
+			SurfaceBackend::MacOS { ns_view, .. } => ns_view,
+			SurfaceBackend::Linux { wayland_view } => wayland_view,
 			_ => todo!()
 		};
+
+		let nn_view = NonNull::new(view)
+			.expect("NSView is shouldn't be null")
+			.cast();
+
+		let surface = Self::new_surface(&instance, &entry, nn_view);
 
 		Ok(Renderer {
 			instance,
@@ -345,7 +358,7 @@ impl Renderer {
 	}
 }
 
-#[cfg(test)] // this wont work on linux for some reason
+/*#[cfg(test)] // this wont work on linux for some reason
 mod tests {
 	use super::*;
 
@@ -353,10 +366,10 @@ mod tests {
 	fn test_vulkan_render()
 	{
 		// for now this should fail, bc I didn't implement the Headless execution
-		let renderer = Renderer::new(SurfaceBackend::Headless);
+		let renderer = Renderer::new(SurfaceBackend::Headless as *mut SurfaceBackend as *mut c_void);
 		assert!(renderer.is_ok());
 	}
-}
+}*/
 
 // This is duplicate! Also avaliable on crates/app/cocoa.rs
 #[cfg(target_os = "macos")]

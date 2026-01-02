@@ -6,7 +6,7 @@ members = [
 	"crates/renderer",
 	#"crates/android",
 	#"crates/auth",
-	#"crates/api",
+	#"crates/matrix_client_protocols",
 	#"crates/gui",
 ]
 default-members = ["crates/wt"]
@@ -21,7 +21,7 @@ app = { path = "crates/app" }
 #android = { path = "crates/android" }
 #auth = { path = "crates/auth" }
 #gui = { path = "crates/gui" }
-#api = { path = "crates/api" }
+#api = { path = "crates/matrix_client_protocols" }
 renderer = { path = "crates/renderer" }
 # logging
 log = "0.4.28"
@@ -38,10 +38,6 @@ objc2-quartz-core = "0.3.2"
 objc2-core-graphics = "0.3.2"
 # android
 ndk-sys = "0.6.0"
-
-[workspace.dependencies.url]
-version = "2.5.7"
-default-features = false
 
 [workspace.dependencies.simple_logger]
 version = "5.1.0"
@@ -67,11 +63,10 @@ features = [
 	"Win32_UI_WindowsAndMessaging",
 ]
 
-# maybe at some point I will ditch this and create my own
-[workspace.dependencies.matrix-sdk]
-version = "0.16.0"
-default-features = false
-features = []
+#[workspace.dependencies.matrix-sdk]
+#version = "0.16.0"
+#default-features = false
+#features = []
 
 # ---- Lints ----------------------
 

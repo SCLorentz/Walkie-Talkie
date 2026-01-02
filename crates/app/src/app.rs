@@ -1,4 +1,5 @@
 #![allow(unused_doc_comments)]
+#![doc = include_str!("../README.md")]
 
 #[cfg(target_os = "bsd")]
 compile_error!("bsd not supported");
@@ -11,9 +12,21 @@ mod platform;
 use platform::NativeDecoration;
 use log::info;
 use ash::vk::SurfaceKHR;
-use renderer::{Renderer, SurfaceBackend};
+use renderer::Renderer; // now the only thing we need to get rid of is the Renderer
 use std::path::Path;
 use core::ffi::c_void;
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum SurfaceBackend {
+	MacOS {
+		ns_view: *mut c_void,
+		mtm: *const c_void,
+		rect: *const c_void,
+	},
+	Windows {},
+	Linux {},
+	Headless,
+}
 
 /**
  * maybe in the future I will apply more options to the blur, converting it into a struct,
@@ -181,7 +194,7 @@ pub trait RenderWindow {
 impl RenderWindow for Window {
 	fn connect_vulkan_renderer(backend: SurfaceBackend) -> Renderer
 	{
-		let renderer = Renderer::new(backend)
+		let renderer = Renderer::new(to_c_void(backend))
 			.expect("Vulkan inicialization failed");
 		renderer
 	}
@@ -345,4 +358,10 @@ pub enum Event {
 #[allow(unused)]
 struct EventState {
 	exit: bool
+}
+
+#[allow(dangling_pointers_from_locals)]
+fn to_c_void<T>(mut val: T) -> *mut c_void
+{
+	&mut val as *mut T as *mut c_void
 }

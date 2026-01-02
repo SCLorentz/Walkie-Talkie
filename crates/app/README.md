@@ -1,21 +1,14 @@
-#![doc = include_str!("../README.md")]
+# App
 
-use app::{App, Event};
-use log::{info, debug};
+The app structure is divided in three main modules, macOS, windows and linux. Linux itself has other variations to support x11 and native GNOME builds.
 
-//use auth::login;
+## Example
 
+```rust
 fn main() {
-	simple_logger::SimpleLogger::new()
-		.init()
-		.unwrap();
-	log_panics::init();
-	debug!("starting program");
-
 	let mut app = App::new(true);
-	app.new_window("walkie talkie");
 
-	//login(None);
+	app.new_window("my application");
 	app.exec_loop(app_loop);
 }
 
@@ -29,3 +22,4 @@ fn app_loop(event: Option<Event>)
 		None => {}
 	}
 }
+```

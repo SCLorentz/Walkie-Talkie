@@ -3,7 +3,7 @@
 use std::cell::OnceCell;
 use core::ffi::c_void;
 use log::debug;
-use renderer::SurfaceBackend;
+use crate::SurfaceBackend;
 
 use objc2::{
 	rc::{Retained, Allocated},

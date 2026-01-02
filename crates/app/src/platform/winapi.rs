@@ -3,7 +3,7 @@
 // https://github.com/microsoft/windows-rs/blob/master/crates/samples/windows/core_app/src/main.rs
 // TODO: make a VM and test this on windows (fix all problems)
 
-use crate::{DecorationMode, Decoration};
+use crate::{DecorationMode, Decoration, SurfaceBackend};
 
 use windows::{
 	core::*,

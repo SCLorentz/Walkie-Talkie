@@ -24,7 +24,7 @@ To create more compatibility between different systems (mainly macOS), vulkan wi
 
 ## Build
 
-The main crates to build the UI are avaliable on `./crates/app`, `./crates/renderer` and `./crates/gui`. To build yourself the app from the source you just need to use `cargo build --release`, but for now there's no packaging avaliable for any platform.
+The main crates to build the UI are avaliable on `./crates/app`, `./crates/renderer` and `./crates/gui`. To build yourself the app from the source you just need to use `cargo release-package`, this will compile to your specific archtecture and package it to the most adequate package to your platform.
 
 ### MacOS
 
@@ -41,6 +41,10 @@ GNOME has a specific build with limited features. Most of the protocols implemen
 ### Android
 
 To build for android, make sure that the android sdk and ndk are installed and configured on your machine. You wont be able to compile the program without them. Then you can just use `cargo android-build`.
+
+## Considerations
+
+This code has many 'unsafe' blocks, at some point it would be good to convert them to a safer approach
 
 ## Wayland Protocols I want to support on 'Linux'
 

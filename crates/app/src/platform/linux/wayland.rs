@@ -5,7 +5,7 @@ use crate::platform::linux::DE;
 
 use std::env;
 use core::ffi::c_void;
-use renderer::SurfaceBackend;
+use crate::SurfaceBackend;
 use log::warn;
 
 //use wayland_client::Connection;

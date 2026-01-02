@@ -14,5 +14,4 @@ doctest = false
 
 [dependencies]
 log.workspace = true
-matrix-sdk.workspace = true
-url.workspace = true
+matrix_client_protocols.workspace = true
