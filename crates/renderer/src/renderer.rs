@@ -6,22 +6,7 @@ use ash::vk::{self, SurfaceKHR, RenderPass, Handle, PhysicalDevice};
 use std::{error::Error, ptr::NonNull};
 use log::debug;
 use core::ffi::c_void;
-
-// this is purposefully repeated here and on app.rs
-#[allow(unused)]
-#[derive(Clone, PartialEq, Debug)]
-enum SurfaceBackend {
-	MacOS {
-		ns_view: *mut c_void,
-		mtm: *const c_void,
-		rect: *const c_void,
-	},
-	Windows {},
-	Linux {
-		wayland_view: *mut c_void
-	},
-	Headless,
-}
+use common::SurfaceBackend;
 
 #[allow(dead_code)]
 pub struct Renderer {
@@ -216,11 +201,12 @@ impl Renderer {
 	/// Creates a new Vulkan render
 	/// this will be our initVulkan() from the tutorial
 	/// <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Base_code#:~:text=initVulkan()>
-	pub fn new(surface_backend: *mut c_void) -> Result<Renderer, Box<dyn Error>>
+	pub fn new(surface_backend: &mut SurfaceBackend) -> Result<Renderer, Box<dyn Error>>
 	{
+		// for some reason idk how to take this off without invalid memory address
 		let ptr = surface_backend as *mut SurfaceBackend;
 		let surface_backend = unsafe { (*ptr).clone() };
-		debug!("Creating new vulkan render");
+		debug!("Creating new vulkan render on backend:\n{:#?}", surface_backend);
 
 		/**
 		 * load vulkan in execution, otherwise one might have a problem compiling it for macos (apple beeing apple)

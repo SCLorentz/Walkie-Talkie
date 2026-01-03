@@ -4,6 +4,7 @@ members = [
 	"crates/app",
 	"crates/wt",
 	"crates/renderer",
+	"crates/common"
 	#"crates/android",
 	#"crates/auth",
 	#"crates/matrix_client_protocols",
@@ -18,11 +19,12 @@ edition = "2024"
 
 [workspace.dependencies]
 app = { path = "crates/app" }
+renderer = { path = "crates/renderer" }
 #android = { path = "crates/android" }
 #auth = { path = "crates/auth" }
 #gui = { path = "crates/gui" }
 #api = { path = "crates/matrix_client_protocols" }
-renderer = { path = "crates/renderer" }
+common = { path = "crates/common" }
 # logging
 log = "0.4.28"
 log-panics = "2.1.0"

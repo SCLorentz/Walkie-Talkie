@@ -1,6 +1,7 @@
 #![doc = include_str!("../README.md")]
 
-use app::{App, Event};
+use app::{App, Event, SurfaceWrapper};
+use renderer::Renderer;
 use log::{info, debug};
 
 //use auth::login;
@@ -13,7 +14,11 @@ fn main() {
 	debug!("starting program");
 
 	let mut app = App::new(true);
-	app.new_window("walkie talkie");
+	let mut window = app.new_window("walkie talkie");
+
+	let renderer = Renderer::new(&mut window.get_backend())
+		.expect("Vulkan inicialization failed");
+	window.connect_surface(SurfaceWrapper::new(renderer.surface));
 
 	//login(None);
 	app.exec_loop(app_loop);

@@ -18,6 +18,8 @@ log.workspace = true
 app.workspace = true
 log-panics.workspace = true
 simple_logger.workspace = true
+ash.workspace = true
+renderer.workspace = true
 
 # ---- Features -------------------
 

@@ -11,21 +11,23 @@ mod platform;
 
 use platform::NativeDecoration;
 use log::info;
-use ash::vk::SurfaceKHR;
-use renderer::Renderer; // now the only thing we need to get rid of is the Renderer
 use std::path::Path;
 use core::ffi::c_void;
+use common::SurfaceBackend;
 
 #[derive(Clone, PartialEq, Debug)]
-pub enum SurfaceBackend {
-	MacOS {
-		ns_view: *mut c_void,
-		mtm: *const c_void,
-		rect: *const c_void,
-	},
-	Windows {},
-	Linux {},
-	Headless,
+pub struct SurfaceWrapper(pub *mut c_void);
+
+impl SurfaceWrapper
+{
+	pub fn new<T>(mut wrap: T) -> Self
+		{ SurfaceWrapper(&mut wrap as *mut T as *mut c_void) }
+
+	pub fn is_null(&self) -> bool
+		{ self.0.is_null() }
+
+	pub unsafe fn cast<T>(&self) -> *mut T
+		{ self.0 as *mut T }
 }
 
 /**
@@ -53,10 +55,11 @@ impl App {
 	}
 
 	/// Creates a new Window element and pushes to the App
-	pub fn new_window(&mut self, title: &'static str)
+	pub fn new_window(&mut self, title: &'static str) -> Window
 	{
 		let window = Window::new(title, self.theme.clone());
-		self.windows.push(window);
+		self.windows.push(window.clone());
+		window
 	}
 
 	/**
@@ -139,18 +142,18 @@ pub struct Window {
 	/// Window title
 	pub title: String,
 	/// The vulkan render surface
-	pub surface: SurfaceKHR,
+	pub surface: Option<SurfaceWrapper>,
 	/// The native window frame
 	decoration: Decoration,
 	resizable: bool,
 	position: (f32, f32),
-	surface_size: (f32, f32),
 	active: bool,
 	theme: ThemeOp,
 	//id: u32,
 }
 
-impl Window {
+impl Window
+{
 	/// Create a new window
 	pub fn new(title: &'static str, theme: ThemeOp) -> Self
 	{
@@ -165,12 +168,9 @@ impl Window {
 			decoration.apply_blur();
 		}
 
-		let renderer = Self::connect_vulkan_renderer(decoration.backend.clone());
-
 		Window {
 			decoration,
-			surface: renderer.surface,
-			surface_size: renderer.get_surface_size(),
+			surface: None,
 			active: false,
 			resizable: true,
 			position: (0.0, 0.0),
@@ -179,25 +179,26 @@ impl Window {
 		}
 	}
 
+	pub fn get_backend(&self) -> SurfaceBackend
+	{
+		self.decoration.backend.clone()
+	}
+
+	pub fn some_surface(&self) -> bool
+	{
+		self.surface.is_some()
+	}
+
+	pub fn connect_surface(&mut self, surface: SurfaceWrapper)
+	{
+		self.surface = Some(surface);
+	}
+
 	/// Detects if the window is focused
 	pub fn is_active(&self) -> bool { self.active }
 
 	#[allow(unused)]
 	pub fn close_window(&self) {}
-}
-
-// Todo: move this trait somewhere to remove dependency of renderer crate on this one
-pub trait RenderWindow {
-	fn connect_vulkan_renderer(backend: SurfaceBackend) -> Renderer;
-}
-
-impl RenderWindow for Window {
-	fn connect_vulkan_renderer(backend: SurfaceBackend) -> Renderer
-	{
-		let renderer = Renderer::new(to_c_void(backend))
-			.expect("Vulkan inicialization failed");
-		renderer
-	}
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -358,10 +359,4 @@ pub enum Event {
 #[allow(unused)]
 struct EventState {
 	exit: bool
-}
-
-#[allow(dangling_pointers_from_locals)]
-fn to_c_void<T>(mut val: T) -> *mut c_void
-{
-	&mut val as *mut T as *mut c_void
 }
