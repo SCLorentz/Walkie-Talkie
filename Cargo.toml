@@ -3,7 +3,7 @@ resolver = "2"
 members = [
 	"crates/app",
 	"crates/wt",
-	"crates/renderer",
+	"crates/vk_renderer",
 	"crates/common"
 	#"crates/android",
 	#"crates/auth",
@@ -19,7 +19,7 @@ edition = "2024"
 
 [workspace.dependencies]
 app = { path = "crates/app" }
-renderer = { path = "crates/renderer" }
+vk_renderer = { path = "crates/vk_renderer" }
 #android = { path = "crates/android" }
 #auth = { path = "crates/auth" }
 #gui = { path = "crates/gui" }
@@ -48,7 +48,7 @@ features = []
 
 [workspace.dependencies.wayland-protocols]
 version = "0.32.9"
-features = ["unstable"]
+features = ["unstable", "client"]
 
 [workspace.dependencies.ash]
 version = "0.38.0"

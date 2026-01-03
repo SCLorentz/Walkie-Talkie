@@ -3,7 +3,6 @@
 use std::cell::OnceCell;
 use core::ffi::c_void;
 use log::debug;
-use crate::SurfaceBackend;
 
 use objc2::{
 	rc::{Retained, Allocated},
@@ -27,7 +26,7 @@ use objc2_foundation::{
 	NSSize, NSString,
 };
 
-use crate::{DecorationMode, Decoration};
+use crate::{DecorationMode, Decoration, SurfaceBackend};
 
 pub trait CocoaDecoration
 {
@@ -98,12 +97,12 @@ impl CocoaDecoration for Decoration
 			ns_view: to_c_void(&view),
 			mtm: &mtm as *const MainThreadMarker as *const c_void,
 			rect: &rect as *const NSRect as *const c_void,
+			app: to_c_void(&app),
 		};
 
 		Decoration {
 			mode: DecorationMode::ServerSide,
 			frame: to_c_void(&window),
-			app: to_c_void(&app),
 			backend,
 		}
 	}
@@ -150,7 +149,10 @@ impl CocoaDecoration for Decoration
 	/// The default function to run the program, since it's required on macOS
 	fn run(&self)
 	{
-		let app = self.app as *mut c_void as *const NSView;
+		let app = match self.backend {
+			SurfaceBackend::MacOS { app, .. } => app as *mut c_void as *const NSView,
+			_ => unreachable!()
+		};
 		unsafe { msg_send![&*app, run] }
 	}
 

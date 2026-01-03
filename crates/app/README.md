@@ -5,10 +5,18 @@ The app structure is divided in three main modules, macOS, windows and linux. Li
 ## Example
 
 ```rust
+use app::{App, Event, SurfaceWrapper};
+use renderer::Renderer;
+use debug::info;
+
 fn main() {
 	let mut app = App::new(true);
+	let mut window = app.new_window("walkie talkie");
 
-	app.new_window("my application");
+	let renderer = Renderer::new(&mut window.get_backend())
+		.expect("Vulkan inicialization failed");
+	window.connect_surface(SurfaceWrapper::new(renderer.surface));
+
 	app.exec_loop(app_loop);
 }
 

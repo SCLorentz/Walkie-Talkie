@@ -1,7 +1,7 @@
 #![doc = include_str!("../README.md")]
 
 use app::{App, Event, SurfaceWrapper};
-use renderer::Renderer;
+use vk_renderer::Renderer;
 use log::{info, debug};
 
 //use auth::login;

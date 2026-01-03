@@ -46,7 +46,18 @@ To build for android, make sure that the android sdk and ndk are installed and c
 
 This code has many 'unsafe' blocks, at some point it would be good to convert them to a safer approach
 
-## Wayland Protocols I want to support on 'Linux'
+### things that should be controlled by the server:
+
+- Text and font;
+- Decorations, shadows and control buttons;
+- Popups;
+- Notifications;
+- Context menu;
+- App menu, [cosmic feature request](https://github.com/pop-os/cosmic-epoch/issues/894);
+
+### Wayland Protocols I want to support on 'Linux'
+
+https://crates.io/crates/wayland-protocols-wlr
 
 supported DE's:
 

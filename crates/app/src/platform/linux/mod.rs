@@ -1,4 +1,4 @@
-pub use crate::{DecorationMode, Decoration};
+//pub use crate::{DecorationMode, Decoration};
 
 #[cfg(feature = "wayland")]
 mod wayland;

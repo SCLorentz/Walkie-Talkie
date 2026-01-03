@@ -257,7 +257,7 @@ impl Renderer {
 			#[cfg(debug_assertions)]
 			SurfaceBackend::Headless => todo!(),
 			SurfaceBackend::MacOS { ns_view, .. } => ns_view,
-			SurfaceBackend::Linux { wayland_view } => wayland_view,
+			SurfaceBackend::Linux {} => todo!(),
 			_ => todo!()
 		};
 
