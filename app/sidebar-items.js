@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["CursorType","DecorationMode","Event","SurfaceBackend","ThemeOp"],"struct":["App","Cursor","Decoration","Window"],"trait":["RenderWindow","Theme"],"type":["Blur"]};
+window.SIDEBAR_ITEMS = {"enum":["CursorType","DecorationMode","Event","ThemeOp"],"struct":["App","Cursor","Decoration","SurfaceWrapper","Window"],"trait":["Theme"],"type":["Blur"]};
