@@ -10,7 +10,7 @@ compile_error!("redox not supported");
 mod platform;
 
 use platform::NativeDecoration;
-use log::info;
+use log::{info, warn};
 use std::path::Path;
 use core::ffi::c_void;
 use common::SurfaceBackend;
@@ -36,28 +36,40 @@ impl SurfaceWrapper
  */
 pub type Blur = bool;
 
-#[allow(dead_code)]
-pub struct App {
+pub struct App<H>
+where
+	H: EventHandler + Send + Sync,
+{
 	/// list of active windows
 	pub windows: Vec<Window>,
-	cursor: Cursor,
+	pub cursor: Cursor,
 	theme: ThemeOp,
+	handler: H,
 }
 
-impl App {
-	pub fn new(blur: Blur) -> Self
+pub trait EventHandler: Send + Sync
+{
+	fn handle_events(event: Event);
+}
+
+impl<H: EventHandler> App<H>
+{
+	pub fn new(handler: H) -> Self
 	{
+		let theme = Self::get_default();
+
 		Self {
 			windows: Vec::new(),
-			theme: ThemeOp::Light { blur },
+			theme,
 			cursor: Cursor::get_cursor(),
+			handler,
 		}
 	}
 
 	/// Creates a new Window element and pushes to the App
-	pub fn new_window(&mut self, title: &'static str) -> Window
+	pub fn new_window(&mut self, title: &'static str, size: (f64, f64)) -> Window
 	{
-		let window = Window::new(title, self.theme.clone());
+		let window = Window::new(title, self.theme.clone(), size);
 		self.windows.push(window.clone());
 		window
 	}
@@ -65,10 +77,18 @@ impl App {
 	/**
 	 * In the future, merge the target macos and linux exec_loop() into one single
 	 */
-	pub fn exec_loop(&self, run: fn(e: Option<Event>))
+	pub fn exec_loop(&self, run: fn())
 	{
+		// event thread
 		std::thread::spawn(move || {
-			loop { run(None); }
+			loop { H::handle_events(Event::Generic) };
+		});
+
+		// main logic thread
+		std::thread::spawn(move || {
+			loop {
+				run();
+			}
 		});
 
 		#[cfg(target_os = "macos")]
@@ -115,9 +135,9 @@ pub struct Window {
 impl Window
 {
 	/// Create a new window
-	pub fn new(title: &'static str, theme: ThemeOp) -> Self
+	pub fn new(title: &'static str, theme: ThemeOp, size: (f64, f64)) -> Self
 	{
-		let decoration = Decoration::new(title, 600.0, 500.0);
+		let decoration = Decoration::new(String::from(title), size.0, size.1);
 
 		let blur = match theme {
 			ThemeOp::Dark { blur } => blur,
@@ -151,14 +171,19 @@ impl Window
 
 	pub fn connect_surface(&mut self, surface: SurfaceWrapper)
 	{
-		self.surface = Some(surface);
+		if self.has_surface() == false {
+			self.surface = Some(surface);
+			return
+		}
+		warn!("this window is already connected to a surface!");
+		info!("to connect to another surface, please remove the current one");
 	}
+
+	pub fn has_surface(&self) -> bool
+		{ self.surface.is_some() }
 
 	/// Detects if the window is focused
 	pub fn is_active(&self) -> bool { self.active }
-
-	#[allow(unused)]
-	pub fn close_window(&self) {}
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -167,13 +192,15 @@ pub enum ThemeOp {
 	Light { blur: Blur },
 }
 
-#[allow(dead_code)]
 pub trait Theme {
-	fn set_theme(&mut self, _theme: ThemeOp) {}
-	fn get_current_theme(&mut self) -> Option<ThemeOp> { None }
+	fn set_theme(&mut self, theme: ThemeOp);
+	fn get_current_theme(&mut self) -> Option<ThemeOp>;
+	fn get_default() -> ThemeOp;
+	fn set_blur(&mut self, blur: bool);
 }
 
-impl Theme for App {
+impl<H: EventHandler> Theme for App<H>
+{
 	/// Modify the current window theme
 	/// If alread set as the value provided, it does nothing
 	fn set_theme(&mut self, theme: ThemeOp)
@@ -182,6 +209,18 @@ impl Theme for App {
 	/// Returns the current global theme of the DE/WM
 	fn get_current_theme(&mut self) -> Option<ThemeOp>
 		{ Some(self.theme.clone()) }
+
+	fn get_default() -> ThemeOp
+		{ ThemeOp::Light { blur: false } }
+
+	/// Get the current theme and change the blur value to 'true'
+	fn set_blur(&mut self, blur: bool)
+	{
+		self.theme = match self.theme {
+			ThemeOp::Light { .. } => ThemeOp::Light { blur },
+			ThemeOp::Dark { .. } => ThemeOp::Dark { blur },
+		}
+	}
 }
 
 /// List of possible types for the cursor
@@ -275,12 +314,16 @@ impl Cursor {
 	{
 		self.r#type = appearence;
 	}
+
+	pub fn is_visible(&self) -> bool
+		{ self.visible }
 }
 
 /// List of Events
 #[derive(Debug, PartialEq)]
 pub enum Event {
-	MouseIn {
+	// error sending this events through app loop (c_void cannot safely go to another thread)
+	/*MouseIn {
 		cursor: Cursor,
 		window: Window,
 	},
@@ -312,6 +355,7 @@ pub enum Event {
 	},
 	Focused {
 		window: Window
-	},
+	},*/
 	CloseRequest,
+	Generic,
 }

@@ -8,6 +8,9 @@ use log::debug;
 use core::ffi::c_void;
 use common::SurfaceBackend;
 
+#[cfg(target_os = "macos")]
+use common::macos_generic;
+
 #[allow(dead_code)]
 pub struct Renderer {
 	pub surface: SurfaceKHR,
@@ -140,17 +143,17 @@ impl Renderer {
 	#[cfg(target_os = "macos")]
 	fn new_surface(instance: &Instance, entry: &ash::Entry, window: NonNull<c_void>) -> SurfaceKHR
 	{
+		use objc2::{rc::Retained, msg_send};
 		use ash::ext::metal_surface;
 		use objc2_quartz_core::CALayer;
 		use objc2_foundation::NSObject;
-		use objc2::msg_send;
 		debug!("creating metal surface");
 
 		let ns_view: &NSObject = unsafe { window.cast().as_ref() };
 		let _: () = unsafe { msg_send![ns_view, setWantsLayer: true] };
 
 		let layer: Option<Retained<CALayer>> = unsafe { msg_send![ns_view, layer] };
-		let layer = to_c_void(
+		let layer = macos_generic(
 			&layer.expect("failed making the view layer-backed")
 		);
 
@@ -257,7 +260,7 @@ impl Renderer {
 			#[cfg(debug_assertions)]
 			SurfaceBackend::Headless => todo!(),
 			SurfaceBackend::MacOS { ns_view, .. } => ns_view,
-			SurfaceBackend::Linux {} => todo!(),
+			SurfaceBackend::Linux { .. } => todo!(),
 			_ => todo!()
 		};
 
@@ -356,15 +359,3 @@ mod tests {
 		assert!(renderer.is_ok());
 	}
 }*/
-
-// This is duplicate! Also avaliable on crates/app/cocoa.rs
-#[cfg(target_os = "macos")]
-use objc2::{rc::Retained, Message};
-
-#[cfg(target_os = "macos")]
-fn to_c_void<T>(ptr: &Retained<T>)
-	-> *mut c_void where T: Message
-{
-	let ptr: *mut T = Retained::<T>::as_ptr(&ptr) as *mut T;
-	ptr.cast()
-}

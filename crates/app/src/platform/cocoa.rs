@@ -3,6 +3,7 @@
 use std::cell::OnceCell;
 use core::ffi::c_void;
 use log::debug;
+use common::macos_generic;
 
 use objc2::{
 	rc::{Retained, Allocated},
@@ -31,14 +32,14 @@ use crate::{DecorationMode, Decoration, SurfaceBackend};
 pub trait CocoaDecoration
 {
 	fn run(&self);
-	fn new(title: &str, width: f64, height: f64) -> Decoration;
+	fn new(title: String, width: f64, height: f64) -> Decoration;
 	fn apply_blur(&self);
 }
 
 impl CocoaDecoration for Decoration
 {
 	/// Creates the native window frame decoration for macOS
-	fn new(title: &str, width: f64, height: f64) -> Decoration
+	fn new(title: String, width: f64, height: f64) -> Decoration
 	{
 		debug!("Creating CocoaDecoration object");
 
@@ -65,7 +66,7 @@ impl CocoaDecoration for Decoration
 		 * setting the title here even tought it will not be rendered, bc setTitleVisibility
 		 * this may change in the future when the GUI is ready
 		 */
-		window.setTitle(&NSString::from_str(title));
+		window.setTitle(&NSString::from_str(title.as_str()));
 
 		window.setTitlebarAppearsTransparent(true);
 		window.setTitleVisibility(NSWindowTitleVisibility(1));
@@ -94,21 +95,20 @@ impl CocoaDecoration for Decoration
 		app.activateIgnoringOtherApps(true);
 
 		let backend = SurfaceBackend::MacOS {
-			ns_view: to_c_void(&view),
+			ns_view: macos_generic(&view),
 			mtm: &mtm as *const MainThreadMarker as *const c_void,
 			rect: &rect as *const NSRect as *const c_void,
-			app: to_c_void(&app),
+			app: macos_generic(&app),
 		};
 
 		Decoration {
 			mode: DecorationMode::ServerSide,
-			frame: to_c_void(&window),
+			frame: macos_generic(&window),
 			backend,
 		}
 	}
 
 	/// Apply blur effect on the window
-	// This code is just sad
 	fn apply_blur(&self)
 	{
 		let (mtm, rect) = match self.backend {
@@ -194,11 +194,4 @@ impl Delegate {
 		let this = Self::alloc(mtm).set_ivars(AppDelegateIvars::default());
 		unsafe { msg_send![super(this), init] }
 	}
-}
-
-fn to_c_void<T>(ptr: &Retained<T>)
-	-> *mut c_void where T: Message
-{
-	let ptr: *mut T = Retained::<T>::as_ptr(&ptr) as *mut T;
-	ptr.cast()
 }
