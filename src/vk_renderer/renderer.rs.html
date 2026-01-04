@@ -9,7 +9,7 @@
 <a href=#9 id=9 data-nosnippet>9</a><span class="kw">use </span>common::SurfaceBackend;
 <a href=#10 id=10 data-nosnippet>10</a>
 <a href=#11 id=11 data-nosnippet>11</a><span class="attr">#[cfg(target_os = <span class="string">"macos"</span>)]
-<a href=#12 id=12 data-nosnippet>12</a></span><span class="kw">use </span>common::macos_generic;
+<a href=#12 id=12 data-nosnippet>12</a></span><span class="kw">use </span>common::to_handle;
 <a href=#13 id=13 data-nosnippet>13</a>
 <a href=#14 id=14 data-nosnippet>14</a><span class="attr">#[allow(dead_code)]
 <a href=#15 id=15 data-nosnippet>15</a></span><span class="kw">pub struct </span>Renderer {
@@ -143,7 +143,7 @@
 <a href=#143 id=143 data-nosnippet>143</a>	</span><span class="attr">#[cfg(target_os = <span class="string">"macos"</span>)]
 <a href=#144 id=144 data-nosnippet>144</a>	</span><span class="kw">fn </span>new_surface(instance: <span class="kw-2">&amp;</span>Instance, entry: <span class="kw-2">&amp;</span>ash::Entry, window: NonNull&lt;c_void&gt;) -&gt; SurfaceKHR
 <a href=#145 id=145 data-nosnippet>145</a>	{
-<a href=#146 id=146 data-nosnippet>146</a>		<span class="kw">use </span>objc2::{rc::Retained, msg_send};
+<a href=#146 id=146 data-nosnippet>146</a>		<span class="kw">use </span>objc2::{rc::Retained, msg_send, ClassType};
 <a href=#147 id=147 data-nosnippet>147</a>		<span class="kw">use </span>ash::ext::metal_surface;
 <a href=#148 id=148 data-nosnippet>148</a>		<span class="kw">use </span>objc2_quartz_core::CALayer;
 <a href=#149 id=149 data-nosnippet>149</a>		<span class="kw">use </span>objc2_foundation::NSObject;
@@ -153,8 +153,8 @@
 <a href=#153 id=153 data-nosnippet>153</a>		<span class="kw">let _</span>: () = <span class="kw">unsafe </span>{ <span class="macro">msg_send!</span>[ns_view, setWantsLayer: <span class="bool-val">true</span>] };
 <a href=#154 id=154 data-nosnippet>154</a>
 <a href=#155 id=155 data-nosnippet>155</a>		<span class="kw">let </span>layer: <span class="prelude-ty">Option</span>&lt;Retained&lt;CALayer&gt;&gt; = <span class="kw">unsafe </span>{ <span class="macro">msg_send!</span>[ns_view, layer] };
-<a href=#156 id=156 data-nosnippet>156</a>		<span class="kw">let </span>layer = macos_generic(
-<a href=#157 id=157 data-nosnippet>157</a>			<span class="kw-2">&amp;</span>layer.expect(<span class="string">"failed making the view layer-backed"</span>)
+<a href=#156 id=156 data-nosnippet>156</a>		<span class="kw">let </span>layer = to_handle(
+<a href=#157 id=157 data-nosnippet>157</a>			<span class="kw-2">&amp;mut </span>layer.expect(<span class="string">"failed making the view layer-backed"</span>).as_super()
 <a href=#158 id=158 data-nosnippet>158</a>		);
 <a href=#159 id=159 data-nosnippet>159</a>
 <a href=#160 id=160 data-nosnippet>160</a>		<span class="kw">let </span>surface_desc = vk::MetalSurfaceCreateInfoEXT::default().layer(layer);
@@ -259,13 +259,13 @@
 <a href=#259 id=259 data-nosnippet>259</a>		</span><span class="kw">let </span>view = <span class="kw">match </span>surface_backend {
 <a href=#260 id=260 data-nosnippet>260</a>			<span class="attr">#[cfg(debug_assertions)]
 <a href=#261 id=261 data-nosnippet>261</a>			</span>SurfaceBackend::Headless =&gt; <span class="macro">todo!</span>(),
-<a href=#262 id=262 data-nosnippet>262</a>			SurfaceBackend::MacOS { ns_view, .. } =&gt; ns_view,
+<a href=#262 id=262 data-nosnippet>262</a>			SurfaceBackend::MacOS(surface) =&gt; surface.ns_view,
 <a href=#263 id=263 data-nosnippet>263</a>			SurfaceBackend::Linux { .. } =&gt; <span class="macro">todo!</span>(),
 <a href=#264 id=264 data-nosnippet>264</a>			<span class="kw">_ </span>=&gt; <span class="macro">todo!</span>()
 <a href=#265 id=265 data-nosnippet>265</a>		};
 <a href=#266 id=266 data-nosnippet>266</a>
 <a href=#267 id=267 data-nosnippet>267</a>		<span class="kw">let </span>nn_view = NonNull::new(view)
-<a href=#268 id=268 data-nosnippet>268</a>			.expect(<span class="string">"NSView is shouldn't be null"</span>)
+<a href=#268 id=268 data-nosnippet>268</a>			.expect(<span class="string">"NSView shouldn't be null"</span>)
 <a href=#269 id=269 data-nosnippet>269</a>			.cast();
 <a href=#270 id=270 data-nosnippet>270</a>
 <a href=#271 id=271 data-nosnippet>271</a>		<span class="kw">let </span>surface = <span class="self">Self</span>::new_surface(<span class="kw-2">&amp;</span>instance, <span class="kw-2">&amp;</span>entry, nn_view);
