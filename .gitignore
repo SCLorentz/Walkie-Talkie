@@ -5,6 +5,9 @@ target/
 wt.app/*
 **/*.lock
 
+**/why.md
+**/"new-content"_source_code.png
+
 # Added by cargo
 
 /target

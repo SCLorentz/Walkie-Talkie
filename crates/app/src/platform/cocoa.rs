@@ -3,7 +3,6 @@
 use std::cell::OnceCell;
 use core::ffi::c_void;
 use log::debug;
-use common::macos_generic;
 
 use objc2::{
 	rc::{Retained, Allocated},
@@ -12,7 +11,8 @@ use objc2::{
 	msg_send,
 	DefinedClass,
 	MainThreadOnly,
-	Message
+	Message,
+	ClassType
 };
 
 use objc2_app_kit::{
@@ -27,13 +27,27 @@ use objc2_foundation::{
 	NSSize, NSString,
 };
 
-use crate::{DecorationMode, Decoration, SurfaceBackend};
+use crate::{DecorationMode, Decoration, SurfaceBackend, WRequestResult};
+use common::MacWrapper;
+
+pub trait MacWrapperHelper {
+	fn get<T>(ptr: &Retained<T>) -> *mut c_void where T: Message;
+}
+
+impl MacWrapperHelper for MacWrapper
+{
+	fn get<T>(ptr: &Retained<T>) -> *mut c_void where T: Message
+	{
+		let ptr: *mut T = Retained::<T>::as_ptr(&ptr) as *mut T;
+		ptr.cast()
+	}
+}
 
 pub trait CocoaDecoration
 {
 	fn run(&self);
 	fn new(title: String, width: f64, height: f64) -> Decoration;
-	fn apply_blur(&self);
+	fn apply_blur(&self) -> WRequestResult<()>;
 }
 
 impl CocoaDecoration for Decoration
@@ -41,8 +55,6 @@ impl CocoaDecoration for Decoration
 	/// Creates the native window frame decoration for macOS
 	fn new(title: String, width: f64, height: f64) -> Decoration
 	{
-		debug!("Creating CocoaDecoration object");
-
 		let mtm = MainThreadMarker::new()
 			.expect("Process expected to be executed on the Main Thread!");
 
@@ -94,45 +106,50 @@ impl CocoaDecoration for Decoration
 		#[allow(deprecated)]
 		app.activateIgnoringOtherApps(true);
 
-		let backend = SurfaceBackend::MacOS {
-			ns_view: macos_generic(&view),
-			mtm: &mtm as *const MainThreadMarker as *const c_void,
-			rect: &rect as *const NSRect as *const c_void,
-			app: macos_generic(&app),
+		let backend = MacWrapper {
+			ns_view: MacWrapper::get(&view),
+			rect: common::to_handle(&rect),
+			app: MacWrapper::get(&app),
 		};
+
+		debug!("Creating CocoaDecoration object");
 
 		Decoration {
 			mode: DecorationMode::ServerSide,
-			frame: macos_generic(&window),
-			backend,
+			frame: MacWrapper::get(&window),
+			backend: SurfaceBackend::MacOS(backend),
 		}
 	}
 
 	/// Apply blur effect on the window
-	fn apply_blur(&self)
+	fn apply_blur(&self) -> WRequestResult<()>
 	{
-		let (mtm, rect) = match self.backend {
-			SurfaceBackend::MacOS { mtm, rect, .. } => (
-				mtm as *mut MainThreadMarker,
-				rect as *const NSRect
-			),
+		debug!("working here");
+		let mtm = MainThreadMarker::new()
+			.expect("Process expected to be executed on the Main Thread!");
+
+		let rect = match &self.backend {
+			SurfaceBackend::MacOS(surface) => surface.rect as *const NSRect,
 			_ => unreachable!(),
 		};
-
-		let window = unsafe { Retained::from_raw(self.frame as *mut NSWindow) };
 
 		/**
 		 * Blur view configs
 		 * Not using liquid glass for this part in specific
 		 * Mostly, other effects will be managed trought renderer/shaders on vulkan and not macOS
 		 */
-		let alloc: Allocated<NSVisualEffectView> = unsafe { NSVisualEffectView::alloc(*mtm) };
+		let alloc: Allocated<NSVisualEffectView> = NSVisualEffectView::alloc(mtm);
+		debug!("working until here");
 		let blur_view = unsafe { NSVisualEffectView::initWithFrame(alloc, *rect) };
 
+		let window = self.frame as *mut NSWindow;
+		let window: &NSWindow = unsafe { &*window };
+
 		let content = window
-				.expect("window dropped")
 				.contentView()
 				.unwrap();
+
+		let blur_view = blur_view.retain();
 		content.addSubview(&blur_view);
 
 		blur_view.setBlendingMode(NSVisualEffectBlendingMode(0));
@@ -144,13 +161,17 @@ impl CocoaDecoration for Decoration
 			NSAutoresizingMaskOptions::ViewWidthSizable
 				| NSAutoresizingMaskOptions::ViewHeightSizable
 		);
+
+		debug!("applying blur on CocoaDecoration");
+
+		WRequestResult::Success(())
 	}
 
 	/// The default function to run the program, since it's required on macOS
 	fn run(&self)
 	{
-		let app = match self.backend {
-			SurfaceBackend::MacOS { app, .. } => app as *mut c_void as *const NSView,
+		let app = match &self.backend {
+			SurfaceBackend::MacOS(surface) => surface.app as *mut c_void as *const NSView,
 			_ => unreachable!()
 		};
 		unsafe { msg_send![&*app, run] }

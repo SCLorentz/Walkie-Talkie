@@ -1,7 +1,7 @@
 #![allow(unused_doc_comments)]
 // if you are reading this, you have been gnomed
 
-use crate::{DecorationMode, Decoration};
+use crate::{DecorationMode, Decoration, WRequestResult, WResponse};
 use crate::platform::linux::DE;
 
 use std::env;
@@ -14,7 +14,8 @@ pub trait GnomeDecoration
 	/// Creates a CSD decoration for the GNOME window
 	fn new(title: &str, width: f64, height: f64) -> Decoration;
 	fn make_view();
-	fn apply_blur(&self);
+	fn apply_blur(&self) -> WindowRequestResult<()>;
+	fn draw_frame_decor(&self);
 }
 
 impl GnomeDecoration for Decoration
@@ -29,8 +30,16 @@ impl GnomeDecoration for Decoration
 		};
 	}
 
+	fn draw_frame_decor(&self) {}
+
 	fn make_view() {}
 
-	fn apply_blur(&self)
-		{ warn!("Sorry, this version of the executable doesn't offer support for blur"); }
+	fn apply_blur(&self) -> WRequestResult<()>
+	{
+		use WRequestResult::Fail;
+		use WResponse::BinarySpecificLimitation;
+
+		warn!("Sorry, this version of the executable doesn't offer support for blur");
+		Fail(BinarySpecificLimitation);
+	}
 }

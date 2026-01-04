@@ -13,22 +13,12 @@ use platform::NativeDecoration;
 use log::{info, warn};
 use std::path::Path;
 use core::ffi::c_void;
-use common::SurfaceBackend;
-
-#[derive(Clone, PartialEq, Debug)]
-pub struct SurfaceWrapper(pub *mut c_void);
-
-impl SurfaceWrapper
-{
-	pub fn new<T>(mut wrap: T) -> Self
-		{ SurfaceWrapper(&mut wrap as *mut T as *mut c_void) }
-
-	pub fn is_null(&self) -> bool
-		{ self.0.is_null() }
-
-	pub unsafe fn cast<T>(&self) -> *mut T
-		{ self.0 as *mut T }
-}
+pub use common::{
+	SurfaceBackend,
+	WRequestResult::{self, Fail, Success},
+	WResponse,
+	SurfaceWrapper
+};
 
 /**
  * maybe in the future I will apply more options to the blur, converting it into a struct,
@@ -145,7 +135,10 @@ impl Window
 		};
 
 		if blur {
-			decoration.apply_blur();
+			match decoration.apply_blur() {
+				Fail(response) => warn!("{:?}", response),
+				_ => {}
+			}
 		}
 
 		Window {
@@ -160,23 +153,20 @@ impl Window
 	}
 
 	pub fn get_backend(&self) -> SurfaceBackend
-	{
-		self.decoration.backend.clone()
-	}
+		{ self.decoration.backend.clone() }
 
 	pub fn some_surface(&self) -> bool
-	{
-		self.surface.is_some()
-	}
+		{ self.surface.is_some() }
 
-	pub fn connect_surface(&mut self, surface: SurfaceWrapper)
+	pub fn connect_surface(&mut self, surface: SurfaceWrapper) -> WRequestResult<()>
 	{
 		if self.has_surface() == false {
 			self.surface = Some(surface);
-			return
+			return Success(());
 		}
 		warn!("this window is already connected to a surface!");
 		info!("to connect to another surface, please remove the current one");
+		Fail(WResponse::ChannelInUse)
 	}
 
 	pub fn has_surface(&self) -> bool
@@ -194,7 +184,7 @@ pub enum ThemeOp {
 
 pub trait Theme {
 	fn set_theme(&mut self, theme: ThemeOp);
-	fn get_current_theme(&mut self) -> Option<ThemeOp>;
+	fn get_current_theme(&mut self) -> WRequestResult<ThemeOp>;
 	fn get_default() -> ThemeOp;
 	fn set_blur(&mut self, blur: bool);
 }
@@ -207,8 +197,8 @@ impl<H: EventHandler> Theme for App<H>
 		{ self.theme = theme; }
 
 	/// Returns the current global theme of the DE/WM
-	fn get_current_theme(&mut self) -> Option<ThemeOp>
-		{ Some(self.theme.clone()) }
+	fn get_current_theme(&mut self) -> WRequestResult<ThemeOp>
+		{ Success(self.theme.clone()) }
 
 	fn get_default() -> ThemeOp
 		{ ThemeOp::Light { blur: false } }

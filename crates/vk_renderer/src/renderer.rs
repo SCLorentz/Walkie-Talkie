@@ -9,7 +9,7 @@ use core::ffi::c_void;
 use common::SurfaceBackend;
 
 #[cfg(target_os = "macos")]
-use common::macos_generic;
+use common::to_handle;
 
 #[allow(dead_code)]
 pub struct Renderer {
@@ -143,7 +143,7 @@ impl Renderer {
 	#[cfg(target_os = "macos")]
 	fn new_surface(instance: &Instance, entry: &ash::Entry, window: NonNull<c_void>) -> SurfaceKHR
 	{
-		use objc2::{rc::Retained, msg_send};
+		use objc2::{rc::Retained, msg_send, ClassType};
 		use ash::ext::metal_surface;
 		use objc2_quartz_core::CALayer;
 		use objc2_foundation::NSObject;
@@ -153,8 +153,8 @@ impl Renderer {
 		let _: () = unsafe { msg_send![ns_view, setWantsLayer: true] };
 
 		let layer: Option<Retained<CALayer>> = unsafe { msg_send![ns_view, layer] };
-		let layer = macos_generic(
-			&layer.expect("failed making the view layer-backed")
+		let layer = to_handle(
+			&mut layer.expect("failed making the view layer-backed").as_super()
 		);
 
 		let surface_desc = vk::MetalSurfaceCreateInfoEXT::default().layer(layer);
@@ -259,13 +259,13 @@ impl Renderer {
 		let view = match surface_backend {
 			#[cfg(debug_assertions)]
 			SurfaceBackend::Headless => todo!(),
-			SurfaceBackend::MacOS { ns_view, .. } => ns_view,
+			SurfaceBackend::MacOS(surface) => surface.ns_view,
 			SurfaceBackend::Linux { .. } => todo!(),
 			_ => todo!()
 		};
 
 		let nn_view = NonNull::new(view)
-			.expect("NSView is shouldn't be null")
+			.expect("NSView shouldn't be null")
 			.cast();
 
 		let surface = Self::new_surface(&instance, &entry, nn_view);

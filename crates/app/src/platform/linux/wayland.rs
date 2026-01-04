@@ -1,6 +1,6 @@
 #![allow(unused_doc_comments)]
 
-use crate::{DecorationMode, Decoration, SurfaceBackend};
+use crate::{DecorationMode, Decoration, SurfaceBackend, WRequestResult, WResponse::{self, NotSupported}};
 use crate::platform::linux::DE;
 
 use std::env;
@@ -76,7 +76,7 @@ pub trait WaylandDecoration
 	/// Creates a native window frame decoration for Linux DE/WM
 	fn new(title: String, _width: f64, _height: f64) -> Decoration;
 	fn make_view();
-	fn apply_blur(&self);
+	fn apply_blur(&self) -> WRequestResult<()>;
 	fn init_event_state() -> wayland_client::EventQueue<State>;
 }
 
@@ -122,7 +122,7 @@ impl WaylandDecoration for Decoration
 		 */
 		return Decoration {
 			mode: DecorationMode::ServerSide,
-			frame: std::ptr::null_mut() as *const c_void, // WARN: todo
+			frame: std::ptr::null_mut() as *const c_void,
 			backend: SurfaceBackend::Linux {
 				state: &mut state as *mut State as *mut c_void,
 			}
@@ -139,11 +139,10 @@ impl WaylandDecoration for Decoration
 
 	fn make_view() {}
 
-	fn apply_blur(&self)
+	fn apply_blur(&self) -> WRequestResult<()>
 	{
 		if !supports_blur() {
-			warn!("couldn't set window blur, desktop doesn't implement protocol");
-			return
+			return WRequestResult::Fail(NotSupported);
 		}
 
 		/**
@@ -151,7 +150,9 @@ impl WaylandDecoration for Decoration
 		 * <https://wayland.app/protocols/hyprland-surface-v1>
 		 */
 		if get_de() == DE::Hyprland
-			{ return }
+			{ return WRequestResult::Success(()) }
+
+		WRequestResult::Success(())
 	}
 }
 
