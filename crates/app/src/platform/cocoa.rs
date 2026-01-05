@@ -28,13 +28,19 @@ use objc2_foundation::{
 };
 
 use crate::{DecorationMode, Decoration, SurfaceBackend, WRequestResult};
-use common::MacWrapper;
 
-pub trait MacWrapperHelper {
+#[derive(PartialEq, Debug, Clone)]
+pub struct Wrapper {
+	pub ns_view: *mut c_void,		// NSView
+	pub rect: *const c_void,		// NSRect
+	pub app: *const c_void,			// NSApplication
+}
+
+pub trait WrapperHelper {
 	fn get<T>(ptr: &Retained<T>) -> *mut c_void where T: Message;
 }
 
-impl MacWrapperHelper for MacWrapper
+impl WrapperHelper for Wrapper
 {
 	fn get<T>(ptr: &Retained<T>) -> *mut c_void where T: Message
 	{
@@ -47,7 +53,7 @@ pub trait CocoaDecoration
 {
 	fn run(&self);
 	fn new(title: String, width: f64, height: f64) -> Decoration;
-	fn apply_blur(&self) -> WRequestResult<()>;
+	fn apply_blur(&mut self) -> WRequestResult<()>;
 }
 
 impl CocoaDecoration for Decoration
@@ -106,32 +112,30 @@ impl CocoaDecoration for Decoration
 		#[allow(deprecated)]
 		app.activateIgnoringOtherApps(true);
 
-		let backend = MacWrapper {
-			ns_view: MacWrapper::get(&view),
+		let backend = Wrapper {
+			ns_view: Wrapper::get(&view),
 			rect: common::to_handle(&rect),
-			app: MacWrapper::get(&app),
+			app: Wrapper::get(&app),
 		};
 
 		debug!("Creating CocoaDecoration object");
 
 		Decoration {
 			mode: DecorationMode::ServerSide,
-			frame: MacWrapper::get(&window),
-			backend: SurfaceBackend::MacOS(backend),
+			frame: Wrapper::get(&window),
+			backend,
 		}
 	}
 
 	/// Apply blur effect on the window
-	fn apply_blur(&self) -> WRequestResult<()>
+	fn apply_blur(&mut self) -> WRequestResult<()>
 	{
 		debug!("working here");
 		let mtm = MainThreadMarker::new()
 			.expect("Process expected to be executed on the Main Thread!");
 
-		let rect = match &self.backend {
-			SurfaceBackend::MacOS(surface) => surface.rect as *const NSRect,
-			_ => unreachable!(),
-		};
+		let backend = &mut self.backend as *mut Wrapper;
+		let rect = unsafe { (*backend).rect as *const NSRect };
 
 		/**
 		 * Blur view configs
@@ -170,10 +174,7 @@ impl CocoaDecoration for Decoration
 	/// The default function to run the program, since it's required on macOS
 	fn run(&self)
 	{
-		let app = match &self.backend {
-			SurfaceBackend::MacOS(surface) => surface.app as *mut c_void as *const NSView,
-			_ => unreachable!()
-		};
+		let app = self.backend.app as *mut c_void as *const NSApplication;
 		unsafe { msg_send![&*app, run] }
 	}
 

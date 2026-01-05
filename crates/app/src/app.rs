@@ -9,7 +9,7 @@ compile_error!("redox not supported");
 
 mod platform;
 
-use platform::NativeDecoration;
+use platform::{NativeDecoration, Wrapper};
 use log::{info, warn};
 use std::path::Path;
 use core::ffi::c_void;
@@ -17,15 +17,12 @@ pub use common::{
 	SurfaceBackend,
 	WRequestResult::{self, Fail, Success},
 	WResponse,
-	SurfaceWrapper
+	SurfaceWrapper,
+	Color,
+	to_handle
 };
 
-/**
- * maybe in the future I will apply more options to the blur, converting it into a struct,
- * maybe acrylics, smoothness, liquid glass, alpha, etc
- */
-pub type Blur = bool;
-
+#[allow(dead_code)]
 pub struct App<H>
 where
 	H: EventHandler + Send + Sync,
@@ -33,7 +30,7 @@ where
 	/// list of active windows
 	pub windows: Vec<Window>,
 	pub cursor: Cursor,
-	theme: ThemeOp,
+	theme: ThemeDefault,
 	handler: H,
 }
 
@@ -46,7 +43,7 @@ impl<H: EventHandler> App<H>
 {
 	pub fn new(handler: H) -> Self
 	{
-		let theme = Self::get_default();
+		let theme = Self::theme_default();
 
 		Self {
 			windows: Vec::new(),
@@ -76,9 +73,7 @@ impl<H: EventHandler> App<H>
 
 		// main logic thread
 		std::thread::spawn(move || {
-			loop {
-				run();
-			}
+			loop { run(); }
 		});
 
 		#[cfg(target_os = "macos")]
@@ -97,7 +92,7 @@ pub enum DecorationMode {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Decoration {
 	frame: *const c_void,
-	backend: SurfaceBackend,
+	backend: Wrapper,
 	mode: DecorationMode,
 }
 
@@ -118,23 +113,19 @@ pub struct Window {
 	resizable: bool,
 	position: (f32, f32),
 	active: bool,
-	theme: ThemeOp,
+	theme: ThemeDefault,
 	//id: u32,
 }
 
 impl Window
 {
 	/// Create a new window
-	pub fn new(title: &'static str, theme: ThemeOp, size: (f64, f64)) -> Self
+	pub fn new(title: &'static str, theme: ThemeDefault, size: (f64, f64)) -> Self
 	{
-		let decoration = Decoration::new(String::from(title), size.0, size.1);
+		let mut decoration = Decoration::new(String::from(title), size.0, size.1);
 
-		let blur = match theme {
-			ThemeOp::Dark { blur } => blur,
-			ThemeOp::Light { blur } => blur,
-		};
-
-		if blur {
+		if theme.blur == true
+		{
 			match decoration.apply_blur() {
 				Fail(response) => warn!("{:?}", response),
 				_ => {}
@@ -152,8 +143,8 @@ impl Window
 		}
 	}
 
-	pub fn get_backend(&self) -> SurfaceBackend
-		{ self.decoration.backend.clone() }
+	pub fn get_backend(&self) -> *mut c_void
+		{ to_handle(self.decoration.backend.clone()) }
 
 	pub fn some_surface(&self) -> bool
 		{ self.surface.is_some() }
@@ -177,15 +168,16 @@ impl Window
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ThemeOp {
-	Dark { blur: Blur },
-	Light { blur: Blur },
+pub struct ThemeDefault {
+	blur: bool,
+	dark: bool,
+	accent_color: Color,
 }
 
 pub trait Theme {
-	fn set_theme(&mut self, theme: ThemeOp);
-	fn get_current_theme(&mut self) -> WRequestResult<ThemeOp>;
-	fn get_default() -> ThemeOp;
+	fn set_theme(&mut self, theme: ThemeDefault);
+	fn get_current_theme(&mut self) -> WRequestResult<ThemeDefault>;
+	fn theme_default() -> ThemeDefault;
 	fn set_blur(&mut self, blur: bool);
 }
 
@@ -193,24 +185,25 @@ impl<H: EventHandler> Theme for App<H>
 {
 	/// Modify the current window theme
 	/// If alread set as the value provided, it does nothing
-	fn set_theme(&mut self, theme: ThemeOp)
+	fn set_theme(&mut self, theme: ThemeDefault)
 		{ self.theme = theme; }
 
 	/// Returns the current global theme of the DE/WM
-	fn get_current_theme(&mut self) -> WRequestResult<ThemeOp>
+	fn get_current_theme(&mut self) -> WRequestResult<ThemeDefault>
 		{ Success(self.theme.clone()) }
 
-	fn get_default() -> ThemeOp
-		{ ThemeOp::Light { blur: false } }
+	fn theme_default() -> ThemeDefault
+	{
+		ThemeDefault {
+			blur: false,
+			dark: false,
+			accent_color: Color::from(255, 255, 255, 255),
+		}
+	}
 
 	/// Get the current theme and change the blur value to 'true'
 	fn set_blur(&mut self, blur: bool)
-	{
-		self.theme = match self.theme {
-			ThemeOp::Light { .. } => ThemeOp::Light { blur },
-			ThemeOp::Dark { .. } => ThemeOp::Dark { blur },
-		}
-	}
+		{ self.theme.blur = blur; }
 }
 
 /// List of possible types for the cursor
@@ -313,7 +306,7 @@ impl Cursor {
 #[derive(Debug, PartialEq)]
 pub enum Event {
 	// error sending this events through app loop (c_void cannot safely go to another thread)
-	/*MouseIn {
+	MouseIn {
 		cursor: Cursor,
 		window: Window,
 	},
@@ -338,14 +331,14 @@ pub enum Event {
 		new_positon: (f64, f64)
 	},
 	ThemeChange {
-		new_theme: ThemeOp
+		new_theme: ThemeDefault
 	},
 	RedrawRequest {
 		window: Window
 	},
 	Focused {
 		window: Window
-	},*/
+	},
 	CloseRequest,
 	Generic,
 }

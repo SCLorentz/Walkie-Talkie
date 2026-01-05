@@ -12,14 +12,13 @@ fn main() {
 		.init()
 		.unwrap();
 	log_panics::init();
-	debug!("starting program");
 
 	let mut app = App::new(MatrixClient);
 	app.set_blur(true);
 
 	let mut window = app.new_window("walkie talkie", (600.0, 500.0));
 
-	let renderer = Renderer::new(&mut window.get_backend())
+	let renderer = Renderer::new(window.get_backend())
 		.expect("Vulkan inicialization failed");
 	window.connect_surface(SurfaceWrapper::new(renderer.surface));
 

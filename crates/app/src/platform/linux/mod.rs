@@ -11,6 +11,7 @@ mod x11;
 
 #[cfg(feature = "wayland")]
 pub use wayland::WaylandDecoration as NativeDecoration;
+pub use wayland::LinuxWrapper as Wrapper;
 
 #[cfg(feature = "gnome")]
 pub use gnome::GnomeDecoration as NativeDecoration;

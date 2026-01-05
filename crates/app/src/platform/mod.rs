@@ -14,7 +14,10 @@ mod linux;
 
 // macOS -------------------
 #[cfg(target_os = "macos")]
-pub use cocoa::CocoaDecoration as NativeDecoration;
+pub use cocoa::{
+	CocoaDecoration as NativeDecoration,
+	Wrapper
+};
 
 // Windows -----------------
 #[cfg(target_os = "windows")]
@@ -23,4 +26,4 @@ pub use winapi::WindowsDecoration as NativeDecoration;
 // Linux -------------------
 
 #[cfg(target_os = "linux")]
-pub use linux::NativeDecoration;
+pub use linux::{NativeDecoration, Wrapper};

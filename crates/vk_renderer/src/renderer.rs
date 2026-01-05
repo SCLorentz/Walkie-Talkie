@@ -6,10 +6,34 @@ use ash::vk::{self, SurfaceKHR, RenderPass, Handle, PhysicalDevice};
 use std::{error::Error, ptr::NonNull};
 use log::debug;
 use core::ffi::c_void;
-use common::SurfaceBackend;
+use common::{to_handle, from_handle, SurfaceBackend};
+
+#[cfg(target_os = "linux")]
+#[derive(PartialEq, Debug, Clone)]
+pub struct Wrapper {
+	pub state: *mut c_void
+}
 
 #[cfg(target_os = "macos")]
-use common::to_handle;
+#[derive(PartialEq, Debug, Clone)]
+pub struct Wrapper {
+	pub ns_view: *mut c_void,		// NSView
+	pub rect: *const c_void,		// NSRect
+	pub app: *const c_void,			// NSApplication
+}
+
+impl SurfaceBackend for Wrapper {
+	fn get_surface(backend: *mut c_void) -> *mut c_void
+	{
+		let backend: Self = unsafe { from_handle(backend) };
+
+		#[cfg(target_os = "macos")]
+		return backend.ns_view as *mut c_void;
+
+		#[cfg(target_os = "linux")]
+		todo!();
+	}
+}
 
 #[allow(dead_code)]
 pub struct Renderer {
@@ -28,9 +52,7 @@ impl Renderer {
 	 * <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families#:~:text=isDeviceSuitable>
 	 */
 	fn is_device_suitable(_device: PhysicalDevice) -> bool
-	{
-		true
-	}
+		{ true }
 
 	/**
 	 * <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families>
@@ -51,9 +73,7 @@ impl Renderer {
 		 * this can be null if the function enumerate_physical_devices() didn't find any compatible gpu
 		 */
 		if physical_device.is_null() == true || !Self::is_device_suitable(physical_device)
-		{
-			panic!("failed to find a suitable GPU!");
-		}
+			{ panic!("failed to find a suitable GPU!"); }
 
 		let queue_families =
 			unsafe { instance.get_physical_device_queue_family_properties(physical_device) };
@@ -204,11 +224,9 @@ impl Renderer {
 	/// Creates a new Vulkan render
 	/// this will be our initVulkan() from the tutorial
 	/// <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Base_code#:~:text=initVulkan()>
-	pub fn new(surface_backend: &mut SurfaceBackend) -> Result<Renderer, Box<dyn Error>>
+	pub fn new(surface_backend: *mut c_void) -> Result<Renderer, Box<dyn Error>>
 	{
-		// for some reason idk how to take this off without invalid memory address
-		let ptr = surface_backend as *mut SurfaceBackend;
-		let surface_backend = unsafe { (*ptr).clone() };
+		//let surface_backed = surface_backend as *mut SurfaceBackend<Wrapper>;
 		debug!("Creating new vulkan render on backend:\n{:#?}", surface_backend);
 
 		/**
@@ -256,14 +274,7 @@ impl Renderer {
 		 * but the way it is created is different, using `SurfaceFactory`, for that I would need winit
 		 */
 
-		let view = match surface_backend {
-			#[cfg(debug_assertions)]
-			SurfaceBackend::Headless => todo!(),
-			SurfaceBackend::MacOS(surface) => surface.ns_view,
-			SurfaceBackend::Linux { .. } => todo!(),
-			_ => todo!()
-		};
-
+		let view = Wrapper::get_surface(surface_backend);
 		let nn_view = NonNull::new(view)
 			.expect("NSView shouldn't be null")
 			.cast();

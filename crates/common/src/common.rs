@@ -8,22 +8,18 @@ use core::ffi::c_void;
 extern crate alloc;
 use alloc::boxed::Box;
 
-#[derive(PartialEq, Debug, Clone)]
-pub struct MacWrapper {
-	pub ns_view: *mut c_void,		// NSView
-	pub rect: *const c_void,		// NSRect
-	pub app: *const c_void,			// NSApplication
-}
-
-#[derive(Clone, PartialEq, Debug)]
-pub enum SurfaceBackend {
-	MacOS(MacWrapper),
-	Windows {},
-	/// <https://github.com/Smithay/wayland-rs/blob/master/wayland-client/examples/simple_window.rs>
-	Linux {
-		state: *mut c_void
-	},
-	Headless,
+/// This is an abstraction layer used to get the surface easly
+/// ```rust
+/// impl TSurfaceBackend for Wrapper {
+/// 	fn get_surface(backend: *mut c_void) -> *mut c_void
+/// 	{
+/// 		let backend: Self = unsafe { from_handle(backend) };
+///			return backend.ns_view;
+/// 	}
+/// }
+/// ```
+pub trait SurfaceBackend {
+	fn get_surface(backend: *mut c_void) -> *mut c_void;
 }
 
 pub fn to_handle<T>(val: T) -> *mut c_void
@@ -31,7 +27,7 @@ pub fn to_handle<T>(val: T) -> *mut c_void
 
 pub unsafe fn from_handle<T>(ptr: *const c_void) -> T
 {
-	let value = Box::from_raw(ptr as *mut T);
+	let value = unsafe { Box::from_raw(ptr as *mut T) };
 	*value
 }
 
@@ -72,4 +68,20 @@ impl SurfaceWrapper
 
 	pub unsafe fn cast<T>(&self) -> T
 		{ unsafe { from_handle(self.0) } }
+}
+
+// https://github.com/seancroach/hex_color/blob/main/src/lib.rs
+#[derive(PartialEq, Clone, Debug)]
+pub struct Color {
+	pub r: u8,
+	pub g: u8,
+	pub b: u8,
+	pub a: u8,
+}
+
+impl Color {
+	pub fn from(r: u8, g: u8, b: u8, a: u8) -> Self
+	{
+		Self { r, g, b, a }
+	}
 }

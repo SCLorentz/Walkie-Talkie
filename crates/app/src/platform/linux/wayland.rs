@@ -1,6 +1,8 @@
 #![allow(unused_doc_comments)]
 
-use crate::{DecorationMode, Decoration, SurfaceBackend, WRequestResult, WResponse::{self, NotSupported}};
+use crate::{
+	DecorationMode, Decoration, SurfaceBackend, WRequestResult, WResponse::{self, NotSupported}
+};
 use crate::platform::linux::DE;
 
 use std::env;
@@ -17,6 +19,7 @@ use wayland_client::{
 };
 
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
+use common::to_handle;
 
 struct State {
 	running: bool,
@@ -41,13 +44,8 @@ impl State {
 		unsafe { (*base_surface).commit() };
 
 		self.xdg_surface =
-			Some(&mut WaylandFrame { xdg_surface, toplevel } as *mut WaylandFrame as *const c_void);
+			Some(to_handle(WaylandFrame { xdg_surface, toplevel }));
 	}
-}
-
-pub fn supports_blur() -> bool
-{
-	true
 }
 
 /// Detect the current DE/WM that the program is beeing executed
@@ -80,6 +78,11 @@ pub trait WaylandDecoration
 	fn init_event_state() -> wayland_client::EventQueue<State>;
 }
 
+#[derive(PartialEq, Debug, Clone)]
+pub struct LinuxWrapper {
+	pub state: *mut c_void
+}
+
 // wayland_protocols (which include wayland_client) failed to build documentation on version 0.31.12 thks!!
 impl WaylandDecoration for Decoration
 {
@@ -103,8 +106,6 @@ impl WaylandDecoration for Decoration
 			title,
 		};
 
-		println!("Starting the example window app, press <ESC> to quit.");
-
 		while state.running {
 			event_queue.blocking_dispatch(&mut state).unwrap();
 		}
@@ -120,39 +121,38 @@ impl WaylandDecoration for Decoration
 		 * Other future (optional) implementations may include:
 		 * - popups, notifications, tablet, ext_background_effect_manager_v1
 		 */
+		let backend = LinuxWrapper {
+			state: to_handle(state)
+		};
+
 		return Decoration {
 			mode: DecorationMode::ServerSide,
-			frame: std::ptr::null_mut() as *const c_void,
-			backend: SurfaceBackend::Linux {
-				state: &mut state as *mut State as *mut c_void,
-			}
+			frame: std::ptr::null_mut() as *const c_void, // TODO
+			backend,
 		};
 	}
 
 	fn init_event_state() -> EventQueue<State>
 	{
 		let connection = Connection::connect_to_env().unwrap();
-		let event_queue: EventQueue<State> = connection.new_event_queue();
-
-		event_queue
+		connection.new_event_queue()
 	}
 
 	fn make_view() {}
 
 	fn apply_blur(&self) -> WRequestResult<()>
 	{
-		if !supports_blur() {
-			return WRequestResult::Fail(NotSupported);
-		}
-
 		/**
 		 * the `hyprland_surface_manager_v1` protocol already covers this, skip
 		 * <https://wayland.app/protocols/hyprland-surface-v1>
 		 */
-		if get_de() == DE::Hyprland
-			{ return WRequestResult::Success(()) }
+		match get_de() {
+			DE::Hyprland =>
+				return WRequestResult::Success(()),
+			_ => {}
+		}
 
-		WRequestResult::Success(())
+		WRequestResult::Fail(NotSupported)
 	}
 }
 
