@@ -22,9 +22,11 @@ pub trait SurfaceBackend {
 	fn get_surface(backend: *mut c_void) -> *mut c_void;
 }
 
+#[inline]
 pub fn to_handle<T>(val: T) -> *mut c_void
 	{ Box::into_raw(Box::new(val)) as *mut c_void }
 
+#[inline]
 pub unsafe fn from_handle<T>(ptr: *const c_void) -> T
 {
 	let value = unsafe { Box::from_raw(ptr as *mut T) };
@@ -48,7 +50,6 @@ pub enum WResponse
 	BinarySpecificLimitation	= 500,
 	ProtocolNotSuported			= 501,
 	AccessDenied				= 502,
-	NotSupported				= 600,
 	NotImplementedInCompositor	= 601,
 	ChannelInUse				= 400,
 	MissingDependencies			= 401,

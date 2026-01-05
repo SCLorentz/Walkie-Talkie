@@ -8,32 +8,8 @@ use log::debug;
 use core::ffi::c_void;
 use common::{to_handle, from_handle, SurfaceBackend};
 
-#[cfg(target_os = "linux")]
-#[derive(PartialEq, Debug, Clone)]
-pub struct Wrapper {
-	pub state: *mut c_void
-}
-
-#[cfg(target_os = "macos")]
-#[derive(PartialEq, Debug, Clone)]
-pub struct Wrapper {
-	pub ns_view: *mut c_void,		// NSView
-	pub rect: *const c_void,		// NSRect
-	pub app: *const c_void,			// NSApplication
-}
-
-impl SurfaceBackend for Wrapper {
-	fn get_surface(backend: *mut c_void) -> *mut c_void
-	{
-		let backend: Self = unsafe { from_handle(backend) };
-
-		#[cfg(target_os = "macos")]
-		return backend.ns_view as *mut c_void;
-
-		#[cfg(target_os = "linux")]
-		todo!();
-	}
-}
+mod wrapper;
+use wrapper::Wrapper;
 
 #[allow(dead_code)]
 pub struct Renderer {
@@ -109,56 +85,6 @@ impl Renderer {
 			unsafe { instance.create_device(physical_device, &device_create_info, None)? }
 		)
 	}
-
-	// TODO: make this work (yes, I know it's ugly)
-	// For some reason it returns `Vulkan inicialization failed: ERROR_INCOMPATIBLE_DRIVER`
-	// it shouldn't happen because of the MoltenVK_icd.json
-	/*#[cfg(target_os = "macos")]
-	fn vulkan_entry() -> ash::Entry
-	{
-		use std::env;
-
-		/**
-		 * MacOS does not have vulkan natively, so, we need to load the libs ourselves
-		 * Get the self.app path and load dependencies packaged inside Resources/ and Frameworks/
-		 */
-		#[cfg(not(debug_assertions))]
-		use std::path::PathBuf;
-
-		#[cfg(not(debug_assertions))]
-		let exe = env::current_exe().unwrap();
-
-		#[cfg(not(debug_assertions))]
-		let contents = exe.parent()
-			.unwrap()
-			.parent()
-			.unwrap();
-
-		#[cfg(not(debug_assertions))]
-		let icd = contents
-			.join("Resources/vulkan/icd.d/MoltenVK_icd.json");
-
-		#[cfg(not(debug_assertions))]
-		let loader = contents
-			.join("Frameworks/libvulkan.dylib");
-
-		/**
-		 * Debug
-		 * this env wont be inside .app but on target/debug/, so we will need to get the libs from the global install
-		 */
-		#[cfg(debug_assertions)]
-		let icd = "/opt/homebrew/Cellar/molten-vk/1.4.0/etc/vulkan/icd.d/MoltenVK_icd.json";
-
-		#[cfg(debug_assertions)]
-		let loader = "/opt/homebrew/lib/libvulkan.dylib";
-
-		unsafe {
-			env::set_var("VK_ICD_FILENAMES", icd);
-
-			ash::Entry::load_from(loader)
-				.expect("error loading MoltenVK")
-		}
-	}*/
 
 	#[cfg(target_os = "macos")]
 	fn new_surface(instance: &Instance, entry: &ash::Entry, window: NonNull<c_void>) -> SurfaceKHR
@@ -356,6 +282,56 @@ impl Renderer {
 	{
 		unsafe { self.instance.destroy_instance(None); }
 	}
+
+	// TODO: make this work (yes, I know it's ugly)
+	// For some reason it returns `Vulkan inicialization failed: ERROR_INCOMPATIBLE_DRIVER`
+	// it shouldn't happen because of the MoltenVK_icd.json
+	/*#[cfg(target_os = "macos")]
+	fn vulkan_entry() -> ash::Entry
+	{
+		use std::env;
+
+		/**
+		 * MacOS does not have vulkan natively, so, we need to load the libs ourselves
+		 * Get the self.app path and load dependencies packaged inside Resources/ and Frameworks/
+		 */
+		#[cfg(not(debug_assertions))]
+		use std::path::PathBuf;
+
+		#[cfg(not(debug_assertions))]
+		let exe = env::current_exe().unwrap();
+
+		#[cfg(not(debug_assertions))]
+		let contents = exe.parent()
+			.unwrap()
+			.parent()
+			.unwrap();
+
+		#[cfg(not(debug_assertions))]
+		let icd = contents
+			.join("Resources/vulkan/icd.d/MoltenVK_icd.json");
+
+		#[cfg(not(debug_assertions))]
+		let loader = contents
+			.join("Frameworks/libvulkan.dylib");
+
+		/**
+		 * Debug
+		 * this env wont be inside .app but on target/debug/, so we will need to get the libs from the global install
+		 */
+		#[cfg(debug_assertions)]
+		let icd = "/opt/homebrew/Cellar/molten-vk/1.4.0/etc/vulkan/icd.d/MoltenVK_icd.json";
+
+		#[cfg(debug_assertions)]
+		let loader = "/opt/homebrew/lib/libvulkan.dylib";
+
+		unsafe {
+			env::set_var("VK_ICD_FILENAMES", icd);
+
+			ash::Entry::load_from(loader)
+				.expect("error loading MoltenVK")
+		}
+	}*/
 }
 
 /*#[cfg(test)] // this wont work on linux for some reason
