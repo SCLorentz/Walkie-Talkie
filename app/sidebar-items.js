@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["CursorType","DecorationMode","Event","SurfaceBackend","ThemeOp","WRequestResult","WResponse"],"struct":["App","Cursor","Decoration","SurfaceWrapper","Window"],"trait":["EventHandler","Theme"],"type":["Blur"]};
+window.SIDEBAR_ITEMS = {"enum":["CursorType","DecorationMode","Event","WRequestResult","WResponse"],"fn":["to_handle"],"struct":["App","Color","Cursor","Decoration","SurfaceWrapper","ThemeDefault","Window"],"trait":["EventHandler","SurfaceBackend","Theme"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["SurfaceBackend","WRequestResult","WResponse"],"fn":["from_handle","to_handle"],"struct":["MacWrapper","SurfaceWrapper"]};
+window.SIDEBAR_ITEMS = {"enum":["WRequestResult","WResponse"],"fn":["from_handle","to_handle"],"struct":["Color","SurfaceWrapper"],"trait":["SurfaceBackend"]};

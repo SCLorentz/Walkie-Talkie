@@ -11,22 +11,23 @@
 <a href=#11 id=11 data-nosnippet>11</a>
 <a href=#12 id=12 data-nosnippet>12</a><span class="attr">#[cfg(feature = <span class="string">"wayland"</span>)]
 <a href=#13 id=13 data-nosnippet>13</a></span><span class="kw">pub use </span>wayland::WaylandDecoration <span class="kw">as </span>NativeDecoration;
-<a href=#14 id=14 data-nosnippet>14</a>
-<a href=#15 id=15 data-nosnippet>15</a><span class="attr">#[cfg(feature = <span class="string">"gnome"</span>)]
-<a href=#16 id=16 data-nosnippet>16</a></span><span class="kw">pub use </span>gnome::GnomeDecoration <span class="kw">as </span>NativeDecoration;
-<a href=#17 id=17 data-nosnippet>17</a>
-<a href=#18 id=18 data-nosnippet>18</a><span class="attr">#[cfg(feature = <span class="string">"x11"</span>)]
-<a href=#19 id=19 data-nosnippet>19</a></span><span class="kw">pub use </span>x11::XDecoration <span class="kw">as </span>NativeDecoration;
-<a href=#20 id=20 data-nosnippet>20</a>
-<a href=#21 id=21 data-nosnippet>21</a><span class="doccomment">/// List of supported DEs/WMs
-<a href=#22 id=22 data-nosnippet>22</a></span><span class="attr">#[derive(Debug, PartialEq)]
-<a href=#23 id=23 data-nosnippet>23</a></span><span class="kw">pub enum </span>DE {
-<a href=#24 id=24 data-nosnippet>24</a>	Kde,
-<a href=#25 id=25 data-nosnippet>25</a>	Hyprland,
-<a href=#26 id=26 data-nosnippet>26</a>	Sway,
-<a href=#27 id=27 data-nosnippet>27</a>	Xfce,
-<a href=#28 id=28 data-nosnippet>28</a>	<span class="doccomment">/// Not officially ported
-<a href=#29 id=29 data-nosnippet>29</a>	</span>Other,
-<a href=#30 id=30 data-nosnippet>30</a>	<span class="doccomment">/// Couldn't detect
-<a href=#31 id=31 data-nosnippet>31</a>	</span>Unknown,
-<a href=#32 id=32 data-nosnippet>32</a>}</code></pre></div></section></main></body></html>
+<a href=#14 id=14 data-nosnippet>14</a><span class="kw">pub use </span>wayland::LinuxWrapper <span class="kw">as </span>Wrapper;
+<a href=#15 id=15 data-nosnippet>15</a>
+<a href=#16 id=16 data-nosnippet>16</a><span class="attr">#[cfg(feature = <span class="string">"gnome"</span>)]
+<a href=#17 id=17 data-nosnippet>17</a></span><span class="kw">pub use </span>gnome::GnomeDecoration <span class="kw">as </span>NativeDecoration;
+<a href=#18 id=18 data-nosnippet>18</a>
+<a href=#19 id=19 data-nosnippet>19</a><span class="attr">#[cfg(feature = <span class="string">"x11"</span>)]
+<a href=#20 id=20 data-nosnippet>20</a></span><span class="kw">pub use </span>x11::XDecoration <span class="kw">as </span>NativeDecoration;
+<a href=#21 id=21 data-nosnippet>21</a>
+<a href=#22 id=22 data-nosnippet>22</a><span class="doccomment">/// List of supported DEs/WMs
+<a href=#23 id=23 data-nosnippet>23</a></span><span class="attr">#[derive(Debug, PartialEq)]
+<a href=#24 id=24 data-nosnippet>24</a></span><span class="kw">pub enum </span>DE {
+<a href=#25 id=25 data-nosnippet>25</a>	Kde,
+<a href=#26 id=26 data-nosnippet>26</a>	Hyprland,
+<a href=#27 id=27 data-nosnippet>27</a>	Sway,
+<a href=#28 id=28 data-nosnippet>28</a>	Xfce,
+<a href=#29 id=29 data-nosnippet>29</a>	<span class="doccomment">/// Not officially ported
+<a href=#30 id=30 data-nosnippet>30</a>	</span>Other,
+<a href=#31 id=31 data-nosnippet>31</a>	<span class="doccomment">/// Couldn't detect
+<a href=#32 id=32 data-nosnippet>32</a>	</span>Unknown,
+<a href=#33 id=33 data-nosnippet>33</a>}</code></pre></div></section></main></body></html>
