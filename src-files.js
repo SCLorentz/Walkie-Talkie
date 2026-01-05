@@ -1,2 +1,2 @@
-createSrcSidebar('[["app",["",[["platform",[["linux",[],["mod.rs","wayland.rs"]]],["mod.rs"]]],["app.rs"]]],["app",["",[],["app.rs","wayland.rs"]]],["common",["",[],["common.rs"]]],["renderer",["",[],["renderer.rs"]]],["vk_renderer",["",[],["renderer.rs"]]],["wt",["",[],["main.rs"]]]]');
-//{"start":19,"fragment_lengths":[88,40,33,37,40,27]}
+createSrcSidebar('[["app",["",[["platform",[["linux",[],["mod.rs","shared.rs","wayland.rs"]]],["mod.rs"]]],["app.rs"]]],["app",["",[],["app.rs","wayland.rs"]]],["common",["",[],["common.rs"]]],["renderer",["",[],["renderer.rs"]]],["vk_renderer",["",[],["renderer.rs","wrapper.rs"]]],["wt",["",[],["main.rs"]]]]');
+//{"start":19,"fragment_lengths":[100,40,33,37,53,27]}
