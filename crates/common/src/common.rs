@@ -5,20 +5,28 @@
 /// This is a helper crate, with minimum dependencies, not even std included
 /// Things in here should and will be dirty
 
-use core::ffi::c_void;
 extern crate alloc;
 pub use alloc::boxed::Box;
 
-#[inline]
-pub fn to_handle<T>(val: T) -> *mut c_void
-	{ Box::into_raw(Box::new(val)) as *mut c_void }
-
-#[inline]
-pub unsafe fn from_handle<T>(ptr: *const c_void) -> T
-{
-	let value = unsafe { Box::from_raw(ptr as *mut T) };
-	*value
+#[repr(C)]
+pub struct void {
+	_private: [u8; 0],
 }
+
+/// int32 bool type
+pub static TRUE: u32 = 1;
+/// int32 bool type
+pub static FALSE: u32 = 0;
+
+/// Get a T type value and stores it safely as a generic type
+#[inline]
+pub fn to_handle<T>(val: T) -> *mut void
+	{ Box::into_raw(Box::new(val)) as *mut void }
+
+/// Espects a T return type and a Boxed c_void pointer to get value inside the Box
+#[inline]
+pub fn from_handle<T>(ptr: *const void) -> T
+	{ unsafe { *Box::from_raw(ptr as *mut T) } }
 
 pub enum WRequestResult<T> {
 	Fail(WResponse),
@@ -44,13 +52,13 @@ pub enum WResponse
 
 
 #[derive(Clone, PartialEq, Debug)]
-pub struct SurfaceWrapper(pub *mut c_void);
+pub struct SurfaceWrapper(pub *mut void);
 
 impl SurfaceWrapper
 {
 	pub fn new<T>(wrap: T) -> Self { SurfaceWrapper(to_handle(wrap)) }
 	pub fn is_null(&self) -> bool { self.0.is_null() }
-	pub unsafe fn cast<T>(&self) -> T { unsafe { from_handle(self.0) } }
+	pub unsafe fn cast<T>(&self) -> T {  from_handle(self.0) }
 }
 
 // https://github.com/seancroach/hex_color/blob/main/src/lib.rs

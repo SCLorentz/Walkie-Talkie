@@ -10,40 +10,41 @@ mod events;
 
 pub use events::Event;
 use platform::{NativeDecoration, Wrapper};
-use log::{info, warn};
+use log::warn;
 use std::path::Path;
-use core::ffi::c_void;
 pub use common::{
 	WRequestResult::{self, Fail, Success},
 	WResponse,
 	SurfaceWrapper,
 	Color,
-	to_handle
+	to_handle,
+	void
 };
 
 #[allow(dead_code)]
-pub struct App<H>
-where
-	H: EventHandler + Send + Sync,
+pub struct App//<H>
+//where
+//	H: EventHandler + Send + Sync,
 {
 	pub windows: Vec<Window>,
 	pub cursor: Cursor,
 	theme: ThemeDefault,
-	handler: H,
+	//handler: H,
 }
 
-pub trait EventHandler: Send + Sync
-	{ fn handle_events(event: Event); }
+//pub trait EventHandler: Send + Sync
+//	{ fn handle_events(event: Event); }
 
-impl<H: EventHandler> App<H>
+//impl<H: EventHandler> App<H>
+impl App
 {
-	pub fn new(handler: H) -> Self
+	pub fn new() -> Self
 	{
 		Self {
 			windows: Vec::new(),
 			theme: Self::theme_default(),
 			cursor: Cursor::get_cursor(),
-			handler,
+			//handler,
 		}
 	}
 
@@ -62,9 +63,13 @@ impl<H: EventHandler> App<H>
 	{
 		// event thread
 		// Use non-blocking I/O here to wait for the events
-		std::thread::spawn(move || {
-			loop { H::handle_events(Event::Generic) };
-		});
+		// this will start at 0,0% CPU and at some point it will escalate to 100%
+		// im so stupid...
+		/*std::thread::spawn(move || {
+			loop {
+				H::handle_events(Event::Generic);
+			};
+		});*/
 
 		#[cfg(target_os = "macos")]
 		self.windows[0].decoration.run();
@@ -81,7 +86,7 @@ pub enum DecorationMode {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Decoration {
-	frame: *const c_void,
+	frame: *const void,
 	backend: Wrapper,
 	mode: DecorationMode,
 }
@@ -134,7 +139,7 @@ impl Window
 		}
 	}
 
-	pub fn get_backend(&self) -> *mut c_void
+	pub fn get_backend(&self) -> *mut void
 		{ to_handle(self.decoration.backend.clone()) }
 
 	pub fn some_surface(&self) -> bool
@@ -172,7 +177,7 @@ pub trait Theme {
 	fn set_blur(&mut self, blur: bool);
 }
 
-impl<H: EventHandler> Theme for App<H>
+impl Theme for App
 {
 	/// Modify the current window theme
 	/// If alread set as the value provided, it does nothing

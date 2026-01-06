@@ -5,9 +5,9 @@ use crate::{
 	Decoration,
 	WRequestResult,
 	WResponse::NotImplementedInCompositor,
-	platform::linux::{DE, get_de}
+	platform::linux::{DE, get_de},
+	c_void
 };
-use core::ffi::c_void;
 
 use wayland_client::{
 	delegate_noop,

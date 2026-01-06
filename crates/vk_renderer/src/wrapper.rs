@@ -1,15 +1,15 @@
-use crate::c_void;
+use crate::void;
 
 #[cfg(target_os = "linux")]
 #[derive(PartialEq, Debug, Clone)]
 pub struct Wrapper {
-	pub state: *mut c_void
+	pub state: *mut void
 }
 
 #[cfg(target_os = "macos")]
 #[derive(PartialEq, Debug, Clone)]
 pub struct Wrapper {
-	pub ns_view: *mut c_void,		// NSView
-	pub rect: *const c_void,		// NSRect
-	pub app: *const c_void,			// NSApplication
+	pub ns_view: *mut void,		// NSView
+	pub rect: *const void,		// NSRect
+	pub app: *const void,		// NSApplication
 }

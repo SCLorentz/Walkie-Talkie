@@ -2,7 +2,7 @@
 
 use std::cell::OnceCell;
 use log::debug;
-use crate::c_void;
+use crate::void;
 
 use objc2::{
 	rc::{Retained, Allocated},
@@ -31,14 +31,14 @@ use crate::{DecorationMode, Decoration, WRequestResult};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Wrapper {
-	pub ns_view: *mut c_void,		// NSView
-	pub rect:  *const c_void,		// NSRect
-	pub app:   *const c_void,		// NSApplication
+	pub ns_view: *mut void,		// NSView
+	pub rect:  *const void,		// NSRect
+	pub app:   *const void,		// NSApplication
 }
 
 impl Wrapper
 {
-	fn get<T>(ptr: &Retained<T>) -> *mut c_void where T: Message
+	fn get<T>(ptr: &Retained<T>) -> *mut void where T: Message
 	{
 		let ptr: *mut T = Retained::<T>::as_ptr(&ptr) as *mut T;
 		ptr.cast()
@@ -168,7 +168,7 @@ impl NativeDecoration for Decoration
 	/// The default function to run the program, since it's required on macOS
 	fn run(&self)
 	{
-		let app = self.backend.app as *mut c_void as *const NSApplication;
+		let app = self.backend.app as *mut void as *const NSApplication;
 		unsafe { msg_send![&*app, run] }
 	}
 

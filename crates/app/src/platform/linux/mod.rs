@@ -1,5 +1,5 @@
 // 1. make this work well on Fedora (KDE) and ZorinOS (GNOME)
-// 2. package to nixOS and make work well on Hyprland
+// 2. package to NixOS and make work well on Hyprland
 // 3. make it work on X11 (Xorg)
 
 #[cfg(feature = "wayland")]

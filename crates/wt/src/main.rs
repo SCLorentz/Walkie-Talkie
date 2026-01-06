@@ -6,7 +6,7 @@
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;*/
 
-use app::{App, Event, SurfaceWrapper, Theme, EventHandler};
+use app::{App, Event, SurfaceWrapper, Theme};
 use vk_renderer::Renderer;
 use log::info;
 
@@ -18,7 +18,7 @@ fn main() {
 		.unwrap();
 	log_panics::init();
 
-	let mut app = App::new(MatrixClient);
+	let mut app = App::new();
 	app.set_blur(true);
 
 	let mut window = app.new_window("walkie talkie", (600.0, 500.0));
@@ -31,7 +31,7 @@ fn main() {
 	app.init();
 }
 
-struct MatrixClient;
+/*struct MatrixClient;
 
 impl EventHandler for MatrixClient
 {
@@ -45,3 +45,4 @@ impl EventHandler for MatrixClient
 		}
 	}
 }
+*/
