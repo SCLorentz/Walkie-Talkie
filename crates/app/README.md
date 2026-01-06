@@ -35,13 +35,7 @@ fn main() {
 		.expect("Vulkan inicialization failed");
 	window.connect_surface(SurfaceWrapper::new(renderer.surface));
 
-	app.exec_loop(app_loop);
-}
-
-fn app_loop()
-{
-	debug!("app loop");
-	std::thread::sleep(std::time::Duration::from_secs(10));
+	app.init();
 }
 ```
 

@@ -1,9 +1,14 @@
 #![doc = include_str!("../README.md")]
 #![doc(issue_tracker_base_url = "https://github.com/SCLorentz/Walkie-Talkie/issues")]
 
+// https://linux.die.net/man/3/jemalloc
+/*#[cfg(target_os = "linux")]
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;*/
+
 use app::{App, Event, SurfaceWrapper, Theme, EventHandler};
 use vk_renderer::Renderer;
-use log::{info, debug};
+use log::info;
 
 //use auth::login;
 
@@ -23,7 +28,7 @@ fn main() {
 	window.connect_surface(SurfaceWrapper::new(renderer.surface));
 
 	//login(None);
-	app.exec_loop(app_loop);
+	app.init();
 }
 
 struct MatrixClient;
@@ -39,10 +44,4 @@ impl EventHandler for MatrixClient
 			_ => {},
 		}
 	}
-}
-
-fn app_loop()
-{
-	debug!("app loop");
-	std::thread::sleep(std::time::Duration::from_secs(10));
 }

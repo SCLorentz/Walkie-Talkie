@@ -2,6 +2,7 @@
 #![windows_subsystem = "windows"]
 // https://github.com/microsoft/windows-rs/blob/master/crates/samples/windows/core_app/src/main.rs
 // TODO: make a VM and test this on windows (fix all problems)
+// TODO: make this work as well on reactOS
 
 use crate::{DecorationMode, Decoration, SurfaceBackend};
 
@@ -15,13 +16,13 @@ use windows::{
 	UI::Core::*,
 };
 
-pub trait WindowsDecoration {
+pub trait NativeDecoration {
 	fn new() -> Decoration;
 	fn make_view();
 	fn set_blur();
 }
 
-impl WindowsDecoration for Decoration
+impl NativeDecoration for Decoration
 {
 	fn new() -> Decoration
 	{

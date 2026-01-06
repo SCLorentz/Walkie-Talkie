@@ -1,12 +1,12 @@
+#![no_std]
 #![allow(unused_doc_comments)]
 #![doc = include_str!("../README.md")]
 
 use ash::Instance;
 use ash::vk::{self, SurfaceKHR, RenderPass, Handle, PhysicalDevice};
-use std::{error::Error, ptr::NonNull};
 use log::debug;
-use core::ffi::c_void;
-use common::{to_handle, from_handle, SurfaceBackend};
+use core::{ffi::c_void, slice, ptr::NonNull, error::Error};
+use common::{from_handle, Box};
 
 mod wrapper;
 use wrapper::Wrapper;
@@ -27,8 +27,7 @@ impl Renderer {
 	 * for now returns true always, but more info here:
 	 * <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families#:~:text=isDeviceSuitable>
 	 */
-	fn is_device_suitable(_device: PhysicalDevice) -> bool
-		{ true }
+	fn is_device_suitable(_device: PhysicalDevice) -> bool { true }
 
 	/**
 	 * <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families>
@@ -71,7 +70,7 @@ impl Renderer {
 		let device_features = vk::PhysicalDeviceFeatures::default();
 
 		let device_create_info = vk::DeviceCreateInfo::default()
-			.queue_create_infos(std::slice::from_ref(&queue_info))
+			.queue_create_infos(slice::from_ref(&queue_info))
 			.enabled_features(&device_features);
 
 		let device_extensions = [
@@ -99,7 +98,7 @@ impl Renderer {
 		let _: () = unsafe { msg_send![ns_view, setWantsLayer: true] };
 
 		let layer: Option<Retained<CALayer>> = unsafe { msg_send![ns_view, layer] };
-		let layer = to_handle(
+		let layer = common::to_handle(
 			&mut layer.expect("failed making the view layer-backed").as_super()
 		);
 
@@ -127,7 +126,7 @@ impl Renderer {
 		/**
 		 * https://docs.rs/ash-window/0.13.0/src/ash_window/lib.rs.html#36-126
 		 */
-		let display = std::ptr::null_mut() as *const c_void as *mut wl_display;
+		let display = core::ptr::null_mut() as *const c_void as *mut wl_display;
 
 		let surface_desc = vk::WaylandSurfaceCreateInfoKHR::default()
 			.display(display)
@@ -138,22 +137,13 @@ impl Renderer {
 			.expect("couldn't create wayland surface") }
 	}
 
-	/// Gets what it's needed to the renderer work
-	/// For example, MacOS with `EXT_METAL_SURFACE_NAME`, because it doesn't have a native vulkan renderer
-	fn detect_needed_extensions() -> Vec<*const i8>
-	{Vec::from([
-		vk::KHR_PORTABILITY_ENUMERATION_NAME.as_ptr(),
-		vk::KHR_SURFACE_NAME.as_ptr(),
-		vk::EXT_METAL_SURFACE_NAME.as_ptr(),
-	])}
-
 	/// Creates a new Vulkan render
 	/// this will be our initVulkan() from the tutorial
 	/// <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Base_code#:~:text=initVulkan()>
 	pub fn new(surface_backend: *mut c_void) -> Result<Renderer, Box<dyn Error>>
 	{
-		//let surface_backed = surface_backend as *mut SurfaceBackend<Wrapper>;
-		debug!("Creating new vulkan render on backend:\n{:#?}", surface_backend);
+		let backend = unsafe { from_handle::<Wrapper>(surface_backend) };
+		debug!("Creating new vulkan render on backend:\n{:#?}", backend);
 
 		/**
 		 * load vulkan in execution, otherwise one might have a problem compiling it for macos (apple beeing apple)
@@ -171,7 +161,12 @@ impl Renderer {
 		let app_info =
 			vk::ApplicationInfo::default().api_version(vk::make_api_version(0, 1, 0, 0));
 
-		let extensions = Self::detect_needed_extensions();
+		let extensions = [
+			vk::KHR_PORTABILITY_ENUMERATION_NAME.as_ptr(),
+			vk::KHR_SURFACE_NAME.as_ptr(),
+			vk::EXT_METAL_SURFACE_NAME.as_ptr(),
+		];
+
 		let instance_desc = vk::InstanceCreateInfo::default()
 			.application_info(&app_info)
 			.enabled_extension_names(&extensions);
@@ -200,7 +195,8 @@ impl Renderer {
 		 * but the way it is created is different, using `SurfaceFactory`, for that I would need winit
 		 */
 
-		let view = Wrapper::get_surface(surface_backend);
+		#[cfg(target_os = "macos")]
+		let view = backend.ns_view;
 		let nn_view = NonNull::new(view)
 			.expect("NSView shouldn't be null")
 			.cast();
@@ -262,7 +258,7 @@ impl Renderer {
 
 		let renderpass_create_info = vk::RenderPassCreateInfo::default()
 			.attachments(&renderpass_attachments)
-			.subpasses(std::slice::from_ref(&subpass))
+			.subpasses(slice::from_ref(&subpass))
 			.dependencies(&dependencies);
 
 		let renderpass = unsafe {
@@ -333,16 +329,3 @@ impl Renderer {
 		}
 	}*/
 }
-
-/*#[cfg(test)] // this wont work on linux for some reason
-mod tests {
-	use super::*;
-
-	#[test]
-	fn test_vulkan_render()
-	{
-		// for now this should fail, bc I didn't implement the Headless execution
-		let renderer = Renderer::new(SurfaceBackend::Headless as *mut SurfaceBackend as *mut c_void);
-		assert!(renderer.is_ok());
-	}
-}*/

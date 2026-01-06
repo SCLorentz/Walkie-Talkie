@@ -5,11 +5,9 @@ use crate::{
 	Decoration,
 	WRequestResult,
 	WResponse::NotImplementedInCompositor,
-	platform::linux::DE,
+	platform::linux::{DE, get_de}
 };
 use core::ffi::c_void;
-
-use super::shared::get_de;
 
 use wayland_client::{
 	delegate_noop,
@@ -50,12 +48,13 @@ impl State {
 	}
 }
 
+#[allow(dead_code)]
 struct WaylandFrame {
 	xdg_surface: xdg_surface::XdgSurface,
 	toplevel: xdg_toplevel::XdgToplevel,
 }
 
-pub trait WaylandDecoration
+pub trait NativeDecoration
 {
 	/// Creates a native window frame decoration for Linux DE/WM
 	fn new(title: String, _width: f64, _height: f64) -> Decoration;
@@ -65,12 +64,12 @@ pub trait WaylandDecoration
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub struct LinuxWrapper {
+pub struct Wrapper {
 	pub state: *mut c_void
 }
 
 // wayland_protocols (which include wayland_client) failed to build documentation on version 0.31.12 thks!!
-impl WaylandDecoration for Decoration
+impl NativeDecoration for Decoration
 {
 	fn new(title: String, _width: f64, _height: f64) -> Decoration
 	{
@@ -107,7 +106,7 @@ impl WaylandDecoration for Decoration
 		 * Other future (optional) implementations may include:
 		 * - popups, notifications, tablet, ext_background_effect_manager_v1
 		 */
-		let backend = LinuxWrapper {
+		let backend = Wrapper {
 			state: to_handle(state)
 		};
 
@@ -132,7 +131,12 @@ impl WaylandDecoration for Decoration
 		 * the `hyprland_surface_manager_v1` protocol already covers this, skip
 		 * <https://wayland.app/protocols/hyprland-surface-v1>
 		 */
-		match get_de() {
+		let desktop = match get_de() {
+			common::WRequestResult::Success(d) => d,
+			common::WRequestResult::Fail(_) => DE::Unknown,
+		};
+
+		match desktop {
 			DE::Hyprland =>
 				return WRequestResult::Success(()),
 			_ => {}

@@ -1,8 +1,8 @@
 #![allow(unused_imports, unused_doc_comments)]
 
 use std::cell::OnceCell;
-use core::ffi::c_void;
 use log::debug;
+use crate::c_void;
 
 use objc2::{
 	rc::{Retained, Allocated},
@@ -27,20 +27,16 @@ use objc2_foundation::{
 	NSSize, NSString,
 };
 
-use crate::{DecorationMode, Decoration, SurfaceBackend, WRequestResult};
+use crate::{DecorationMode, Decoration, WRequestResult};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Wrapper {
 	pub ns_view: *mut c_void,		// NSView
-	pub rect: *const c_void,		// NSRect
-	pub app: *const c_void,			// NSApplication
+	pub rect:  *const c_void,		// NSRect
+	pub app:   *const c_void,		// NSApplication
 }
 
-pub trait WrapperHelper {
-	fn get<T>(ptr: &Retained<T>) -> *mut c_void where T: Message;
-}
-
-impl WrapperHelper for Wrapper
+impl Wrapper
 {
 	fn get<T>(ptr: &Retained<T>) -> *mut c_void where T: Message
 	{
@@ -49,14 +45,14 @@ impl WrapperHelper for Wrapper
 	}
 }
 
-pub trait CocoaDecoration
+pub trait NativeDecoration
 {
 	fn run(&self);
 	fn new(title: String, width: f64, height: f64) -> Decoration;
 	fn apply_blur(&mut self) -> WRequestResult<()>;
 }
 
-impl CocoaDecoration for Decoration
+impl NativeDecoration for Decoration
 {
 	/// Creates the native window frame decoration for macOS
 	fn new(title: String, width: f64, height: f64) -> Decoration
@@ -118,7 +114,7 @@ impl CocoaDecoration for Decoration
 			app: Wrapper::get(&app),
 		};
 
-		debug!("Creating CocoaDecoration object");
+		debug!("Creating NativeDecoration object");
 
 		Decoration {
 			mode: DecorationMode::ServerSide,
@@ -130,7 +126,6 @@ impl CocoaDecoration for Decoration
 	/// Apply blur effect on the window
 	fn apply_blur(&mut self) -> WRequestResult<()>
 	{
-		debug!("working here");
 		let mtm = MainThreadMarker::new()
 			.expect("Process expected to be executed on the Main Thread!");
 
@@ -143,7 +138,6 @@ impl CocoaDecoration for Decoration
 		 * Mostly, other effects will be managed trought renderer/shaders on vulkan and not macOS
 		 */
 		let alloc: Allocated<NSVisualEffectView> = NSVisualEffectView::alloc(mtm);
-		debug!("working until here");
 		let blur_view = unsafe { NSVisualEffectView::initWithFrame(alloc, *rect) };
 
 		let window = self.frame as *mut NSWindow;
@@ -166,7 +160,7 @@ impl CocoaDecoration for Decoration
 				| NSAutoresizingMaskOptions::ViewHeightSizable
 		);
 
-		debug!("applying blur on CocoaDecoration");
+		debug!("applying blur on NativeDecoration");
 
 		WRequestResult::Success(())
 	}
@@ -205,9 +199,7 @@ define_class!(
 	unsafe impl NSWindowDelegate for Delegate {
 		#[unsafe(method(windowWillClose:))]
 		fn window_will_close(&self, _notification: &NSNotification)
-		{
-			NSApplication::sharedApplication(self.mtm()).terminate(None);
-		}
+			{ NSApplication::sharedApplication(self.mtm()).terminate(None); }
 	}
 );
 

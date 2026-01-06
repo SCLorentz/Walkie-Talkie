@@ -1,20 +1,19 @@
 #![allow(unused_doc_comments)]
 #![doc = include_str!("../README.md")]
 
-#[cfg(target_os = "bsd")]
-compile_error!("bsd not supported");
-
+// Redox is compatible with the linux ABI, minimum ajustments needed
 #[cfg(target_os = "redox")]
-compile_error!("redox not supported");
+compile_error!("redox not supported yet");
 
 mod platform;
+mod events;
 
+pub use events::Event;
 use platform::{NativeDecoration, Wrapper};
 use log::{info, warn};
 use std::path::Path;
 use core::ffi::c_void;
 pub use common::{
-	SurfaceBackend,
 	WRequestResult::{self, Fail, Success},
 	WResponse,
 	SurfaceWrapper,
@@ -27,7 +26,6 @@ pub struct App<H>
 where
 	H: EventHandler + Send + Sync,
 {
-	/// list of active windows
 	pub windows: Vec<Window>,
 	pub cursor: Cursor,
 	theme: ThemeDefault,
@@ -35,19 +33,15 @@ where
 }
 
 pub trait EventHandler: Send + Sync
-{
-	fn handle_events(event: Event);
-}
+	{ fn handle_events(event: Event); }
 
 impl<H: EventHandler> App<H>
 {
 	pub fn new(handler: H) -> Self
 	{
-		let theme = Self::theme_default();
-
 		Self {
 			windows: Vec::new(),
-			theme,
+			theme: Self::theme_default(),
 			cursor: Cursor::get_cursor(),
 			handler,
 		}
@@ -64,16 +58,12 @@ impl<H: EventHandler> App<H>
 	/**
 	 * In the future, merge the target macos and linux exec_loop() into one single
 	 */
-	pub fn exec_loop(&self, run: fn())
+	pub fn init(&self)
 	{
 		// event thread
+		// Use non-blocking I/O here to wait for the events
 		std::thread::spawn(move || {
 			loop { H::handle_events(Event::Generic) };
-		});
-
-		// main logic thread
-		std::thread::spawn(move || {
-			loop { run(); }
 		});
 
 		#[cfg(target_os = "macos")]
@@ -122,6 +112,7 @@ impl Window
 	/// Create a new window
 	pub fn new(title: &'static str, theme: ThemeDefault, size: (f64, f64)) -> Self
 	{
+		#[allow(unused_mut)]
 		let mut decoration = Decoration::new(String::from(title), size.0, size.1);
 
 		if theme.blur == true
@@ -300,45 +291,4 @@ impl Cursor {
 
 	pub fn is_visible(&self) -> bool
 		{ self.visible }
-}
-
-/// List of Events
-#[derive(Debug, PartialEq)]
-pub enum Event {
-	// error sending this events through app loop (c_void cannot safely go to another thread)
-	MouseIn {
-		cursor: Cursor,
-		window: Window,
-	},
-	MouseOut {
-		cursor: Cursor,
-		window: Window
-	},
-	LeftClick {
-		cursor: Cursor,
-		window: Window
-	},
-	RightClick {
-		cursor: Cursor,
-		window: Window
-	},
-	WindowResized {
-		window: Window,
-		new_size: (f64, f64)
-	},
-	WindowMoved {
-		window: Window,
-		new_positon: (f64, f64)
-	},
-	ThemeChange {
-		new_theme: ThemeDefault
-	},
-	RedrawRequest {
-		window: Window
-	},
-	Focused {
-		window: Window
-	},
-	CloseRequest,
-	Generic,
 }

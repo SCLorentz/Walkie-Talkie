@@ -40,4 +40,3 @@ windows.workspace = true
 default = ["wayland"]
 wayland = []
 x11 = []
-gnome = []

@@ -1,26 +1,13 @@
 #![no_std]
 #![no_main]
+#![allow(non_snake_case)]
 
 /// This is a helper crate, with minimum dependencies, not even std included
 /// Things in here should and will be dirty
 
 use core::ffi::c_void;
 extern crate alloc;
-use alloc::boxed::Box;
-
-/// This is an abstraction layer used to get the surface easly
-/// ```rust
-/// impl TSurfaceBackend for Wrapper {
-/// 	fn get_surface(backend: *mut c_void) -> *mut c_void
-/// 	{
-/// 		let backend: Self = unsafe { from_handle(backend) };
-///			return backend.ns_view;
-/// 	}
-/// }
-/// ```
-pub trait SurfaceBackend {
-	fn get_surface(backend: *mut c_void) -> *mut c_void;
-}
+pub use alloc::boxed::Box;
 
 #[inline]
 pub fn to_handle<T>(val: T) -> *mut c_void
@@ -61,28 +48,30 @@ pub struct SurfaceWrapper(pub *mut c_void);
 
 impl SurfaceWrapper
 {
-	pub fn new<T>(wrap: T) -> Self
-		{ SurfaceWrapper(to_handle(wrap)) }
-
-	pub fn is_null(&self) -> bool
-		{ self.0.is_null() }
-
-	pub unsafe fn cast<T>(&self) -> T
-		{ unsafe { from_handle(self.0) } }
+	pub fn new<T>(wrap: T) -> Self { SurfaceWrapper(to_handle(wrap)) }
+	pub fn is_null(&self) -> bool { self.0.is_null() }
+	pub unsafe fn cast<T>(&self) -> T { unsafe { from_handle(self.0) } }
 }
 
 // https://github.com/seancroach/hex_color/blob/main/src/lib.rs
 #[derive(PartialEq, Clone, Debug)]
-pub struct Color {
-	pub r: u8,
-	pub g: u8,
-	pub b: u8,
-	pub a: u8,
-}
+pub struct Color { pub R: u8, pub G: u8, pub B: u8, pub A: u8, }
 
 impl Color {
-	pub fn from(r: u8, g: u8, b: u8, a: u8) -> Self
-	{
-		Self { r, g, b, a }
-	}
+	pub fn from(R: u8, G: u8, B: u8, A: u8) -> Self { Self { R, G, B, A } }
 }
+
+// https://github.com/tokio-rs/mio
+// https://www.zupzup.org/epoll-with-rust/index.html
+// non-blocking I/O
+/*#[allow(unused_macros)]
+macro_rules! syscall {
+	($fn: ident ( $($arg: expr),* $(,)* ) ) => {{
+		let res = unsafe { libc::$fn($($arg, )*) };
+		if res == -1 {
+			Err(std::io::Error::last_os_error())
+		} else {
+			Ok(res)
+		}
+	}};
+}*/

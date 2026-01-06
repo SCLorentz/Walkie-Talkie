@@ -12,7 +12,7 @@ use crate::{
 use core::ffi::c_void;
 use super::shared::get_de;
 
-pub trait XDecoration
+pub trait NativeDecoration
 {
 	/// Creates a native window frame decoration for Linux DE/WM
 	fn new(title: &str, width: f64, height: f64) -> Decoration;
@@ -20,7 +20,7 @@ pub trait XDecoration
 	fn apply_blur(&self);
 }
 
-impl XDecoration for Decoration
+impl NativeDecoration for Decoration
 {
 	fn new(_title: &str, _width: f64, _height: f64) -> Decoration
 	{

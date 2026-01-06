@@ -6,8 +6,6 @@ build-linux-a64			= "build --profile release-smaller --target aarch64-unknown-li
 #
 build-linux-x64-x11		= "build-linux-x64 --features x11"
 build-linux-a64-x11		= "build-linux-a64 --features x11"
-build-gnome-x64			= "build-linux-x64 --features gnome"
-build-gnome-a64			= "build-linux-a64 --features gnome"
 # macOS
 build-macos				= "build --profile release-smaller --target aarch64-apple-darwin"
 
