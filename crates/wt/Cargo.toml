@@ -16,7 +16,7 @@ path = "src/main.rs"
 [dependencies]
 log.workspace = true
 app.workspace = true
-log-panics.workspace = true
+common.workspace = true
 simple_logger.workspace = true
 ash.workspace = true
 vk_renderer.workspace = true

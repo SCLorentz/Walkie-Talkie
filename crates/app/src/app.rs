@@ -10,7 +10,7 @@ mod events;
 
 pub use events::Event;
 use platform::{NativeDecoration, Wrapper};
-use log::warn;
+use log::{warn, info};
 use std::path::Path;
 pub use common::{
 	WRequestResult::{self, Fail, Success},
@@ -290,9 +290,7 @@ impl Cursor {
 	/// Set the cursor type
 	/// For example: `CursorType::Pointer` for click actions or `CursorType::Custom(Path)` for custom textures
 	pub fn set_type(&mut self, appearence: CursorType)
-	{
-		self.r#type = appearence;
-	}
+		{ self.r#type = appearence; }
 
 	pub fn is_visible(&self) -> bool
 		{ self.visible }

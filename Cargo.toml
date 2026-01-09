@@ -27,7 +27,6 @@ vk_renderer = { path = "crates/vk_renderer" }
 common = { path = "crates/common" }
 # logging
 log = "0.4.28"
-log-panics = "2.1.0"
 # linux
 wayland-client = "0.31.11"
 wayland-protocols-experimental = "20250721.0.1"
