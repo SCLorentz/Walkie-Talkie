@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["app_loop","main"],"struct":["MatrixClient"]};
+window.SIDEBAR_ITEMS = {"fn":["main"]};

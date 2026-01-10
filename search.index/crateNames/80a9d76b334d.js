@@ -1,1 +1,0 @@
-rd_("cappfcommonhrendererkvk_rendererbwt")

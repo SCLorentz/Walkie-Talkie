@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["WRequestResult","WResponse"],"macro":["exit","write"],"static":["FALSE","TRUE"],"struct":["Box","Color","String","SurfaceWrapper","void"],"type":["f8"]};
