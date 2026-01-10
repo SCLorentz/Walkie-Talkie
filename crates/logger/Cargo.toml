@@ -1,0 +1,17 @@
+[package]
+name = "logger"
+version = "0.0.1"
+edition.workspace = true
+publish.workspace = true
+authors = ["SCLorentz <sclorentz@proton.me>"]
+
+[lints]
+workspace = true
+
+[lib]
+path = "src/log.rs"
+doctest = false
+
+[dependencies]
+log.workspace = true
+common.workspace = true

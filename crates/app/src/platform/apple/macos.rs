@@ -1,8 +1,8 @@
 #![allow(unused_imports, unused_doc_comments)]
 
-use std::cell::OnceCell;
+//use std::cell::OnceCell;
 use log::debug;
-use crate::void;
+use crate::{void, String};
 
 use objc2::{
 	rc::{Retained, Allocated},
@@ -55,7 +55,7 @@ pub trait NativeDecoration
 impl NativeDecoration for Decoration
 {
 	/// Creates the native window frame decoration for macOS
-	fn new(title: String, width: f64, height: f64) -> Decoration
+	fn new(mut title: String, width: f64, height: f64) -> Decoration
 	{
 		let mtm = MainThreadMarker::new()
 			.expect("Process expected to be executed on the Main Thread!");
@@ -97,11 +97,11 @@ impl NativeDecoration for Decoration
 		window.center();
 		window.setContentMinSize(NSSize::new(width, height));
 
-		let delegate = Delegate::new(mtm);
+		let delegate = Delegate::new(window.clone());
 		window.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
 		window.makeKeyAndOrderFront(None);
 
-		delegate.ivars().window.set(window.clone()).unwrap();
+		//delegate.ivars().window.set(window.clone()).unwrap();
 
 		let app =  NSApplication::sharedApplication(mtm);
 		app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
@@ -110,7 +110,7 @@ impl NativeDecoration for Decoration
 
 		let backend = Wrapper {
 			ns_view: Wrapper::get(&view),
-			rect: common::to_handle(&rect),
+			rect: common::void::to_handle(&rect),
 			app: Wrapper::get(&app),
 		};
 
@@ -168,6 +168,12 @@ impl NativeDecoration for Decoration
 	/// The default function to run the program, since it's required on macOS
 	fn run(&self)
 	{
+		// I could also use NonNull<void> I think
+		// I was using Box<[*const Window]> and that caused UB, that was suggested to be used, I won't right now, but this is good
+		/*use objc2::class;
+		let app: Retained<NSApplication> = unsafe {
+			msg_send![class!(NSApplication), sharedApplication]
+		};*/
 		let app = self.backend.app as *mut void as *const NSApplication;
 		unsafe { msg_send![&*app, run] }
 	}
@@ -178,9 +184,10 @@ impl NativeDecoration for Decoration
 	}*/
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
+#[allow(dead_code)]
 struct AppDelegateIvars {
-	window: OnceCell<Retained<NSWindow>>,
+	window: Retained<NSWindow>,
 }
 
 define_class!(
@@ -204,8 +211,12 @@ define_class!(
 );
 
 impl Delegate {
-	fn new(mtm: MainThreadMarker) -> Retained<Self> {
-		let this = Self::alloc(mtm).set_ivars(AppDelegateIvars::default());
+	fn new(window: Retained<NSWindow>) -> Retained<Self>
+	{
+		let mtm = MainThreadMarker::new()
+			.expect("Process expected to be executed on the Main Thread!");
+
+		let this = Self::alloc(mtm).set_ivars(AppDelegateIvars { window });
 		unsafe { msg_send![super(this), init] }
 	}
 }

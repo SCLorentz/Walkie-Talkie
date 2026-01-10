@@ -1,10 +1,11 @@
+#![no_std]
 #![doc = include_str!("../README.md")]
 #![doc(issue_tracker_base_url = "https://github.com/SCLorentz/Walkie-Talkie/issues")]
 
 use app::{App, SurfaceWrapper, Theme};
-//use core::arch::asm;
 //use log::debug;
 use vk_renderer::Renderer;
+//use common::exit;
 
 fn main() {
 	simple_logger::SimpleLogger::new()

@@ -9,7 +9,7 @@ macro_rules! write {
 
 		#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 		unsafe {
-			asm!(
+			core::arch::asm!(
 				"syscall",
 				in("rax") 1,		// SYS_write
 				in("rdi") 1,		// stdout
@@ -20,7 +20,7 @@ macro_rules! write {
 
 		#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 		unsafe {
-			asm!(
+			core::arch::asm!(
 				"mov x16, #4",
 				"mov x0, #1",
 				"svc #0x80",
@@ -34,12 +34,26 @@ macro_rules! write {
 
 #[macro_export]
 macro_rules! exit {
-	() => {
+	($x:expr) => {
+		const ret: i32 = $x;
+
+		// https://godbolt.org/ (std::process::exit())
+		#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+		unsafe {
+			core::arch::asm!(
+				"syscall",
+				"push rax",
+				in("edi") ret,
+			)
+		}
+
 		#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 		unsafe {
-			return asm!(
+			core::arch::asm!(
 				"mov x16, #1",
-				"svc 0x80"
+				"svc 0x80",
+				in("x1") ret,
+				options(nostack)
 			);
 		}
 	}

@@ -26,8 +26,8 @@ impl NativeDecoration for Decoration
 	{
 		return Decoration {
 			mode: DecorationMode::ServerSide,
-			frame: std::ptr::null_mut() as *const c_void,
-			app: std::ptr::null_mut() as *const c_void,
+			frame: std::ptr::null_mut() as *const void,
+			app: std::ptr::null_mut() as *const void,
 			backend: SurfaceBackend::Linux {}
 		};
 	}

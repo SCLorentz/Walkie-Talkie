@@ -6,7 +6,7 @@ use crate::{
 	WRequestResult,
 	WResponse::NotImplementedInCompositor,
 	platform::linux::{DE, get_de},
-	c_void
+	void
 };
 
 use wayland_client::{
@@ -23,10 +23,10 @@ use common::to_handle;
 
 struct State {
 	running: bool,
-	base_surface: Option<*mut c_void>,	// wl_surface::WlSurface
-	buffer:	Option<*mut c_void>,		// wl_buffer::WlBuffer
-	wm_base: Option<*mut c_void>,		// xdg_wm_base::XdgWmBase
-	xdg_surface: Option<*const c_void>,
+	base_surface: Option<*mut void>,	// wl_surface::WlSurface
+	buffer:	Option<*mut void>,		// wl_buffer::WlBuffer
+	wm_base: Option<*mut void>,		// xdg_wm_base::XdgWmBase
+	xdg_surface: Option<*const void>,
 	configured: bool,
 	title: String,
 }
@@ -65,7 +65,7 @@ pub trait NativeDecoration
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Wrapper {
-	pub state: *mut c_void
+	pub state: *mut void
 }
 
 // wayland_protocols (which include wayland_client) failed to build documentation on version 0.31.12 thks!!
@@ -112,7 +112,7 @@ impl NativeDecoration for Decoration
 
 		return Decoration {
 			mode: DecorationMode::ServerSide,
-			frame: std::ptr::null_mut() as *const c_void, // TODO
+			frame: std::ptr::null_mut() as *const void, // TODO
 			backend,
 		};
 	}
@@ -163,7 +163,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State
 					let compositor =
 						registry.bind::<wl_compositor::WlCompositor, _, _>(name, 1, qh, ());
 					let mut surface = compositor.create_surface(qh, ());
-					state.base_surface = Some(&mut surface as *mut wl_surface::WlSurface as *mut c_void);
+					state.base_surface = Some(&mut surface as *mut wl_surface::WlSurface as *mut void);
 
 					//if state.wm_base.is_some() && state.xdg_surface.is_none() {
 					state.init_xdg_surface(qh);
@@ -174,7 +174,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for State
 				"xdg_wm_base" => {
 					let mut wm_base = registry.bind::<xdg_wm_base::XdgWmBase, _, _>(name, 1, qh, ());
 					state.wm_base =
-						Some(&mut wm_base as *mut xdg_wm_base::XdgWmBase as *mut c_void);
+						Some(&mut wm_base as *mut xdg_wm_base::XdgWmBase as *mut void);
 
 					//let base_surface = state.base_surface as *mut wl_surface::WlSurface;
 					//let xdg_surface = state.xdg_surface as *mut wl_surface::WlSurface;

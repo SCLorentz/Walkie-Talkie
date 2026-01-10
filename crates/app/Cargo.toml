@@ -14,7 +14,6 @@ doctest = false
 
 [dependencies]
 log.workspace = true
-simple_logger.workspace = true
 ash.workspace = true
 common.workspace = true
 

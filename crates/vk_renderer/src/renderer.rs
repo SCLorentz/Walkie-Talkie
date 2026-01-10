@@ -6,7 +6,7 @@ use ash::Instance;
 use ash::vk::{self, SurfaceKHR, RenderPass, PhysicalDevice};
 use log::debug;
 use core::{slice, ptr::NonNull, error::Error};
-use common::{from_handle, Box, void};
+use common::{Box, void};
 
 mod wrapper;
 use wrapper::Wrapper;
@@ -26,7 +26,7 @@ impl Renderer {
 	/// <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Base_code#:~:text=initVulkan()>
 	pub fn new(surface_backend: *mut void) -> Result<Renderer, Box<dyn Error>>
 	{
-		let backend: Wrapper = from_handle(surface_backend);
+		let backend: Wrapper = void::from_handle(surface_backend);
 		debug!("Creating new vulkan render");
 
 		/**
@@ -83,6 +83,10 @@ impl Renderer {
 
 		#[cfg(target_os = "macos")]
 		let view = backend.ns_view;
+
+		#[cfg(target_os = "linux")]
+		let view: *mut void = todo!();
+
 		let nn_view = NonNull::new(view)
 			.expect("NSView shouldn't be null")
 			.cast();
@@ -195,12 +199,13 @@ impl Renderer {
 		let _: () = unsafe { msg_send![ns_view, setWantsLayer: true] };
 
 		let layer: Option<Retained<CALayer>> = unsafe { msg_send![ns_view, layer] };
-		let layer = common::to_handle(
+		let layer = void::to_handle(
 			&mut layer.expect("failed making the view layer-backed").as_super()
 		);
 
 		let surface_desc = vk::MetalSurfaceCreateInfoEXT::default().layer(layer as *const core::ffi::c_void);
 		let surface = metal_surface::Instance::new(entry, instance);
+
 		unsafe {
 			surface.create_metal_surface(&surface_desc, None)
 				.expect("couldn't create metal surface")
@@ -208,7 +213,7 @@ impl Renderer {
 	}
 
 	// WARN: this is just a model and is not complete. The code will fail.
-	/*#[cfg(target_os = "linux")]
+	#[cfg(target_os = "linux")]
 	fn new_surface(instance: &Instance, entry: &ash::Entry, window: NonNull<void>) -> SurfaceKHR
 	{
 		debug!("creating linux wayland surface");
@@ -226,12 +231,12 @@ impl Renderer {
 
 		let surface_desc = vk::WaylandSurfaceCreateInfoKHR::default()
 			.display(display)
-			.surface((*window).surface.as_ptr());
+			.surface((*window).surface.as_ptr() as *mut core::ffi::c_void);
 
 		let surface = wayland_surface::Instance::new(entry, instance);
 		unsafe { surface.create_wayland_surface(&surface_desc, None)
 			.expect("couldn't create wayland surface") }
-	}*/
+	}
 
 	/// Creates a new vulkan renderpass
 	/// here's an oficial example: <https://github.com/ash-rs/ash/blob/master/ash-examples/src/bin/texture.rs>

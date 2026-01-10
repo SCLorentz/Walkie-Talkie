@@ -4,7 +4,8 @@ members = [
 	"crates/app",
 	"crates/wt",
 	"crates/vk_renderer",
-	"crates/common"
+	"crates/common",
+	#"crates/logger",
 	#"crates/android",
 	#"crates/auth",
 	#"crates/matrix_client_protocols",
@@ -20,6 +21,7 @@ edition = "2024"
 [workspace.dependencies]
 app = { path = "crates/app" }
 vk_renderer = { path = "crates/vk_renderer" }
+#logger = { path = "crates/logger" }
 #android = { path = "crates/android" }
 #auth = { path = "crates/auth" }
 #gui = { path = "crates/gui" }

@@ -1,3 +1,4 @@
+#![no_std]
 #![allow(unused_doc_comments)]
 #![doc = include_str!("../README.md")]
 
@@ -5,20 +6,23 @@
 #[cfg(target_os = "redox")]
 compile_error!("redox not supported yet");
 
+#[cfg(target_os = "none")]
+compile_error!("no bare metal support");
+
 mod platform;
 mod events;
 
 pub use events::Event;
 use platform::{NativeDecoration, Wrapper};
 use log::{warn, info};
-use std::path::Path;
 pub use common::{
 	WRequestResult::{self, Fail, Success},
 	WResponse,
 	SurfaceWrapper,
 	Color,
-	to_handle,
-	void
+	void,
+	String,
+	Box
 };
 
 #[allow(dead_code)]
@@ -26,7 +30,7 @@ pub struct App//<H>
 //where
 //	H: EventHandler + Send + Sync,
 {
-	pub windows: Vec<Window>,
+	pub windows: Box<[Window]>,
 	pub cursor: Cursor,
 	theme: ThemeDefault,
 	//handler: H,
@@ -41,7 +45,7 @@ impl App
 	pub fn new() -> Self
 	{
 		Self {
-			windows: Vec::new(),
+			windows: Box::new([]),
 			theme: Self::theme_default(),
 			cursor: Cursor::get_cursor(),
 			//handler,
@@ -52,7 +56,11 @@ impl App
 	pub fn new_window(&mut self, title: &'static str, size: (f64, f64)) -> Window
 	{
 		let window = Window::new(title, self.theme.clone(), size);
-		self.windows.push(window.clone());
+		match self.windows.len() {
+			0 => self.windows = Box::new([window.clone()]),
+			len => self.windows[len] = window.clone(),
+		};
+
 		window
 	}
 
@@ -71,8 +79,10 @@ impl App
 			};
 		});*/
 
+
 		#[cfg(target_os = "macos")]
 		self.windows[0].decoration.run();
+		//unsafe { (*self.windows[0]).decoration.run() };
 	}
 }
 
@@ -140,7 +150,7 @@ impl Window
 	}
 
 	pub fn get_backend(&self) -> *mut void
-		{ to_handle(self.decoration.backend.clone()) }
+		{ void::to_handle(self.decoration.backend.clone()) }
 
 	pub fn some_surface(&self) -> bool
 		{ self.surface.is_some() }
@@ -210,7 +220,7 @@ pub enum CursorType {
 	TextBox,
 	Loading,
 	Forbidden,
-	Custom(Box<Path>),
+	//Custom(Box<Path>),
 }
 
 /// Default cursor struct
