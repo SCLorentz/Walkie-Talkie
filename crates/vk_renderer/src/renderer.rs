@@ -6,7 +6,7 @@ use ash::Instance;
 use ash::vk::{self, SurfaceKHR, RenderPass, PhysicalDevice};
 use log::debug;
 use core::{slice, ptr::NonNull, error::Error};
-use common::{Box, void};
+use dirty::{Box, void, f8};
 
 mod wrapper;
 use wrapper::Wrapper;
@@ -41,20 +41,23 @@ impl Renderer {
 		 * Create Instance
 		 * <https://vulkan-tutorial.com/en/Drawing_a_triangle/Setup/Instance>
 		 * VkApplicationInfo appInfo{};
+		 * for some reason on target linux-a64 it expects "u8" and not "i8" idk y
 		 */
 		let app_info = vk::ApplicationInfo::default()
 			.api_version(vk::make_api_version(0, 1, 0, 0));
 
-		let extensions: &[*const i8] = &[
+		let extensions: &[*const f8] = &[
 			vk::KHR_PORTABILITY_ENUMERATION_NAME.as_ptr(),
 			vk::KHR_SURFACE_NAME.as_ptr(),
 			#[cfg(target_os = "macos")]
-			vk::EXT_METAL_SURFACE_NAME.as_ptr(),
+			vk::EXT_METAL_SURFACE_NAME.as_ptr()
 		];
+
+		/* */
 
 		let instance_desc = vk::InstanceCreateInfo::default()
 			.application_info(&app_info)
-			.enabled_extension_names(&extensions);
+			.enabled_extension_names(extensions);
 
 		let instance: Instance = unsafe {
 			/**
@@ -117,7 +120,7 @@ impl Renderer {
 		 * for some reason the constant value for that is not working, so im using `.as_raw() == 1`
 		 * "associated item not found in `PhysicalDevice`"
 		 */
-		if feat.geometry_shader == common::TRUE
+		if feat.geometry_shader == dirty::TRUE
 			&& prop.device_type == vk::PhysicalDeviceType::DISCRETE_GPU
 			|| prop.device_type.as_raw() == 1 // this represents Self(1) or INTEGRATED_GPU
 		{ return true; }
@@ -219,11 +222,7 @@ impl Renderer {
 		debug!("creating linux wayland surface");
 		use ash::{khr::wayland_surface, vk::wl_display};
 
-		pub struct WaylandWindowHandle {
-			pub surface: NonNull<void>,
-		}
-
-		let window: &WaylandWindowHandle = unsafe { window.cast().as_ref() };
+		let window: &Wrapper = unsafe { window.cast().as_ref() };
 		/**
 		 * https://docs.rs/ash-window/0.13.0/src/ash_window/lib.rs.html#36-126
 		 */

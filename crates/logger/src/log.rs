@@ -1,4 +1,4 @@
-use common::write;
+use dirty::write;
 use log::{Metadata, Log, Record};
 
 pub struct Logger {}

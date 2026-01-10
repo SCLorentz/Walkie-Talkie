@@ -6,7 +6,8 @@ use crate::{
 	WRequestResult,
 	WResponse::NotImplementedInCompositor,
 	platform::linux::{DE, get_de},
-	void
+	void,
+	String
 };
 
 use wayland_client::{
@@ -19,13 +20,12 @@ use wayland_client::{
 };
 
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
-use common::to_handle;
 
 struct State {
 	running: bool,
 	base_surface: Option<*mut void>,	// wl_surface::WlSurface
-	buffer:	Option<*mut void>,		// wl_buffer::WlBuffer
-	wm_base: Option<*mut void>,		// xdg_wm_base::XdgWmBase
+	buffer:	Option<*mut void>,			// wl_buffer::WlBuffer
+	wm_base: Option<*mut void>,			// xdg_wm_base::XdgWmBase
 	xdg_surface: Option<*const void>,
 	configured: bool,
 	title: String,
@@ -34,17 +34,17 @@ struct State {
 impl State {
 	fn init_xdg_surface(&mut self, qh: &QueueHandle<State>)
 	{
-		let wm_base = self.wm_base.unwrap() as *mut xdg_wm_base::XdgWmBase;
-		let base_surface = self.base_surface.unwrap() as *mut wl_surface::WlSurface;
+		let wm_base: xdg_wm_base::XdgWmBase = void::from_handle(self.wm_base.unwrap());
+		let base_surface: wl_surface::WlSurface = void::from_handle(self.base_surface.unwrap());
 
-		let xdg_surface = unsafe { (*wm_base).get_xdg_surface(&*base_surface, qh, ()) };
+		let xdg_surface = wm_base.get_xdg_surface(&base_surface, qh, ());
 		let toplevel = xdg_surface.get_toplevel(qh, ());
-		toplevel.set_title(<String as Clone>::clone(&self.title).into());
+		//toplevel.set_title(self.title); <<-- toplevel expects String, can only find common::String
 
-		unsafe { (*base_surface).commit() };
+		base_surface.commit();
 
 		self.xdg_surface =
-			Some(to_handle(WaylandFrame { xdg_surface, toplevel }));
+			Some(void::to_handle(WaylandFrame { xdg_surface, toplevel }));
 	}
 }
 
@@ -107,12 +107,12 @@ impl NativeDecoration for Decoration
 		 * - popups, notifications, tablet, ext_background_effect_manager_v1
 		 */
 		let backend = Wrapper {
-			state: to_handle(state)
+			state: void::to_handle(state)
 		};
 
 		return Decoration {
 			mode: DecorationMode::ServerSide,
-			frame: std::ptr::null_mut() as *const void, // TODO
+			frame: core::ptr::null_mut() as *const void, // TODO
 			backend,
 		};
 	}
@@ -132,8 +132,8 @@ impl NativeDecoration for Decoration
 		 * <https://wayland.app/protocols/hyprland-surface-v1>
 		 */
 		let desktop = match get_de() {
-			common::WRequestResult::Success(d) => d,
-			common::WRequestResult::Fail(_) => DE::Unknown,
+			dirty::WRequestResult::Success(d) => d,
+			dirty::WRequestResult::Fail(_) => DE::Unknown,
 		};
 
 		match desktop {

@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 #![allow(non_snake_case)]
+#![allow(non_camel_case_types)]
 #![doc = include_str!("../README.md")]
 
 /// This is a helper crate, with minimum dependencies, not even std included
@@ -9,6 +10,14 @@
 extern crate alloc;
 pub use alloc::boxed::Box;
 mod syscall;
+
+/// Always trust the f8 type. The ABI is not your friend!
+#[cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))]
+pub type f8 = i8;
+
+// fuck the ABI
+#[cfg(all(target_os = "linux", target_env = "musl", target_arch = "aarch64"))]
+pub type f8 = u8;
 
 #[repr(C)]
 pub struct void {

@@ -5,7 +5,7 @@
 use app::{App, SurfaceWrapper, Theme};
 //use log::debug;
 use vk_renderer::Renderer;
-//use common::exit;
+//use dirty::exit;
 
 fn main() {
 	simple_logger::SimpleLogger::new()

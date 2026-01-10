@@ -4,7 +4,7 @@ members = [
 	"crates/app",
 	"crates/wt",
 	"crates/vk_renderer",
-	"crates/common",
+	"crates/dirty",
 	#"crates/logger",
 	#"crates/android",
 	#"crates/auth",
@@ -26,7 +26,7 @@ vk_renderer = { path = "crates/vk_renderer" }
 #auth = { path = "crates/auth" }
 #gui = { path = "crates/gui" }
 #api = { path = "crates/matrix_client_protocols" }
-common = { path = "crates/common" }
+dirty = { path = "crates/dirty" }
 # logging
 log = "0.4.28"
 # linux

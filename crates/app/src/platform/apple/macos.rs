@@ -110,7 +110,7 @@ impl NativeDecoration for Decoration
 
 		let backend = Wrapper {
 			ns_view: Wrapper::get(&view),
-			rect: common::void::to_handle(&rect),
+			rect: dirty::void::to_handle(&rect),
 			app: Wrapper::get(&app),
 		};
 

@@ -15,3 +15,4 @@ doctest = false
 log.workspace = true
 matrix-sdk.workspace = true
 url.workspace = true
+dirty.workspace = true

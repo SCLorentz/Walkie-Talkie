@@ -15,7 +15,7 @@ doctest = false
 [dependencies]
 log.workspace = true
 ash.workspace = true
-common.workspace = true
+dirty.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 wayland-protocols.workspace = true

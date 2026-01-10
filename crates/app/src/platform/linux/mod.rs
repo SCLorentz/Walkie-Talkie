@@ -28,14 +28,14 @@ pub enum DE {
 	Unknown,
 }
 
-use std::env;
-use log::warn;
+//use std::env;
+//use log::warn;
 use crate::{WRequestResult::{Fail, Success}, WResponse, WRequestResult};
 
 /// Detect the current DE/WM that the program is beeing executed
 pub fn get_de() -> WRequestResult<DE>
 {
-	let desktop = env::var("XDG_CURRENT_DESKTOP")
+	/*let desktop = env::var("XDG_CURRENT_DESKTOP")
 		.unwrap_or_else(|_| {
 			warn!("missing XDG_CURRENT_DESKTOP");
 			String::from("")
@@ -43,7 +43,7 @@ pub fn get_de() -> WRequestResult<DE>
 
 	if desktop == "" { return Fail(WResponse::NotImplementedInCompositor) }
 	if desktop.contains("KDE") { return Success(DE::Kde) }
-	if desktop.contains("Hyprland") { return Success(DE::Hyprland) }
+	if desktop.contains("Hyprland") { return Success(DE::Hyprland) }*/
 
 	Success(DE::Other)
 }

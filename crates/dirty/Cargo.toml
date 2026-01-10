@@ -1,5 +1,5 @@
 [package]
-name = "common"
+name = "dirty"
 version = "0.0.1"
 edition.workspace = true
 publish.workspace = true
