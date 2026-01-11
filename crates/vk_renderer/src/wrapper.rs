@@ -14,3 +14,7 @@ pub struct Wrapper {
 	pub rect: *const void,		// NSRect
 	pub app: *const void,		// NSApplication
 }
+
+#[cfg(target_os = "windows")]
+#[derive(PartialEq, Debug, Clone)]
+pub struct Wrapper {}

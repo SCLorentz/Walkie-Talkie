@@ -6,7 +6,6 @@ members = [
 	"crates/vk_renderer",
 	"crates/dirty",
 	#"crates/logger",
-	#"crates/android",
 	#"crates/auth",
 	#"crates/matrix_client_protocols",
 	#"crates/gui",
@@ -22,7 +21,6 @@ edition = "2024"
 app = { path = "crates/app" }
 vk_renderer = { path = "crates/vk_renderer" }
 #logger = { path = "crates/logger" }
-#android = { path = "crates/android" }
 #auth = { path = "crates/auth" }
 #gui = { path = "crates/gui" }
 #api = { path = "crates/matrix_client_protocols" }
@@ -56,16 +54,6 @@ features = ["unstable", "client"]
 version = "0.38.0"
 default-features = false
 features = ["debug", "loaded"]
-
-[workspace.dependencies.windows]
-default-features = false
-version = ">=0.59, <=0.62"
-features = [
-	"Data_Xml_Dom",
-	"Win32_Security",
-	"Win32_System_Threading",
-	"Win32_UI_WindowsAndMessaging",
-]
 
 # ---- Lints ----------------------
 

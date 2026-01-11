@@ -4,7 +4,9 @@ On linux there are some packages that you will need to compile this project. Mak
 
 ## Wayland
 
-Different from windows, macOS and android, the linux implementation has a lot of checks in runtime. By default it would be preferable to use server side decorations everywhere, but since some DEs like Gnome don't offer support for the XDG_DECORATION wayland protocol, checking the necessity to render a CSD it's not an option. For now I don't bother to create a CSD, but the option is avaliable and maybe someday I will implement it.
+Different from windows or macOS, the linux implementation has a lot of checks in runtime. By default it would be preferable to use server side decorations everywhere, but since some DEs like Gnome don't offer support for the XDG_DECORATION wayland protocol, checking the necessity to render a CSD it's not an option.
+
+The feature of "CSD" will be avaliable as an extra dependency avaliable as default, but, if a user wants to compile for themselves without it, the option will be avaliable.
 
 ## X11
 
@@ -23,10 +25,10 @@ todo
 
 https://crates.io/crates/wayland-protocols-wlr
 
-supported DE's:
+by design, supported DE's:
 
 - KDE (primary focus)
-- GNOME (separate bin)
+- GNOME
 - COSMIC
 - SWAY
 - HYPRLAND

@@ -1,6 +1,5 @@
 #![allow(unused_imports, unused_doc_comments)]
 
-//use std::cell::OnceCell;
 use log::debug;
 use crate::{void, String};
 
@@ -168,12 +167,6 @@ impl NativeDecoration for Decoration
 	/// The default function to run the program, since it's required on macOS
 	fn run(&self)
 	{
-		// I could also use NonNull<void> I think
-		// I was using Box<[*const Window]> and that caused UB, that was suggested to be used, I won't right now, but this is good
-		/*use objc2::class;
-		let app: Retained<NSApplication> = unsafe {
-			msg_send![class!(NSApplication), sharedApplication]
-		};*/
 		let app = self.backend.app as *mut void as *const NSApplication;
 		unsafe { msg_send![&*app, run] }
 	}

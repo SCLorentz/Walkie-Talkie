@@ -90,6 +90,9 @@ impl Renderer {
 		#[cfg(target_os = "linux")]
 		let view: *mut void = todo!();
 
+		#[cfg(target_os = "windows")]
+		let view: *mut void = todo!();
+
 		let nn_view = NonNull::new(view)
 			.expect("NSView shouldn't be null")
 			.cast();
@@ -235,6 +238,12 @@ impl Renderer {
 		let surface = wayland_surface::Instance::new(entry, instance);
 		unsafe { surface.create_wayland_surface(&surface_desc, None)
 			.expect("couldn't create wayland surface") }
+	}
+
+	#[cfg(target_os = "windows")]
+	fn new_surface(instance: &Instance, entry: &ash::Entry, window: NonNull<void>) -> SurfaceKHR
+	{
+		todo!();
 	}
 
 	/// Creates a new vulkan renderpass

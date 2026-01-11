@@ -15,15 +15,16 @@ mod events;
 pub use events::Event;
 use platform::{NativeDecoration, Wrapper};
 use log::{warn, info};
-pub use dirty::{
+use dirty::{
 	WRequestResult::{self, Fail, Success},
 	WResponse,
-	SurfaceWrapper,
 	Color,
 	void,
 	String,
 	Box
 };
+
+pub use dirty::SurfaceWrapper;
 
 #[allow(dead_code)]
 pub struct App//<H>

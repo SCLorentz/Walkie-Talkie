@@ -3,7 +3,7 @@
 #[macro_export]
 macro_rules! write {
 	($($x:expr),+ $(,)?) => {
-		let s = format!($($x),+);
+		let s = alloc::format!($($x),+);
 		let ptr = s.as_ptr();
 		let len = s.len();
 

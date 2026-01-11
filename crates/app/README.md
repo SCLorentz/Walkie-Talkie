@@ -2,7 +2,7 @@
 
 With the app crate is possible to create multi-platform, native apps and windows.
 
-With the app structure you can create windows, connect them to a rendering pipeline and manage events. The app structure is divided in three main modules, macOS, windows and linux. Linux itself has other variations to support x11 and native GNOME builds. By default it uses SSD or the native decoration method, except on GNOME which doesn't support it.
+With the app structure you can create windows, connect them to a rendering pipeline and manage events. The app structure is divided in three main modules, macOS, windows and linux (with both wayland and x11 support). By default it uses SSD or the native decoration method with fallback to CSD when unsuported.
 
 ## Examples
 
@@ -37,16 +37,4 @@ fn main() {
 
 	app.init();
 }
-```
-
-hide the cursor
-
-```rust
-app.cursor.hide();
-```
-
-Check if the cursor is hidden
-
-```rust
-app.cursor.is_visible();
 ```
