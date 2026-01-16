@@ -1,3 +1,4 @@
+<!--[![forthebadge made-with-rust](http://ForTheBadge.com/images/badges/made-with-rust.svg)](https://www.rust-lang.org/)-->
 # Walkie Talkie
 
 My own implementation of the Client-Server API on a fast and optimized client program.
