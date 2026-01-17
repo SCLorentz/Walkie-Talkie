@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
-#![allow(non_snake_case)]
-#![allow(non_camel_case_types)]
+#![allow(non_snake_case, non_camel_case_types)]
+#![deny(deprecated)]
 #![doc = include_str!("../README.md")]
 
 /// This is a helper crate, with minimum dependencies, not even std included
@@ -9,13 +9,34 @@
 
 extern crate alloc;
 pub use alloc::boxed::Box;
-mod syscall;
+pub mod syscall;
+
+pub struct SocketResponse
+{
+	pub status: i32,
+	pub response: core::ffi::c_char,
+}
+
+mod socket {
+	use crate::SocketResponse;
+
+	unsafe extern "C" {
+		pub(crate) fn create_socket() -> SocketResponse;
+	}
+}
+
+pub fn create_socket() -> SocketResponse { unsafe { socket::create_socket() }}
 
 /// Always trust the f8 type. The ABI is not your friend!
+///
+/// This can be ether i8 or u8 depending on the current ABI specification used
 #[cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))]
 pub type f8 = i8;
 
 // fuck the ABI
+/// Always trust the f8 type. The ABI is not your friend!
+///
+/// This can be ether i8 or u8 depending on the current ABI specification used
 #[cfg(all(target_os = "linux", target_env = "musl", target_arch = "aarch64"))]
 pub type f8 = u8;
 
@@ -46,9 +67,12 @@ pub enum WRequestResult<T> {
 	Success(T)
 }
 
-/** Errors
+/** Possible responses
+ *
  * 6## : Window Request Failed
+ *
  * 4## : Rendererer Request Failed
+ *
  * 5## : General Program limitation
  */
 

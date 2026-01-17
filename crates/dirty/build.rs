@@ -18,7 +18,7 @@ fn main() {
 		targets.push(("exit", root.join("src/core/linux/exit_x64.s")));
 	}
 
-	//targets.push(("socket", root.join("src/core/unix/socket.h")));
+	targets.push(("create_socket", root.join("src/core/unix/socket.c")));
 
 	for (name, file) in targets {
 		cc::Build::new()

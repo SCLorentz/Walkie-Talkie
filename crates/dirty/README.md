@@ -16,7 +16,7 @@ bar(foo.as_str());
 here:
 
 ```rust
-let foo = void::to_handle(std::ptr::null_mut());
+let foo = void::to_handle(core::ptr::null_mut());
 ```
 
 ## Want to print a value?
@@ -32,5 +32,5 @@ write!("Hello World");
 here:
 
 ```rust
-exit!(1);
+exit(1);
 ```
