@@ -20,7 +20,7 @@ None of the options for creating user interfaces for multiplatform pleased me, s
 
 ### Build
 
-The main crates to build the UI are avaliable on `./crates/app`, `./crates/renderer` and `./crates/gui`. To build yourself the app from the source you just need to use `cargo release-package`, this will compile to your specific archtecture and package it to the most adequate package to your platform.
+The main crates to build the UI are avaliable on `./crates/app`, `./crates/renderer` and `./crates/gui`. To build yourself the app from the source you just need to use `cargo +nightly release-package`, this will compile to your specific archtecture and package it to the most adequate package to your platform.
 
 - [linux](./doc/build/LINUX.md)
 - [macos](./doc/build/MACOS.md)

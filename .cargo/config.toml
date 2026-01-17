@@ -22,3 +22,6 @@ linker = "x86_64-unknown-linux-musl-gcc"
 # missing linker for cross compile on nix flake!
 [target.x86_64-pc-windows-gnullvm]
 linker = "x86_64-w64-mingw32-clang"
+
+[profile.release]
+rustflags = ["-C", "link-arg=-s", "-C", "target-cpu=native"]

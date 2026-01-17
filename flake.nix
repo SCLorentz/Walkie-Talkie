@@ -8,6 +8,7 @@
 		system = "aarch64-darwin";
 		pkgs = import nixpkgs { inherit system; };
 		cross = pkgs.pkgsCross.musl64;
+		toolchain = fenix.packages.${system}.latest.toolchain;
 	in {
 		devShells.${system}.default = pkgs.mkShell {
 			nativeBuildInputs = [
@@ -15,6 +16,7 @@
 				cross.stdenv.cc
 				cross.pkg-config
 				pkgs.python312Packages.toml
+				toolchain
 			];
 
 			shellHook = ''

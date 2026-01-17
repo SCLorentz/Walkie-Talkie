@@ -1,5 +1,15 @@
 // https://github.com/SCLorentz/UwU/blob/main/ARM64/src/main.s
 
+mod bindings {
+	unsafe extern "C" {
+		pub(crate) fn exit(code: crate::f8) -> !;
+	}
+}
+
+#[allow(unused)]
+#[inline(always)]
+pub fn exit(code: crate::f8) -> ! { unsafe { bindings::exit(code) } }
+
 #[macro_export]
 macro_rules! write {
 	($($x:expr),+ $(,)?) => {
@@ -30,31 +40,4 @@ macro_rules! write {
 			)
 		}
 	};
-}
-
-#[macro_export]
-macro_rules! exit {
-	($x:expr) => {
-		const ret: i32 = $x;
-
-		// https://godbolt.org/ (std::process::exit())
-		#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-		unsafe {
-			core::arch::asm!(
-				"syscall",
-				"push rax",
-				in("edi") ret,
-			)
-		}
-
-		#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-		unsafe {
-			core::arch::asm!(
-				"mov x16, #1",
-				"svc 0x80",
-				in("x1") ret,
-				options(nostack)
-			);
-		}
-	}
 }
