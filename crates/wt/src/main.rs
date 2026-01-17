@@ -17,7 +17,7 @@ fn main() {
 		log::debug!("socket: {:?}", socket.response);
 	}*/
 
-	let mut app = App::new();
+	let mut app = App::default();
 	app.set_blur(true);
 
 	let mut window = app.new_window("walkie talkie", (600.0, 500.0));

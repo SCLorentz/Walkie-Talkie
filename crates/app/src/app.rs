@@ -1,5 +1,9 @@
 #![no_std]
-#![allow(unused_doc_comments)]
+#![allow(
+	clippy::tabs_in_doc_comments,
+	unused_doc_comments
+)]
+#![deny(unreachable_code)]
 #![doc = include_str!("../README.md")]
 
 // Redox is compatible with the linux ABI, minimum ajustments needed
@@ -35,6 +39,11 @@ pub struct App//<H>
 	pub cursor: Cursor,
 	theme: ThemeDefault,
 	//handler: H,
+}
+
+impl Default for App {
+	fn default() -> Self
+		{ Self::new() }
 }
 
 //pub trait EventHandler: Send + Sync
@@ -131,13 +140,9 @@ impl Window
 		#[allow(unused_mut)]
 		let mut decoration = Decoration::new(String::from(title), size.0, size.1);
 
-		if theme.blur == true
-		{
-			match decoration.apply_blur() {
-				Fail(response) => warn!("{:?}", response),
-				_ => {}
-			}
-		}
+		if theme.blur
+		&& let Fail(response) = decoration.apply_blur()
+			{ warn!("{:?}", response) };
 
 		Window {
 			decoration,
@@ -158,7 +163,7 @@ impl Window
 
 	pub fn connect_surface(&mut self, surface: SurfaceWrapper) -> WRequestResult<()>
 	{
-		if self.has_surface() == false {
+		if !self.has_surface() {
 			self.surface = Some(surface);
 			return Success(());
 		}

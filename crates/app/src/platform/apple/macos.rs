@@ -39,7 +39,7 @@ impl Wrapper
 {
 	fn get<T>(ptr: &Retained<T>) -> *mut void where T: Message
 	{
-		let ptr: *mut T = Retained::<T>::as_ptr(&ptr) as *mut T;
+		let ptr: *mut T = Retained::<T>::as_ptr(ptr) as *mut T;
 		ptr.cast()
 	}
 }
@@ -47,14 +47,14 @@ impl Wrapper
 pub trait NativeDecoration
 {
 	fn run(&self);
-	fn new(title: String, width: f64, height: f64) -> Decoration;
+	fn new(title: String, width: f64, height: f64) -> Self;
 	fn apply_blur(&mut self) -> WRequestResult<()>;
 }
 
 impl NativeDecoration for Decoration
 {
 	/// Creates the native window frame decoration for macOS
-	fn new(mut title: String, width: f64, height: f64) -> Decoration
+	fn new(mut title: String, width: f64, height: f64) -> Self
 	{
 		let mtm = MainThreadMarker::new()
 			.expect("Process expected to be executed on the Main Thread!");

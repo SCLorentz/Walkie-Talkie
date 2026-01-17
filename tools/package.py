@@ -2,8 +2,8 @@ import subprocess, os, platform, sys, toml, time
 
 with open('Cargo.toml', 'r') as f:
 	config = toml.load(f)
-version = config['workspace']['version']
-print(f"current version: {version}")
+	version = config['workspace.package']['version']
+	print(f"current version: {version}")
 
 def build():
 	print("building project...")

@@ -1,0 +1,3 @@
+#[lints.clippy]
+#tabs_in_doc_comments = "allow"
+#shadow_unrelated = "deny"

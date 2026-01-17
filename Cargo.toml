@@ -13,11 +13,11 @@ members = [
 	#"crates/gui",
 ]
 default-members = ["crates/wt"]
-version = "0.0.1"
 
 [workspace.package]
 publish = false
 edition = "2024"
+version = "0.0.1"
 
 [workspace.dependencies]
 app = { path = "crates/app" }

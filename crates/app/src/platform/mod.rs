@@ -1,4 +1,4 @@
-/**
+/*!
  * Handle with the module exportation here
  * this will keep everything organized up on app.rs
  */

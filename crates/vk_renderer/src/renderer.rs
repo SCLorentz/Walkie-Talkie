@@ -1,5 +1,8 @@
 #![no_std]
-#![allow(unused_doc_comments)]
+#![allow(
+	clippy::tabs_in_doc_comments,
+	unused_doc_comments
+)]
 #![doc = include_str!("../README.md")]
 
 use ash::Instance;
@@ -302,7 +305,7 @@ impl Renderer {
 				.unwrap()
 		};
 
-		return Ok(renderpass);
+		Ok(renderpass)
 	}
 
 	// for now returns a generic value
