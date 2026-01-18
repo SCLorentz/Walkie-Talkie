@@ -3,6 +3,19 @@
 	clippy::tabs_in_doc_comments,
 	unused_doc_comments
 )]
+#![deny(
+	deprecated,
+	rust_2018_idioms,
+	clippy::shadow_unrelated,
+	unreachable_code,
+	unused_imports,
+	unused_variables,
+	unsafe_op_in_unsafe_fn,
+	clippy::unwrap_used,
+	clippy::expect_used,
+	clippy::shadow_reuse,
+	clippy::shadow_same,
+)]
 #![doc = include_str!("../README.md")]
 
 use ash::Instance;
@@ -25,7 +38,7 @@ pub struct Renderer {
 /// The rendring interface
 impl Renderer {
 	/// Creates a new Vulkan render
-	/// this will be our initVulkan() from the tutorial
+	/// this will be our `initVulkan()` from the tutorial
 	/// <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Base_code#:~:text=initVulkan()>
 	pub fn new(surface_backend: *mut void) -> Result<Renderer, Box<dyn Error>>
 	{
@@ -43,7 +56,7 @@ impl Renderer {
 		/**
 		 * Create Instance
 		 * <https://vulkan-tutorial.com/en/Drawing_a_triangle/Setup/Instance>
-		 * VkApplicationInfo appInfo{};
+		 * `VkApplicationInfo appInfo{};`
 		 * for some reason on target linux-a64 it expects "u8" and not "i8" idk y
 		 */
 		let app_info = vk::ApplicationInfo::default()
@@ -64,11 +77,11 @@ impl Renderer {
 
 		let instance: Instance = unsafe {
 			/**
-			 * vkCreateInstance(&createInfo, nullptr, &instance) -> function from C++
-			 * in this case, createInfo is instance_desc
+			 * `vkCreateInstance(&createInfo, nullptr, &instance)` -> function from C++
+			 * in this case, createInfo is `instance_desc`
 			 * the Pointer to the variable that stores the handle to the new object (&instance) value isn't necessary
 			 *
-			 * VK_ERROR_INCOMPATIBLE_DRIVER:
+			 * `VK_ERROR_INCOMPATIBLE_DRIVER`:
 			 * <https://vulkan-tutorial.com/en/Drawing_a_triangle/Setup/Instance#:~:text=Encountered%20VK%5FERROR%5FINCOMPATIBLE%5FDRIVER>
 			 */
 			entry.create_instance(&instance_desc, None)?
@@ -96,17 +109,17 @@ impl Renderer {
 		#[cfg(target_os = "windows")]
 		let view: *mut void = todo!();
 
-		let nn_view = NonNull::new(view)
-			.expect("NSView shouldn't be null")
-			.cast();
+		let Some(nn_view) = NonNull::new(view) else {
+			return Err(Box::from("NSView shouldn't be null"))
+		};
 
-		let surface = Self::new_surface(&instance, &entry, nn_view);
+		let surface = Self::new_surface(&instance, &entry, nn_view.cast());
 
 		Ok(Renderer {
-			instance,
 			surface,
-			device,
 			renderpass,
+			device,
+			instance,
 		})
 	}
 	/**
@@ -122,7 +135,7 @@ impl Renderer {
 		let feat = unsafe { instance.get_physical_device_features(device) };
 
 		/**
-		 * INTEGRATED_GPU will be the case on MacOS
+		 * `INTEGRATED_GPU` will be the case on `MacOS`
 		 * for some reason the constant value for that is not working, so im using `.as_raw() == 1`
 		 * "associated item not found in `PhysicalDevice`"
 		 */
@@ -142,33 +155,34 @@ impl Renderer {
 	{
 		/**
 		 * C++
-		 * uint32_t deviceCount = 0;
-		 * vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+		 * `uint32_t deviceCount = 0;`
+		 * `vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);`
 		 * same idea from ours, but ash offers less control, no need to implement verifications of support
 		 */
 		let physical_devices = unsafe { instance.enumerate_physical_devices()? };
 
-		let mut selected_device: Option<PhysicalDevice> = None;
+		let mut maybe_selected_device: Option<PhysicalDevice> = None;
 		for device in physical_devices {
 			if !Self::is_device_suitable(instance, device) { continue }
-			debug!("found suitable device `{:?}`!", device);
-			selected_device = Some(device);
+			debug!("found suitable device `{device:?}`!");
+			maybe_selected_device = Some(device);
 			break
 		}
 
-		let selected_device = selected_device.unwrap_or_else(||
+		let selected_device = maybe_selected_device.unwrap_or_else(||
 			panic!("failed to find a suitable GPU!")
 		);
 
 		let queue_families =
-			unsafe { instance.get_physical_device_queue_family_properties(selected_device) };
+			unsafe {
+				instance.get_physical_device_queue_family_properties(selected_device)
+			};
 
-		let graphics_queue_index = queue_families
+		let graphics_queue_index: u32 = u32::try_from(queue_families
 			.iter()
 			.enumerate()
 			.find(|(_, q)| q.queue_flags.contains(vk::QueueFlags::GRAPHICS))
-			.map(|(i, _)| i)
-			.expect("no graphics queue found") as u32;
+			.map_or_else(|| panic!("no graphics queue found"), |(i, _)| i))?;
 
 		let queue_priority = 1.0;
 		let binding = [queue_priority];
@@ -179,20 +193,19 @@ impl Renderer {
 
 		let device_features = vk::PhysicalDeviceFeatures::default();
 
-		let device_create_info = vk::DeviceCreateInfo::default()
-			.queue_create_infos(slice::from_ref(&queue_info))
-			.enabled_features(&device_features);
-
 		let device_extensions = [
 			vk::KHR_SWAPCHAIN_NAME.as_ptr(),
 		];
 
-		let device_create_info = device_create_info
-			.enabled_extension_names(&device_extensions);
+		let device_create_info = vk::DeviceCreateInfo::default()
+			.enabled_extension_names(&device_extensions)
+			.queue_create_infos(slice::from_ref(&queue_info))
+			.enabled_features(&device_features);
 
-		Ok(
-			unsafe { instance.create_device(selected_device, &device_create_info, None)? }
-		)
+		Ok(unsafe {
+			instance
+				.create_device(selected_device, &device_create_info, None)?
+		})
 	}
 
 	#[cfg(target_os = "macos")]
@@ -207,9 +220,11 @@ impl Renderer {
 		let ns_view: &NSObject = unsafe { window.cast().as_ref() };
 		let _: () = unsafe { msg_send![ns_view, setWantsLayer: true] };
 
-		let layer: Option<Retained<CALayer>> = unsafe { msg_send![ns_view, layer] };
+		let layer_some: Option<Retained<CALayer>> = unsafe { msg_send![ns_view, layer] };
 		let layer = void::to_handle(
-			&mut layer.expect("failed making the view layer-backed").as_super()
+			&mut layer_some
+				.unwrap_or_else(|| panic!("failed making the view layer-backed"))
+				.as_super()
 		);
 
 		let surface_desc = vk::MetalSurfaceCreateInfoEXT::default().layer(layer as *const core::ffi::c_void);
@@ -217,7 +232,7 @@ impl Renderer {
 
 		unsafe {
 			surface.create_metal_surface(&surface_desc, None)
-				.expect("couldn't create metal surface")
+				.unwrap_or_else(|_| { panic!("couldn't create metal surface") })
 		}
 	}
 
@@ -300,15 +315,18 @@ impl Renderer {
 			.dependencies(&dependencies);
 
 		let renderpass = unsafe {
-			device
-				.create_render_pass(&renderpass_create_info, None)
-				.unwrap()
+			match device
+				.create_render_pass(&renderpass_create_info, None) {
+					Ok(d) => d,
+					Err(e) => return Err(Box::new(e)),
+				}
 		};
 
 		Ok(renderpass)
 	}
 
 	// for now returns a generic value
+	#[must_use]
 	pub fn get_surface_size(&self) -> (f32, f32) { (0.0, 0.0) }
 
 	#[allow(unused)]

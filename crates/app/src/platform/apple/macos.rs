@@ -1,4 +1,4 @@
-#![allow(unused_imports, unused_doc_comments)]
+#![allow(unused_imports, unused_doc_comments, clippy::tabs_in_doc_comments)]
 
 use log::debug;
 use crate::{void, String};
@@ -26,7 +26,7 @@ use objc2_foundation::{
 	NSSize, NSString,
 };
 
-use crate::{DecorationMode, Decoration, WRequestResult};
+use crate::{DecorationMode, Decoration, WRequestResult, WResponse};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Wrapper {
@@ -37,9 +37,9 @@ pub struct Wrapper {
 
 impl Wrapper
 {
-	fn get<T>(ptr: &Retained<T>) -> *mut void where T: Message
+	fn get<T>(some_ptr: &Retained<T>) -> *mut void where T: Message
 	{
-		let ptr: *mut T = Retained::<T>::as_ptr(ptr) as *mut T;
+		let ptr: *mut T = Retained::<T>::as_ptr(some_ptr).cast_mut();
 		ptr.cast()
 	}
 }
@@ -57,7 +57,7 @@ impl NativeDecoration for Decoration
 	fn new(mut title: String, width: f64, height: f64) -> Self
 	{
 		let mtm = MainThreadMarker::new()
-			.expect("Process expected to be executed on the Main Thread!");
+			.unwrap_or_else(|| panic!("Process expected to be executed on the Main Thread!"));
 
 		let origin = NSPoint::new(10.0, -2.3);
 		let size = NSSize::new(width, height);
@@ -90,8 +90,8 @@ impl NativeDecoration for Decoration
 		window.makeKeyAndOrderFront(None);
 		unsafe { window.setReleasedWhenClosed(false) };
 
-		let view = window.contentView().expect("window must have content view");
-		let mtm = MainThreadMarker::new().expect("Process must run on the Main Thread!");
+		let view = window.contentView()
+			.unwrap_or_else(|| panic!("window must have content view"));
 
 		window.center();
 		window.setContentMinSize(NSSize::new(width, height));
@@ -126,10 +126,10 @@ impl NativeDecoration for Decoration
 	fn apply_blur(&mut self) -> WRequestResult<()>
 	{
 		let mtm = MainThreadMarker::new()
-			.expect("Process expected to be executed on the Main Thread!");
+			.unwrap_or_else(|| panic!("Process expected to be executed on the Main Thread!"));
 
-		let backend = &mut self.backend as *mut Wrapper;
-		let rect = unsafe { (*backend).rect as *const NSRect };
+		let backend = &raw mut self.backend;
+		let rect = unsafe { (*backend).rect.cast::<NSRect>() };
 
 		/**
 		 * Blur view configs
@@ -137,16 +137,17 @@ impl NativeDecoration for Decoration
 		 * Mostly, other effects will be managed trought renderer/shaders on vulkan and not macOS
 		 */
 		let alloc: Allocated<NSVisualEffectView> = NSVisualEffectView::alloc(mtm);
-		let blur_view = unsafe { NSVisualEffectView::initWithFrame(alloc, *rect) };
+		let blur_view_ptr = unsafe { NSVisualEffectView::initWithFrame(alloc, *rect) };
 
-		let window = self.frame as *mut NSWindow;
-		let window: &NSWindow = unsafe { &*window };
+		let window_ptr = self.frame as *mut NSWindow;
+		let window: &NSWindow = unsafe { &*window_ptr };
 
-		let content = window
-				.contentView()
-				.unwrap();
+		let Some(content) = window.contentView() else {
+			log::warn!("couldn't set blur");
+			return WRequestResult::Fail(WResponse::UnexpectedError);
+		};
 
-		let blur_view = blur_view.retain();
+		let blur_view = blur_view_ptr.retain();
 		content.addSubview(&blur_view);
 
 		blur_view.setBlendingMode(NSVisualEffectBlendingMode(0));
@@ -167,7 +168,7 @@ impl NativeDecoration for Decoration
 	/// The default function to run the program, since it's required on macOS
 	fn run(&self)
 	{
-		let app = self.backend.app as *mut void as *const NSApplication;
+		let app = self.backend.app.cast_mut() as *const NSApplication;
 		unsafe { msg_send![&*app, run] }
 	}
 
@@ -207,7 +208,7 @@ impl Delegate {
 	fn new(window: Retained<NSWindow>) -> Retained<Self>
 	{
 		let mtm = MainThreadMarker::new()
-			.expect("Process expected to be executed on the Main Thread!");
+			.unwrap_or_else(|| panic!("Process expected to be executed on the Main Thread!"));
 
 		let this = Self::alloc(mtm).set_ivars(AppDelegateIvars { window });
 		unsafe { msg_send![super(this), init] }

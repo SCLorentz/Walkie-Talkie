@@ -3,7 +3,21 @@
 	clippy::tabs_in_doc_comments,
 	unused_doc_comments
 )]
-#![deny(unreachable_code)]
+#![deny(
+	deprecated,
+	rust_2018_idioms,
+	clippy::shadow_unrelated,
+	unreachable_code,
+	unused_imports,
+	unused_variables,
+	clippy::all,
+	clippy::pedantic,
+	unsafe_op_in_unsafe_fn,
+	clippy::unwrap_used,
+	clippy::expect_used,
+	clippy::shadow_reuse,
+	clippy::shadow_same,
+)]
 #![doc = include_str!("../README.md")]
 
 // Redox is compatible with the linux ABI, minimum ajustments needed
@@ -52,6 +66,7 @@ impl Default for App {
 //impl<H: EventHandler> App<H>
 impl App
 {
+	#[must_use]
 	pub fn new() -> Self
 	{
 		Self {
@@ -69,14 +84,11 @@ impl App
 		match self.windows.len() {
 			0 => self.windows = Box::new([window.clone()]),
 			len => self.windows[len] = window.clone(),
-		};
+		}
 
 		window
 	}
 
-	/**
-	 * In the future, merge the target macos and linux exec_loop() into one single
-	 */
 	pub fn init(&self)
 	{
 		// event thread
@@ -135,6 +147,7 @@ pub struct Window {
 impl Window
 {
 	/// Create a new window
+	#[must_use]
 	pub fn new(title: &'static str, theme: ThemeDefault, size: (f64, f64)) -> Self
 	{
 		#[allow(unused_mut)]
@@ -142,7 +155,7 @@ impl Window
 
 		if theme.blur
 		&& let Fail(response) = decoration.apply_blur()
-			{ warn!("{:?}", response) };
+			{ warn!("{response:?}") }
 
 		Window {
 			decoration,
@@ -155,9 +168,11 @@ impl Window
 		}
 	}
 
+	#[must_use]
 	pub fn get_backend(&self) -> *mut void
 		{ void::to_handle(self.decoration.backend.clone()) }
 
+	#[must_use]
 	pub fn some_surface(&self) -> bool
 		{ self.surface.is_some() }
 
@@ -172,10 +187,12 @@ impl Window
 		Fail(WResponse::ChannelInUse)
 	}
 
+	#[must_use]
 	pub fn has_surface(&self) -> bool
 		{ self.surface.is_some() }
 
 	/// Detects if the window is focused
+	#[must_use]
 	pub fn is_active(&self) -> bool { self.active }
 }
 
@@ -243,6 +260,7 @@ pub struct Cursor {
 #[allow(dead_code)]
 impl Cursor {
 	/// Get the cursor object
+	#[must_use]
 	pub fn get_cursor() -> Self
 	{
 		Cursor {
@@ -257,6 +275,7 @@ impl Cursor {
 	pub fn get_relative_position() {}
 
 	/// Returns the current position of the cursor
+	#[must_use]
 	pub fn get_position() -> (f64, f64)
 	{
 		#[cfg(target_os = "macos")]
@@ -308,6 +327,7 @@ impl Cursor {
 	pub fn set_type(&mut self, appearence: CursorType)
 		{ self.r#type = appearence; }
 
+	#[must_use]
 	pub fn is_visible(&self) -> bool
 		{ self.visible }
 }

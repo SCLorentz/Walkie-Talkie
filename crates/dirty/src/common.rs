@@ -143,6 +143,7 @@ pub enum WResponse
 	BinarySpecificLimitation	= 500,
 	ProtocolNotSuported			= 501,
 	AccessDenied				= 502,
+	UnexpectedError				= 503,
 	NotImplementedInCompositor	= 601,
 	ChannelInUse				= 400,
 	MissingDependencies			= 401,
