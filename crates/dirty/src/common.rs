@@ -81,9 +81,7 @@ impl Socket {
 
 	pub fn close_socket(&self)
 	{
-		if self.socket_id.is_none() { return; }
-		let socket_id = self.socket_id.unwrap();
-
+		let Some(socket_id) = self.socket_id else { return };
 		unsafe { socket::close_socket(socket_id) }
 	}
 }
