@@ -34,3 +34,16 @@ here:
 ```rust
 exit(1);
 ```
+
+## Unix Sockets
+
+sockets are useful to comunicate with other process within the same UNIX based OS
+
+```rust
+let socket = dirty::Socket::new();
+match socket.read_socket("C") {
+	Some(result) => debug!("{:?}", result),
+	None => warn!("no message recived"),
+};
+socket.close_socket();
+```

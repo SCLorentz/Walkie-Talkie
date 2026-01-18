@@ -31,13 +31,13 @@ struct SocketResponse create_socket()
 
 char read_socket(int server_socket, char ch)
 {
-	if (ch == '\0')
-		ch = 'c';
-
-	write(server_socket, &ch, 1);
 	read(server_socket, &ch, 1);
-
 	return ch;
+}
+
+void write_socket(int server_socket, char ch)
+{
+	write(server_socket, &ch, 1);
 }
 
 void close_socket(int server_socket)

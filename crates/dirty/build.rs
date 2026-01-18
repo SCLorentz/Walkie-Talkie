@@ -19,6 +19,9 @@ fn main() {
 	}
 
 	targets.push(("create_socket", root.join("src/core/unix/socket.c")));
+	targets.push(("read_socket", root.join("src/core/unix/socket.c")));
+	targets.push(("write_socket", root.join("src/core/unix/socket.c")));
+	targets.push(("close_socket", root.join("src/core/unix/socket.c")));
 
 	for (name, file) in targets {
 		cc::Build::new()

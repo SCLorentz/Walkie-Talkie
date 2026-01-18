@@ -11,12 +11,6 @@ fn main() {
 		.init()
 		.unwrap();
 
-	// this is just a test!
-	/*let socket = create_socket();
-	if socket.status != 1 {
-		log::debug!("socket: {:?}", socket.response);
-	}*/
-
 	let mut app = App::default();
 	app.set_blur(true);
 

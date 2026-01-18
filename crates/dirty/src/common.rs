@@ -19,10 +19,10 @@
 	clippy::shadow_reuse,
 	clippy::shadow_same,
 )]
-#![doc = include_str!("../README.md")]
-
 //! This is a helper crate, with minimum dependencies, not even std included
-//! Things in here should and will be dirty
+//!
+//! Things in here should and will be dirty!
+#![doc = include_str!("../README.md")]
 
 extern crate alloc;
 pub use alloc::boxed::Box;
@@ -41,6 +41,7 @@ mod socket {
 	unsafe extern "C" {
 		pub(crate) fn create_socket() -> SocketResponse;
 		pub(crate) fn read_socket(server_socket: i32, ch: f8) -> f8;
+		pub(crate) fn write_socket(server_socket: i32, ch: f8);
 		pub(crate) fn close_socket(server_socket: i32);
 	}
 }
@@ -62,23 +63,29 @@ impl Socket {
 		Socket { socket_id, }
 	}
 
-	pub fn read_socket(&self, ch: f8) -> f8
+	// this is not finished nor polished, the Box::new() is redundant for now
+	pub fn read_socket(&self, a_ch: &str) -> Option<Box<[f8]>>
 	{
-		if self.socket_id == None {
-			return 0;
-		}
-
+		if self.socket_id.is_none() { return None }
 		let socket_id = self.socket_id.unwrap();
 
+		let ch = unsafe { (*(a_ch.as_ptr())).try_into().unwrap() };
 		let response = unsafe { socket::read_socket(socket_id, ch) };
-		return response;
+		return Some(Box::new([response]));
+	}
+
+	pub fn write_socket(&self, a_ch: &str)
+	{
+		if self.socket_id.is_some() {
+			let socket_id = self.socket_id.unwrap();
+			let ch = unsafe { (*(a_ch.as_ptr())).try_into().unwrap() };
+			unsafe { socket::write_socket(socket_id, ch) };
+		}
 	}
 
 	pub fn close_socket(&self)
 	{
-		if self.socket_id == None {
-			return;
-		}
+		if self.socket_id.is_none() { return; }
 		let socket_id = self.socket_id.unwrap();
 
 		unsafe { socket::close_socket(socket_id) }
