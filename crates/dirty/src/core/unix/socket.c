@@ -1,6 +1,5 @@
 #include <string.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
@@ -9,7 +8,9 @@ struct SocketResponse {
 	int server_socket;
 };
 
-struct SocketResponse create_socket()
+// the idea is to connect to wayland using sockets
+// https://wayland-book.com/protocol-design/interfaces-reqs-events.html
+struct SocketResponse create_socket(char* address)
 {
 	int server_socket;
 	struct sockaddr_un server_addr;
@@ -18,7 +19,7 @@ struct SocketResponse create_socket()
 	server_socket = socket(AF_UNIX, SOCK_STREAM, 0);
 
 	server_addr.sun_family = AF_UNIX;
-	strcpy(server_addr.sun_path, "unix_socket");
+	strcpy(server_addr.sun_path, address);
 
 	connection_result = connect(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr));
 
@@ -29,15 +30,15 @@ struct SocketResponse create_socket()
 	return socket_return;
 }
 
-char read_socket(int server_socket, char ch)
+char* read_socket(int server_socket, char* ch)
 {
-	read(server_socket, &ch, 1);
+	read(server_socket, &ch, strlen(ch));
 	return ch;
 }
 
-void write_socket(int server_socket, char ch)
+void write_socket(int server_socket, char* ch)
 {
-	write(server_socket, &ch, 1);
+	write(server_socket, &ch, strlen(ch));
 }
 
 void close_socket(int server_socket)

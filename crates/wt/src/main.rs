@@ -11,6 +11,16 @@ fn main() {
 		.init()
 		.unwrap();
 
+	/*let address = b"wayland-0";
+	let socket = dirty::Socket::new(address);
+	socket.write_socket(b"hello world");
+
+	match socket.read_socket(b"") {
+		Some(result) => log::debug!("{:?}", result),
+		None => log::warn!("no message recived"),
+	};
+	socket.close_socket();*/
+
 	let mut app = App::default();
 	app.set_blur(true);
 

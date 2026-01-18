@@ -36,12 +36,12 @@ pub struct SocketResponse
 }
 
 mod socket {
-	use crate::{SocketResponse, f8};
+	use crate::{SocketResponse, void};
 
 	unsafe extern "C" {
-		pub(crate) fn create_socket() -> SocketResponse;
-		pub(crate) fn read_socket(server_socket: i32, ch: f8) -> f8;
-		pub(crate) fn write_socket(server_socket: i32, ch: f8);
+		pub(crate) fn create_socket(address: *mut void) -> SocketResponse;
+		pub(crate) fn read_socket(server_socket: i32, ch: *mut void) -> *mut void;
+		pub(crate) fn write_socket(server_socket: i32, ch: *mut void);
 		pub(crate) fn close_socket(server_socket: i32);
 	}
 }
@@ -51,9 +51,10 @@ pub struct Socket {
 }
 
 impl Socket {
-	pub fn new() -> Self
+	pub fn new(address: &'static [u8]) -> Self
 	{
-		let response: SocketResponse = unsafe { socket::create_socket() };
+		let response: SocketResponse =
+			unsafe { socket::create_socket(void::to_handle(address)) };
 
 		if response.status == -1 {
 			return Socket { socket_id: None };
@@ -63,24 +64,19 @@ impl Socket {
 		Socket { socket_id, }
 	}
 
-	// this is not finished nor polished, the Box::new() is redundant for now
-	pub fn read_socket(&self, a_ch: &str) -> Option<Box<[f8]>>
+	pub fn read_socket(&self, ch: &'static [u8]) -> Option<Box<&[f8]>>
 	{
 		if self.socket_id.is_none() { return None }
 		let socket_id = self.socket_id.unwrap();
 
-		let ch = unsafe { (*(a_ch.as_ptr())).try_into().unwrap() };
-		let response = unsafe { socket::read_socket(socket_id, ch) };
-		return Some(Box::new([response]));
+		let response = unsafe { socket::read_socket(socket_id, void::to_handle(ch)) };
+		Some(Box::new(void::from_handle(response)))
 	}
 
-	pub fn write_socket(&self, a_ch: &str)
+	pub fn write_socket(&self, ch: &'static [u8])
 	{
-		if self.socket_id.is_some() {
-			let socket_id = self.socket_id.unwrap();
-			let ch = unsafe { (*(a_ch.as_ptr())).try_into().unwrap() };
-			unsafe { socket::write_socket(socket_id, ch) };
-		}
+		let Some(socket_id) = self.socket_id else { return };
+		unsafe { socket::write_socket(socket_id, void::to_handle(ch)) };
 	}
 
 	pub fn close_socket(&self)
@@ -91,8 +87,6 @@ impl Socket {
 		unsafe { socket::close_socket(socket_id) }
 	}
 }
-
-pub fn create_socket() -> SocketResponse { unsafe { socket::create_socket() }}
 
 /// Always trust the f8 type. The ABI is not your friend!
 ///
