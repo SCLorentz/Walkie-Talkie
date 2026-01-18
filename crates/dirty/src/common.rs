@@ -51,6 +51,7 @@ pub struct Socket {
 }
 
 impl Socket {
+	#[must_use]
 	pub fn new(address: &'static [u8]) -> Self
 	{
 		let response: SocketResponse =
@@ -64,11 +65,10 @@ impl Socket {
 		Socket { socket_id, }
 	}
 
+	#[must_use]
 	pub fn read_socket(&self, ch: &'static [u8]) -> Option<Box<&[f8]>>
 	{
-		if self.socket_id.is_none() { return None }
-		let socket_id = self.socket_id.unwrap();
-
+		let socket_id = self.socket_id?;
 		let response = unsafe { socket::read_socket(socket_id, void::to_handle(ch)) };
 		Some(Box::new(void::from_handle(response)))
 	}
@@ -106,11 +106,13 @@ pub struct void {
 
 impl void {
 	/// Get a T type value and stores it safely as a generic type
+	#[must_use]
 	#[inline]
 	pub fn to_handle<T>(val: T) -> *mut void
-		{ Box::into_raw(Box::new(val)) as *mut void }
+		{ Box::into_raw(Box::new(val)).cast::<void>() }
 
-	/// Espects a T return type and a Boxed c_void pointer to get value inside the Box
+	/// Espects a T return type and a Boxed `void` pointer to get value inside the Box
+	#[must_use]
 	#[inline]
 	pub fn from_handle<T>(ptr: *const void) -> T
 		{ unsafe { *Box::from_raw(ptr as *mut T) } }
@@ -152,8 +154,11 @@ pub struct SurfaceWrapper(pub *mut void);
 
 impl SurfaceWrapper
 {
+	#[must_use]
 	pub fn new<T>(wrap: T) -> Self { SurfaceWrapper(void::to_handle(wrap)) }
+	#[must_use]
 	pub fn is_null(&self) -> bool { self.0.is_null() }
+	#[must_use]
 	pub fn cast<T>(&self) -> T { void::from_handle(self.0) }
 }
 
@@ -162,6 +167,7 @@ impl SurfaceWrapper
 pub struct Color { pub R: u8, pub G: u8, pub B: u8, pub A: u8, }
 
 impl Color {
+	#[must_use]
 	pub fn from(R: u8, G: u8, B: u8, A: u8) -> Self { Self { R, G, B, A } }
 }
 
@@ -172,6 +178,7 @@ pub struct String {
 
 impl String
 {
+	#[must_use]
 	pub fn from(val: &str) -> Self
 		{ Self { vec: void::to_handle(val) } }
 
