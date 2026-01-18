@@ -6,17 +6,14 @@
 
 struct SocketResponse {
 	int status;
-	char response;
+	int server_socket;
 };
 
 struct SocketResponse create_socket()
 {
 	int server_socket;
 	struct sockaddr_un server_addr;
-	struct SocketResponse r;
 	int connection_result;
-
-	char ch='C';
 
 	server_socket = socket(AF_UNIX, SOCK_STREAM, 0);
 
@@ -25,17 +22,23 @@ struct SocketResponse create_socket()
 
 	connection_result = connect(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr));
 
-	if (connection_result == -1) {
-		r.status = 1;
-		return r;
-	}
+	struct SocketResponse socket_return;
+	socket_return.server_socket = server_socket;
+	socket_return.status = connection_result;
+
+	return socket_return;
+}
+
+char read_socket(int server_socket, char ch)
+{
+	if (ch == '\0')
+		ch = 'c';
 
 	write(server_socket, &ch, 1);
 	read(server_socket, &ch, 1);
-	close(server_socket);
 
-	r.status = 1;
-	r.response = ch;
-
-	return r;
+	return ch;
 }
+
+void close_socket(int server_socket)
+	{ close(server_socket); }

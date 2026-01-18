@@ -32,14 +32,56 @@ pub mod syscall;
 pub struct SocketResponse
 {
 	pub status: i32,
-	pub response: core::ffi::c_char,
+	pub server_socket: i32,
 }
 
 mod socket {
-	use crate::SocketResponse;
+	use crate::{SocketResponse, f8};
 
 	unsafe extern "C" {
 		pub(crate) fn create_socket() -> SocketResponse;
+		pub(crate) fn read_socket(server_socket: i32, ch: f8) -> f8;
+		pub(crate) fn close_socket(server_socket: i32);
+	}
+}
+
+pub struct Socket {
+	socket_id: Option<i32>,
+}
+
+impl Socket {
+	pub fn new() -> Self
+	{
+		let response: SocketResponse = unsafe { socket::create_socket() };
+
+		if response.status == -1 {
+			return Socket { socket_id: None };
+		}
+
+		let socket_id = Some(response.server_socket);
+		Socket { socket_id, }
+	}
+
+	pub fn read_socket(&self, ch: f8) -> f8
+	{
+		if self.socket_id == None {
+			return 0;
+		}
+
+		let socket_id = self.socket_id.unwrap();
+
+		let response = unsafe { socket::read_socket(socket_id, ch) };
+		return response;
+	}
+
+	pub fn close_socket(&self)
+	{
+		if self.socket_id == None {
+			return;
+		}
+		let socket_id = self.socket_id.unwrap();
+
+		unsafe { socket::close_socket(socket_id) }
 	}
 }
 
