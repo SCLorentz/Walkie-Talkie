@@ -1,8 +1,4 @@
 #![no_std]
-#![allow(
-	clippy::tabs_in_doc_comments,
-	unused_doc_comments
-)]
 #![deny(
 	deprecated,
 	rust_2018_idioms,
@@ -10,13 +6,28 @@
 	unreachable_code,
 	unused_imports,
 	unused_variables,
-	clippy::all,
-	clippy::pedantic,
 	unsafe_op_in_unsafe_fn,
 	clippy::unwrap_used,
 	clippy::expect_used,
 	clippy::shadow_reuse,
 	clippy::shadow_same,
+	clippy::dbg_macro,
+	clippy::print_stdout,
+	clippy::print_stderr,
+	clippy::panic,
+	clippy::indexing_slicing,
+	clippy::arithmetic_side_effects,
+	clippy::float_arithmetic,
+	clippy::unwrap_in_result,
+	clippy::exit,
+	clippy::wildcard_imports,
+	missing_docs,
+	clippy::all,
+)]
+#![allow(
+	clippy::tabs_in_doc_comments,
+	unused_doc_comments,
+	clippy::missing_errors_doc
 )]
 #![doc = include_str!("../README.md")]
 
@@ -43,13 +54,17 @@ use dirty::{
 };
 
 pub use dirty::SurfaceWrapper;
+use core::error::Error;
 
+/// The default structure to handle and manage apps
 #[allow(dead_code)]
 pub struct App//<H>
 //where
 //	H: EventHandler + Send + Sync,
 {
+	/// List of the program windows
 	pub windows: Box<[Window]>,
+	/// Cursor information
 	pub cursor: Cursor,
 	theme: ThemeDefault,
 	//handler: H,
@@ -66,6 +81,7 @@ impl Default for App {
 //impl<H: EventHandler> App<H>
 impl App
 {
+	/// Create a new `App`
 	#[must_use]
 	pub fn new() -> Self
 	{
@@ -78,17 +94,26 @@ impl App
 	}
 
 	/// Creates a new Window element and pushes to the App
-	pub fn new_window(&mut self, title: &'static str, size: (f64, f64)) -> Window
+	pub fn new_window(
+		&mut self,
+		title: &'static str,
+		size: (f64, f64)
+	) -> Result<Window, Box<dyn Error>>
 	{
-		let window = Window::new(title, self.theme.clone(), size);
+		let window = Window::new(title, self.theme.clone(), size)?;
 		match self.windows.len() {
 			0 => self.windows = Box::new([window.clone()]),
-			len => self.windows[len] = window.clone(),
+			len => {
+				let Some(some_window) =
+					self.windows.get_mut(len) else { return Err(Box::from("no window was found")) };
+				*some_window = window.clone();
+			},
 		}
 
-		window
+		Ok(window)
 	}
 
+	/// init event handler
 	pub fn init(&self)
 	{
 		// event thread
@@ -103,8 +128,11 @@ impl App
 
 
 		#[cfg(target_os = "macos")]
-		self.windows[0].decoration.run();
-		//unsafe { (*self.windows[0]).decoration.run() };
+		let Some(window) = self.windows.first() else {
+			log::warn!("no windows found on self.windows");
+			return
+		};
+		window.decoration.run();
 	}
 }
 
@@ -112,10 +140,13 @@ impl App
 /// By default, prefer server side decorations
 #[derive(Clone, PartialEq, Debug)]
 pub enum DecorationMode {
+	/// Render the window decorations on the compositor
 	ClientSide,
+	/// Render the window decorations in the window surface
 	ServerSide,
 }
 
+/// Default struct for window Decorations
 #[derive(Debug, PartialEq, Clone)]
 pub struct Decoration {
 	frame: *const void,
@@ -147,17 +178,22 @@ pub struct Window {
 impl Window
 {
 	/// Create a new window
-	#[must_use]
-	pub fn new(title: &'static str, theme: ThemeDefault, size: (f64, f64)) -> Self
+	pub fn new(
+		title: &'static str,
+		theme: ThemeDefault,
+		size: (f64, f64)
+	) -> Result<Self, Box<dyn Error>>
 	{
-		#[allow(unused_mut)]
-		let mut decoration = Decoration::new(String::from(title), size.0, size.1);
+		let mut decoration = match Decoration::new(String::from(title), size.0, size.1) {
+			Success(v) => v,
+			Fail(_) => return Err(Box::from("something went wrong creating decoration")),
+		};
 
 		if theme.blur
 		&& let Fail(response) = decoration.apply_blur()
 			{ warn!("{response:?}") }
 
-		Window {
+		Ok(Window {
 			decoration,
 			surface: None,
 			active: false,
@@ -165,17 +201,15 @@ impl Window
 			position: (0.0, 0.0),
 			title: String::from(title),
 			theme,
-		}
+		})
 	}
 
+	/// Get system specific window backend (for renderer)
 	#[must_use]
 	pub fn get_backend(&self) -> *mut void
 		{ void::to_handle(self.decoration.backend.clone()) }
 
-	#[must_use]
-	pub fn some_surface(&self) -> bool
-		{ self.surface.is_some() }
-
+	/// Connects a specified vulkan surface with the current window
 	pub fn connect_surface(&mut self, surface: SurfaceWrapper) -> WRequestResult<()>
 	{
 		if !self.has_surface() {
@@ -187,6 +221,7 @@ impl Window
 		Fail(WResponse::ChannelInUse)
 	}
 
+	/// Returns if window does have a surface or not
 	#[must_use]
 	pub fn has_surface(&self) -> bool
 		{ self.surface.is_some() }
@@ -196,6 +231,7 @@ impl Window
 	pub fn is_active(&self) -> bool { self.active }
 }
 
+/// Theme struct
 #[derive(Debug, Clone, PartialEq)]
 pub struct ThemeDefault {
 	blur: bool,
@@ -203,10 +239,15 @@ pub struct ThemeDefault {
 	accent_color: Color,
 }
 
+/// Default Trait functions for windows
 pub trait Theme {
+	/// Set window specific theme
 	fn set_theme(&mut self, theme: ThemeDefault);
+	/// Get window specific theme
 	fn get_current_theme(&mut self) -> WRequestResult<ThemeDefault>;
+	/// Get the global theme
 	fn theme_default() -> ThemeDefault;
+	/// Set the blur effect on specified window
 	fn set_blur(&mut self, blur: bool);
 }
 
@@ -238,10 +279,15 @@ impl Theme for App
 /// List of possible types for the cursor
 #[derive(Debug, PartialEq, Clone)]
 pub enum CursorType {
+	/// The generic arrow cursor
 	Default,
+	/// The pointer cursor
 	Pointer,
+	/// Text selection cursor
 	TextBox,
+	/// Loading cursor
 	Loading,
+	/// Forbidden cursor
 	Forbidden,
 	//Custom(Box<Path>),
 }
@@ -327,6 +373,7 @@ impl Cursor {
 	pub fn set_type(&mut self, appearence: CursorType)
 		{ self.r#type = appearence; }
 
+	/// Detects if the cursor is visible or not
 	#[must_use]
 	pub fn is_visible(&self) -> bool
 		{ self.visible }

@@ -1,5 +1,4 @@
 #![allow(unused_imports, unused_doc_comments, clippy::tabs_in_doc_comments)]
-
 use log::debug;
 use crate::{void, String};
 
@@ -26,7 +25,7 @@ use objc2_foundation::{
 	NSSize, NSString,
 };
 
-use crate::{DecorationMode, Decoration, WRequestResult, WResponse};
+use crate::{DecorationMode, Decoration, WRequestResult::{self, Fail, Success}, WResponse};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Wrapper {
@@ -47,17 +46,16 @@ impl Wrapper
 pub trait NativeDecoration
 {
 	fn run(&self);
-	fn new(title: String, width: f64, height: f64) -> Self;
+	fn new(title: String, width: f64, height: f64) -> WRequestResult<Self> where Self: core::marker::Sized;
 	fn apply_blur(&mut self) -> WRequestResult<()>;
 }
 
 impl NativeDecoration for Decoration
 {
 	/// Creates the native window frame decoration for macOS
-	fn new(mut title: String, width: f64, height: f64) -> Self
+	fn new(mut title: String, width: f64, height: f64) -> WRequestResult<Self>
 	{
-		let mtm = MainThreadMarker::new()
-			.unwrap_or_else(|| panic!("Process expected to be executed on the Main Thread!"));
+		let Some(mtm) = MainThreadMarker::new() else { return Fail(WResponse::UnexpectedError) };
 
 		let origin = NSPoint::new(10.0, -2.3);
 		let size = NSSize::new(width, height);
@@ -90,13 +88,13 @@ impl NativeDecoration for Decoration
 		window.makeKeyAndOrderFront(None);
 		unsafe { window.setReleasedWhenClosed(false) };
 
-		let view = window.contentView()
-			.unwrap_or_else(|| panic!("window must have content view"));
+		let Some(view) = window.contentView() else { return Fail(WResponse::UnexpectedError) };
 
 		window.center();
 		window.setContentMinSize(NSSize::new(width, height));
 
-		let delegate = Delegate::new(window.clone());
+		let Some(delegate) =
+			Delegate::new(window.clone()) else { return Fail(WResponse::UnexpectedError) };
 		window.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
 		window.makeKeyAndOrderFront(None);
 
@@ -115,18 +113,17 @@ impl NativeDecoration for Decoration
 
 		debug!("Creating NativeDecoration object");
 
-		Decoration {
+		Success(Decoration {
 			mode: DecorationMode::ServerSide,
 			frame: Wrapper::get(&window),
 			backend,
-		}
+		})
 	}
 
 	/// Apply blur effect on the window
 	fn apply_blur(&mut self) -> WRequestResult<()>
 	{
-		let mtm = MainThreadMarker::new()
-			.unwrap_or_else(|| panic!("Process expected to be executed on the Main Thread!"));
+		let Some(mtm) = MainThreadMarker::new() else { return Fail(WResponse::UnexpectedError) };
 
 		let backend = &raw mut self.backend;
 		let rect = unsafe { (*backend).rect.cast::<NSRect>() };
@@ -205,12 +202,10 @@ define_class!(
 );
 
 impl Delegate {
-	fn new(window: Retained<NSWindow>) -> Retained<Self>
+	fn new(window: Retained<NSWindow>) -> Option<Retained<Self>>
 	{
-		let mtm = MainThreadMarker::new()
-			.unwrap_or_else(|| panic!("Process expected to be executed on the Main Thread!"));
-
+		let mtm = MainThreadMarker::new()?;
 		let this = Self::alloc(mtm).set_ivars(AppDelegateIvars { window });
-		unsafe { msg_send![super(this), init] }
+		Some(unsafe { msg_send![super(this), init] })
 	}
 }

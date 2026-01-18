@@ -23,12 +23,12 @@ use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_ba
 
 struct State {
 	running: bool,
-	base_surface: Option<*mut void>,	// wl_surface::WlSurface
-	buffer:	Option<*mut void>,			// wl_buffer::WlBuffer
-	wm_base: Option<*mut void>,			// xdg_wm_base::XdgWmBase
-	xdg_surface: Option<*const void>,
-	configured: bool,
-	title: String,
+	base_surface:	Option<*mut void>,	// wl_surface::WlSurface
+	buffer:			Option<*mut void>,	// wl_buffer::WlBuffer
+	wm_base:		Option<*mut void>,	// xdg_wm_base::XdgWmBase
+	xdg_surface:	Option<*const void>,
+	configured: 	bool,
+	title:			String,
 }
 
 impl State {
@@ -57,7 +57,7 @@ struct WaylandFrame {
 pub trait NativeDecoration
 {
 	/// Creates a native window frame decoration for Linux DE/WM
-	fn new(title: String, _width: f64, _height: f64) -> Decoration;
+	fn new(title: String, _width: f64, _height: f64) -> WRequestResult<Self> where Self: core::marker::Sized;
 	fn make_view();
 	fn apply_blur(&self) -> WRequestResult<()>;
 	fn init_event_state() -> wayland_client::EventQueue<State>;
@@ -71,8 +71,17 @@ pub struct Wrapper {
 // wayland_protocols (which include wayland_client) failed to build documentation on version 0.31.12 thks!!
 impl NativeDecoration for Decoration
 {
-	fn new(title: String, _width: f64, _height: f64) -> Decoration
+	fn new(title: String, _width: f64, _height: f64) -> WRequestResult<Self>
 	{
+		/*let address = b"wayland-0";
+		let socket = dirty::Socket::new(address);
+		socket.write_socket(b"hello world");
+
+		match socket.read_socket(b"") {
+			Some(result) => log::debug!("{:?}", result),
+			None => log::warn!("no message recived"),
+		};
+		socket.close_socket();*/
 		let conn = Connection::connect_to_env().unwrap();
 
 		let mut event_queue = conn.new_event_queue();

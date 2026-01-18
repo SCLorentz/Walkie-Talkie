@@ -1,8 +1,4 @@
 #![no_std]
-#![allow(
-	clippy::tabs_in_doc_comments,
-	unused_doc_comments
-)]
 #![deny(
 	deprecated,
 	rust_2018_idioms,
@@ -15,6 +11,22 @@
 	clippy::expect_used,
 	clippy::shadow_reuse,
 	clippy::shadow_same,
+	clippy::dbg_macro,
+	clippy::print_stdout,
+	clippy::print_stderr,
+	clippy::panic,
+	clippy::indexing_slicing,
+	clippy::arithmetic_side_effects,
+	clippy::float_arithmetic,
+	clippy::unwrap_in_result,
+	clippy::exit,
+	clippy::wildcard_imports,
+	missing_docs,
+	clippy::all,
+)]
+#![allow(
+	clippy::tabs_in_doc_comments,
+	unused_doc_comments
 )]
 #![doc = include_str!("../README.md")]
 
@@ -27,8 +39,10 @@ use dirty::{Box, void, f8};
 mod wrapper;
 use wrapper::Wrapper;
 
+/// Default Renderer struct
 #[allow(dead_code)]
 pub struct Renderer {
+	/// Vulkan Surface
 	pub surface: SurfaceKHR,
 	renderpass: RenderPass,
 	device: ash::Device,
@@ -113,7 +127,7 @@ impl Renderer {
 			return Err(Box::from("NSView shouldn't be null"))
 		};
 
-		let surface = Self::new_surface(&instance, &entry, nn_view.cast());
+		let surface = Self::new_surface(&instance, &entry, nn_view.cast())?;
 
 		Ok(Renderer {
 			surface,
@@ -169,20 +183,22 @@ impl Renderer {
 			break
 		}
 
-		let selected_device = maybe_selected_device.unwrap_or_else(||
-			panic!("failed to find a suitable GPU!")
-		);
+		let Some(selected_device) = maybe_selected_device else {
+			return Err(Box::from("failed to find a suitable GPU!"))
+		};
 
-		let queue_families =
-			unsafe {
-				instance.get_physical_device_queue_family_properties(selected_device)
-			};
+		let queue_families = unsafe {
+			instance.get_physical_device_queue_family_properties(selected_device)
+		};
 
-		let graphics_queue_index: u32 = u32::try_from(queue_families
-			.iter()
-			.enumerate()
-			.find(|(_, q)| q.queue_flags.contains(vk::QueueFlags::GRAPHICS))
-			.map_or_else(|| panic!("no graphics queue found"), |(i, _)| i))?;
+		let graphics_queue_index: u32 = u32::try_from(
+			queue_families
+				.iter()
+				.enumerate()
+				.find(|(_, q)| q.queue_flags.contains(vk::QueueFlags::GRAPHICS))
+				.ok_or("no graphics queue found")?
+				.0
+		)?;
 
 		let queue_priority = 1.0;
 		let binding = [queue_priority];
@@ -203,13 +219,17 @@ impl Renderer {
 			.enabled_features(&device_features);
 
 		Ok(unsafe {
-			instance
-				.create_device(selected_device, &device_create_info, None)?
+			instance.create_device(selected_device, &device_create_info, None)?
 		})
 	}
 
+	/// Creates a new surface
 	#[cfg(target_os = "macos")]
-	fn new_surface(instance: &Instance, entry: &ash::Entry, window: NonNull<void>) -> SurfaceKHR
+	fn new_surface(
+		instance: &Instance,
+		entry: &ash::Entry,
+		window: NonNull<void>
+	) -> Result<SurfaceKHR, Box<dyn Error>>
 	{
 		use objc2::{rc::Retained, msg_send, ClassType};
 		use objc2_quartz_core::CALayer;
@@ -220,25 +240,34 @@ impl Renderer {
 		let ns_view: &NSObject = unsafe { window.cast().as_ref() };
 		let _: () = unsafe { msg_send![ns_view, setWantsLayer: true] };
 
-		let layer_some: Option<Retained<CALayer>> = unsafe { msg_send![ns_view, layer] };
-		let layer = void::to_handle(
-			&mut layer_some
-				.unwrap_or_else(|| panic!("failed making the view layer-backed"))
-				.as_super()
-		);
+		let Some(layer_some): Option<Retained<CALayer>> = (
+			unsafe { msg_send![ns_view, layer] }
+		) else {
+			return Err(Box::from("failed making the view layer-backed"))
+		};
+		let layer = void::to_handle(&mut layer_some.as_super());
 
-		let surface_desc = vk::MetalSurfaceCreateInfoEXT::default().layer(layer as *const core::ffi::c_void);
+		let surface_desc = vk::MetalSurfaceCreateInfoEXT::default()
+			.layer(layer.cast::<core::ffi::c_void>());
 		let surface = metal_surface::Instance::new(entry, instance);
 
-		unsafe {
-			surface.create_metal_surface(&surface_desc, None)
-				.unwrap_or_else(|_| { panic!("couldn't create metal surface") })
-		}
+		let Ok(metal_surface) = (
+			unsafe { surface.create_metal_surface(&surface_desc, None) }
+		) else {
+			return Err(Box::from("couldn't create metal surface"))
+		};
+
+		Ok(metal_surface)
 	}
 
 	// WARN: this is just a model and is not complete. The code will fail.
+	/// Creates a new surface
 	#[cfg(target_os = "linux")]
-	fn new_surface(instance: &Instance, entry: &ash::Entry, window: NonNull<void>) -> SurfaceKHR
+	fn new_surface(
+		instance: &Instance,
+		entry: &ash::Entry,
+		window: NonNull<void>
+	) -> Result<SurfaceKHR, Box<dyn Error>>
 	{
 		debug!("creating linux wayland surface");
 		use ash::{khr::wayland_surface, vk::wl_display};
@@ -258,8 +287,13 @@ impl Renderer {
 			.expect("couldn't create wayland surface") }
 	}
 
+	/// Creates a new surface
 	#[cfg(target_os = "windows")]
-	fn new_surface(instance: &Instance, entry: &ash::Entry, window: NonNull<void>) -> SurfaceKHR
+	fn new_surface(
+		instance: &Instance,
+		entry: &ash::Entry,
+		window: NonNull<void>
+	) -> Result<SurfaceKHR, Box<dyn Error>>
 	{
 		todo!();
 	}
@@ -326,9 +360,11 @@ impl Renderer {
 	}
 
 	// for now returns a generic value
+	/// Returns the surface size
 	#[must_use]
 	pub fn get_surface_size(&self) -> (f32, f32) { (0.0, 0.0) }
 
+	/// Stop the rendering and cleanup everything
 	#[allow(unused)]
 	pub fn cleanup(&self)
 	{

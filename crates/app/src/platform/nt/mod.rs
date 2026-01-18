@@ -23,13 +23,13 @@ pub struct Wrapper {}
 pub trait NativeDecoration
 {
 	/// Creates a native window frame decoration for Linux DE/WM
-	fn new(title: String, _width: f64, _height: f64) -> Decoration;
+	fn new(title: String, _width: f64, _height: f64) -> WRequestResult<Self> where Self: core::marker::Sized;
 	fn make_view();
 	fn apply_blur(&self) -> WRequestResult<()>;
 }
 
 impl NativeDecoration for Decoration {
-	fn new(title: String, _width: f64, _height: f64) -> Decoration
+	fn new(title: String, _width: f64, _height: f64) -> WRequestResult<Self>
 	{
 		unsafe {
 			let mut len: u32 = 0;
