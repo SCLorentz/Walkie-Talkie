@@ -36,7 +36,7 @@ impl NativeDecoration for Decoration
 		let socket = dirty::Socket::new(address);
 		socket.write_socket(b"hello world");
 
-		let buffer: u8 = b"";
+		let buffer: &[u8] = &[];
 		match socket.read_socket(buffer) {
 			Some(result) => log::debug!("{:?}", result),
 			None => log::warn!("no message recived"),
@@ -46,18 +46,21 @@ impl NativeDecoration for Decoration
 		/**
 		 * This version will include SSDs and DBusMenu
 		 * <https://docs.rs/dbusmenu-glib/latest/dbusmenu_glib/>
+		 *
 		 * On KDE, implement:
 		 * - <https://wayland.app/protocols/kde-blur>
 		 * - <https://wayland.app/protocols/kde-appmenu>
+		 *
 		 * On Hyprland, implement:
 		 * - <https://wayland.app/protocols/hyprland-surface-v1>
+		 *
 		 * Other future (optional) implementations may include:
 		 * - popups, notifications, tablet, ext_background_effect_manager_v1
 		 */
 		let backend = Wrapper {
 			state: core::ptr::null_mut::<void>(),
 			surface: core::ptr::null_mut::<void>(),
-			socket,
+			socket: void::to_handle(socket),
 		};
 
 		Success(Decoration {
@@ -69,8 +72,8 @@ impl NativeDecoration for Decoration
 
 	fn exit(&self)
 	{
-		self.socket.close_socket();
-		todo!();
+		//self.backend.socket.close_socket();
+		//todo!();
 	}
 
 	fn apply_blur(&self) -> WRequestResult<()>
@@ -86,6 +89,8 @@ impl NativeDecoration for Decoration
 
 		match desktop {
 			DE::Hyprland =>
+				return WRequestResult::Success(()),
+			DE::Kde =>
 				return WRequestResult::Success(()),
 			_ => {}
 		}

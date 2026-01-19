@@ -1,5 +1,6 @@
 // https://github.com/SCLorentz/UwU/blob/main/ARM64/src/main.s
 
+/// This will get our ASM bindings
 mod bindings {
 	unsafe extern "C" {
 		pub(crate) fn exit(code: crate::f8) -> !;

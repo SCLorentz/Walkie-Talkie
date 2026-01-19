@@ -272,7 +272,7 @@ impl Renderer {
 		debug!("creating linux wayland surface");
 		use ash::{khr::wayland_surface, vk::wl_display};
 
-		let window: &Wrapper = unsafe { window.cast().as_ref() };
+		let window_ref: &Wrapper = unsafe { window.cast().as_ref() };
 		/**
 		 * https://docs.rs/ash-window/0.13.0/src/ash_window/lib.rs.html#36-126
 		 */
@@ -280,11 +280,10 @@ impl Renderer {
 
 		let surface_desc = vk::WaylandSurfaceCreateInfoKHR::default()
 			.display(display)
-			.surface(window.surface as *mut core::ffi::c_void);
+			.surface(window_ref.surface as *mut core::ffi::c_void);
 
 		let surface = wayland_surface::Instance::new(entry, instance);
-		let result = unsafe { surface.create_wayland_surface(&surface_desc, None)
-			.expect("couldn't create wayland surface") };
+		let result = unsafe { surface.create_wayland_surface(&surface_desc, None)? };
 
 		Ok(result)
 	}

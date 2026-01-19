@@ -41,7 +41,10 @@ sockets are useful to comunicate with other process within the same UNIX based O
 
 ```rust
 let socket = dirty::Socket::new();
-match socket.read_socket("C") {
+socket.write_socket(b"hello socket");
+
+let buffer: &[u8] = &[];
+match socket.read_socket(buffer) {
 	Some(result) => debug!("{:?}", result),
 	None => warn!("no message recived"),
 };

@@ -2,14 +2,15 @@
 #![deny(
 	deprecated,
 	rust_2018_idioms,
-	clippy::shadow_unrelated,
 	unreachable_code,
 	unused_imports,
 	unused_variables,
+	unsafe_op_in_unsafe_fn,
+	missing_docs,
 	warnings,
 	clippy::all,
+	clippy::shadow_unrelated,
 	clippy::pedantic,
-	unsafe_op_in_unsafe_fn,
 	clippy::unwrap_used,
 	clippy::expect_used,
 	clippy::panic,
@@ -26,12 +27,20 @@
 	clippy::unwrap_in_result,
 	clippy::exit,
 	clippy::wildcard_imports,
-	missing_docs,
+	clippy::missing_docs_in_private_items,
+	clippy::doc_markdown,
+	clippy::empty_docs,
+	clippy::unwrap_or_default,
+	clippy::match_wild_err_arm,
+	clippy::needless_pass_by_value,
+	clippy::redundant_closure,
+	clippy::large_stack_arrays,
 )]
 #![allow(clippy::tabs_in_doc_comments)]
 //! This is a helper crate, with minimum dependencies, not even std included
 //!
 //! Things in here should and will be dirty!
+//! That's why there are so many `#[deny]` configs (clippy helps a lot here)
 #![doc = include_str!("../README.md")]
 
 extern crate alloc;
@@ -47,7 +56,7 @@ pub struct SocketResponse
 	/**
 	 * This represents the state of the connection.
 	 *
-	 * If -1, then the connection failed
+	 * If `-1`, then the connection failed
 	 */
 	pub status: i32,
 	/**
@@ -58,6 +67,7 @@ pub struct SocketResponse
 }
 
 #[cfg(not(target_os = "windows"))]
+/// This will handle with our C imports from `unix/socket.c`
 mod socket {
 	use crate::{SocketResponse, void};
 
@@ -72,6 +82,9 @@ mod socket {
 #[cfg(not(target_os = "windows"))]
 /// The default Socket struct.
 pub struct Socket {
+	/// The same field of `SocketResponse.server_socket`.
+	/// This time in the rust layout.
+	/// Can be None in case the `socket::create_socket()` returned `-1` (or err in the c lib for sockets)
 	socket_id: Option<i32>,
 }
 #[cfg(not(target_os = "windows"))]
@@ -134,6 +147,9 @@ pub type f8 = u8;
 #[repr(C)]
 #[allow(non_camel_case_types)]
 pub struct void {
+	/// This is a pointer of nothing
+	/// An u8 array of size 0
+	/// similar as how `core::ffi::c_void` works
 	_private: [u8; 0],
 }
 
@@ -225,6 +241,8 @@ impl Color {
 /// String type
 #[derive(Clone, PartialEq, Debug)]
 pub struct String {
+	/// strings are just a Vec<&str>
+	/// in this case, just a pointer to an u8 string
 	vec: *mut void
 }
 
