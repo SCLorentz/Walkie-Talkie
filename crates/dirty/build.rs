@@ -1,27 +1,19 @@
-use std::{env, path::PathBuf};
-
 fn main() {
-	let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-	let target = env::var("TARGET").unwrap();
-
 	let mut targets = Vec::new();
 
-	if target.contains("aarch64") && target.contains("apple-darwin") {
-		targets.push(("exit", root.join("src/core/macos/exit.s")));
-	}
+	#[cfg(all(target_os = "macos", target_aarch="aarch64"))]
+	targets.push(("exit", "src/core/macos/exit.s"));
 
-	if target.contains("aarch64") && target.contains("linux") {
-		targets.push(("exit", root.join("src/core/linux/exit_a64.s")));
-	}
+	#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+	targets.push(("exit", "src/core/linux/exit_a64.s"));
 
-	if target.contains("x86_64") && target.contains("linux") {
-		targets.push(("exit", root.join("src/core/linux/exit_x64.s")));
-	}
+	#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+	targets.push(("exit", "src/core/linux/exit_x64.s"));
 
-	targets.push(("create_socket", root.join("src/core/unix/socket.c")));
-	targets.push(("read_socket", root.join("src/core/unix/socket.c")));
-	targets.push(("write_socket", root.join("src/core/unix/socket.c")));
-	targets.push(("close_socket", root.join("src/core/unix/socket.c")));
+	targets.push(("create_socket", "src/core/unix/socket.c"));
+	targets.push(("read_socket", "src/core/unix/socket.c"));
+	targets.push(("write_socket", "src/core/unix/socket.c"));
+	targets.push(("close_socket", "src/core/unix/socket.c"));
 
 	for (name, file) in targets {
 		cc::Build::new()

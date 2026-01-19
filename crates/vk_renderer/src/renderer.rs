@@ -118,13 +118,13 @@ impl Renderer {
 		let view = backend.ns_view;
 
 		#[cfg(target_os = "linux")]
-		let view: *mut void = todo!();
+		let view: *mut void = backend.surface;
 
 		#[cfg(target_os = "windows")]
 		let view: *mut void = todo!();
 
 		let Some(nn_view) = NonNull::new(view) else {
-			return Err(Box::from("NSView shouldn't be null"))
+			return Err(Box::from("view shouldn't be null"))
 		};
 
 		let surface = Self::new_surface(&instance, &entry, nn_view.cast())?;
@@ -280,11 +280,13 @@ impl Renderer {
 
 		let surface_desc = vk::WaylandSurfaceCreateInfoKHR::default()
 			.display(display)
-			.surface((*window).surface.as_ptr() as *mut core::ffi::c_void);
+			.surface(window.surface as *mut core::ffi::c_void);
 
 		let surface = wayland_surface::Instance::new(entry, instance);
-		unsafe { surface.create_wayland_surface(&surface_desc, None)
-			.expect("couldn't create wayland surface") }
+		let result = unsafe { surface.create_wayland_surface(&surface_desc, None)
+			.expect("couldn't create wayland surface") };
+
+		Ok(result)
 	}
 
 	/// Creates a new surface

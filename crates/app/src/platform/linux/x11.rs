@@ -1,16 +1,11 @@
-#![allow(unused_doc_comments)]
-
 use crate::{
 	DecorationMode,
 	Decoration,
-	platform::linux::DE,
+	platform::linux::{DE, get_de},
 	WResponse::NotImplementedInCompositor,
 	SurfaceBackend,
 	warn
 };
-
-use core::ffi::c_void;
-use super::shared::get_de;
 
 pub trait NativeDecoration
 {

@@ -11,11 +11,11 @@ def build():
 	match system:
 		case "LINUX":
 			path = "target/x86_64-unknown-linux-musl/release-smaller/wt"
-			subprocess.run('cargo build-linux-x64', shell=True, capture_output=True)
+			subprocess.run('cargo +nightly build-linux-x64', shell=True, capture_output=True)
 			subprocess.run(f'upx -9 {path}', shell=True, capture_output=True)
 		case "DARWIN":
 			path = "target/aarch64-apple-darwin/release-smaller/wt"
-			subprocess.run('cargo build-macos', shell=True, capture_output=True)
+			subprocess.run('cargo +nightly build-macos', shell=True, capture_output=True)
 			subprocess.run(f'strip {path}', shell=True, capture_output=True)
 		case _:
 			print(f"{system} not supported or not configured")
@@ -51,7 +51,7 @@ def cleanup():
 	r = input("Do you wish to clean the target directory? y/N\t")
 	if r.lower() == "y":
 		start = time.time()
-		subprocess.run('cargo clean', shell=True, capture_output=True)
+		subprocess.run('cargo +nightly clean', shell=True, capture_output=True)
 		end = time.time()
 		print(f"Done ({end - start:.4f}s)")
 	else:
@@ -64,6 +64,7 @@ else:
 	system = sys.argv[1].upper()
 
 print(f"packaging to {system}")
+subprocess.run('cargo +nightly check', shell=True)
 build()
 package()
 cleanup()

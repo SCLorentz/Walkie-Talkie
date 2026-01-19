@@ -27,6 +27,7 @@ use objc2_foundation::{
 
 use crate::{DecorationMode, Decoration, WRequestResult::{self, Fail, Success}, WResponse};
 
+/// Wrapper struct
 #[derive(PartialEq, Debug, Clone)]
 pub struct Wrapper {
 	pub ns_view: *mut void,		// NSView
@@ -47,7 +48,11 @@ pub trait NativeDecoration
 {
 	fn run(&self);
 	fn new(title: String, width: f64, height: f64) -> WRequestResult<Self> where Self: core::marker::Sized;
+	/// Apply blur to window
 	fn apply_blur(&mut self) -> WRequestResult<()>;
+	/// exit handler
+	#[allow(unused)]
+	fn exit(&self);
 }
 
 impl NativeDecoration for Decoration
@@ -168,6 +173,8 @@ impl NativeDecoration for Decoration
 		let app = self.backend.app.cast_mut() as *const NSApplication;
 		unsafe { msg_send![&*app, run] }
 	}
+
+	fn exit(&self) {}
 
 	/*fn set_title(&self, title: &str) {
 		let ns = NSString::from_str(title);

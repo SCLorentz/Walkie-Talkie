@@ -37,9 +37,7 @@ char* read_socket(int server_socket, char* ch)
 }
 
 void write_socket(int server_socket, char* ch)
-{
-	write(server_socket, &ch, strlen(ch));
-}
+	{ write(server_socket, &ch, strlen(ch)); }
 
 void close_socket(int server_socket)
 	{ close(server_socket); }

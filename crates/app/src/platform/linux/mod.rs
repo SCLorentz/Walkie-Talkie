@@ -1,5 +1,3 @@
-#![windows_subsystem = "windows"]
-
 #[cfg(feature = "wayland")]
 mod wayland;
 
@@ -16,9 +14,15 @@ pub use x11::{NativeDecoration, Wrapper};
 #[derive(Debug, PartialEq)]
 #[allow(dead_code)]
 pub enum DE {
+	/// KDE
 	Kde,
+	/// Hyprland
 	Hyprland,
+	/// Sway
 	Sway,
+	/// GNOME
+	Gnome,
+	/// Xfce
 	Xfce,
 	/// Not officially ported
 	Other,
@@ -26,9 +30,8 @@ pub enum DE {
 	Unknown,
 }
 
-//use std::env;
 //use log::warn;
-use crate::{WRequestResult::{Fail, Success}, WResponse, WRequestResult};
+use crate::{WRequestResult::Success, WRequestResult};
 
 /// Detect the current DE/WM that the program is beeing executed
 pub fn get_de() -> WRequestResult<DE>

@@ -4,7 +4,7 @@ use crate::void;
 #[derive(PartialEq, Debug, Clone)]
 pub struct Wrapper {
 	pub state: *mut void,
-	pub surface: crate::NonNull<void>,
+	pub surface: *mut void,
 }
 
 #[cfg(target_os = "macos")]

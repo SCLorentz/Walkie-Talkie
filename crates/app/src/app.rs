@@ -31,10 +31,6 @@
 )]
 #![doc = include_str!("../README.md")]
 
-// Redox is compatible with the linux ABI, minimum ajustments needed
-#[cfg(target_os = "redox")]
-compile_error!("redox not supported yet");
-
 #[cfg(target_os = "none")]
 compile_error!("no bare metal support");
 
@@ -132,6 +128,8 @@ impl App
 			log::warn!("no windows found on self.windows");
 			return
 		};
+
+		#[cfg(target_os = "macos")]
 		window.decoration.run();
 	}
 }
@@ -184,6 +182,7 @@ impl Window
 		size: (f64, f64)
 	) -> Result<Self, Box<dyn Error>>
 	{
+		#[allow(unused_mut)]
 		let mut decoration = match Decoration::new(String::from(title), size.0, size.1) {
 			Success(v) => v,
 			Fail(_) => return Err(Box::from("something went wrong creating decoration")),

@@ -17,11 +17,11 @@ log.workspace = true
 ash.workspace = true
 dirty.workspace = true
 
-[target.'cfg(target_os = "linux")'.dependencies]
-wayland-protocols.workspace = true
-wayland-protocols-experimental.workspace = true
+#[target.'cfg(target_os = "linux")'.dependencies]
+#wayland-protocols.workspace = true
+#wayland-protocols-experimental.workspace = true
 #dbus.workspace = true
-wayland-client.workspace = true
+#wayland-client.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2.workspace = true

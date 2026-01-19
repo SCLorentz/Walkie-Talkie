@@ -40,6 +40,7 @@ pub use alloc::boxed::Box;
 pub mod syscall;
 
 /// This represents the possible state of the socket response
+#[cfg(not(target_os = "windows"))]
 #[repr(C)]
 pub struct SocketResponse
 {
@@ -56,6 +57,7 @@ pub struct SocketResponse
 	pub server_socket: i32,
 }
 
+#[cfg(not(target_os = "windows"))]
 mod socket {
 	use crate::{SocketResponse, void};
 
@@ -67,11 +69,12 @@ mod socket {
 	}
 }
 
+#[cfg(not(target_os = "windows"))]
 /// The default Socket struct.
 pub struct Socket {
 	socket_id: Option<i32>,
 }
-
+#[cfg(not(target_os = "windows"))]
 impl Socket {
 	/// Create a new socket connection to the defined address
 	#[must_use]
