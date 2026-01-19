@@ -1,5 +1,4 @@
 #![no_std]
-#![allow(non_snake_case, non_camel_case_types, clippy::tabs_in_doc_comments)]
 #![deny(
 	deprecated,
 	rust_2018_idioms,
@@ -18,7 +17,18 @@
 	clippy::unimplemented,
 	clippy::shadow_reuse,
 	clippy::shadow_same,
+	clippy::dbg_macro,
+	clippy::print_stdout,
+	clippy::print_stderr,
+	clippy::indexing_slicing,
+	clippy::arithmetic_side_effects,
+	clippy::float_arithmetic,
+	clippy::unwrap_in_result,
+	clippy::exit,
+	clippy::wildcard_imports,
+	missing_docs,
 )]
+#![allow(clippy::tabs_in_doc_comments)]
 //! This is a helper crate, with minimum dependencies, not even std included
 //!
 //! Things in here should and will be dirty!
@@ -26,12 +36,23 @@
 
 extern crate alloc;
 pub use alloc::boxed::Box;
+/// OS specific methods based on systemcalls (ASM)
 pub mod syscall;
 
+/// This represents the possible state of the socket response
 #[repr(C)]
 pub struct SocketResponse
 {
+	/**
+	 * This represents the state of the connection.
+	 *
+	 * If -1, then the connection failed
+	 */
 	pub status: i32,
+	/**
+	 * if the connection was sucesseful,
+	 * then this will return the int id of the server socket
+	 */
 	pub server_socket: i32,
 }
 
@@ -46,11 +67,13 @@ mod socket {
 	}
 }
 
+/// The default Socket struct.
 pub struct Socket {
 	socket_id: Option<i32>,
 }
 
 impl Socket {
+	/// Create a new socket connection to the defined address
 	#[must_use]
 	pub fn new(address: &'static [u8]) -> Self
 	{
@@ -65,6 +88,7 @@ impl Socket {
 		Socket { socket_id, }
 	}
 
+	/// read the socket signal
 	#[must_use]
 	pub fn read_socket(&self, ch: &'static [u8]) -> Option<Box<&[f8]>>
 	{
@@ -73,12 +97,14 @@ impl Socket {
 		Some(Box::new(void::from_handle(response)))
 	}
 
+	/// write a socket signal
 	pub fn write_socket(&self, ch: &'static [u8])
 	{
 		let Some(socket_id) = self.socket_id else { return };
 		unsafe { socket::write_socket(socket_id, void::to_handle(ch)) };
 	}
 
+	/// close the connection with the socket
 	pub fn close_socket(&self)
 	{
 		let Some(socket_id) = self.socket_id else { return };
@@ -90,6 +116,7 @@ impl Socket {
 ///
 /// This can be ether i8 or u8 depending on the current ABI specification used
 #[cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))]
+#[allow(non_camel_case_types)]
 pub type f8 = i8;
 
 // fuck the ABI
@@ -97,9 +124,12 @@ pub type f8 = i8;
 ///
 /// This can be ether i8 or u8 depending on the current ABI specification used
 #[cfg(all(target_os = "linux", target_env = "musl", target_arch = "aarch64"))]
+#[allow(non_camel_case_types)]
 pub type f8 = u8;
 
+/// just a void type
 #[repr(C)]
+#[allow(non_camel_case_types)]
 pub struct void {
 	_private: [u8; 0],
 }
@@ -123,8 +153,11 @@ pub static TRUE: u32 = 1;
 /// int32 bool type
 pub static FALSE: u32 = 0;
 
+/// Handle with errors with this type
 pub enum WRequestResult<T> {
+	/// Function failed
 	Fail(WResponse),
+	/// Function succeded
 	Success(T)
 }
 
@@ -140,38 +173,53 @@ pub enum WRequestResult<T> {
 #[derive(Debug)]
 pub enum WResponse
 {
+	/// The binary does not support this function
 	BinarySpecificLimitation	= 500,
+	/// Tried to use a wayland protocol that wasn't implemented on the compositor
 	ProtocolNotSuported			= 501,
+	/// tried to access something and the request was denied by the OS
 	AccessDenied				= 502,
+	/// Recived a value that wasn't supposed to be empty or an error
 	UnexpectedError				= 503,
-	NotImplementedInCompositor	= 601,
+	/// Tried to do something with the window, but the compositor denied
+	ForbiddenByCompositor		= 601,
+	/// Something for macos
 	ChannelInUse				= 400,
+	/// A dynamic linked dependency was missing on execution
 	MissingDependencies			= 401,
 }
 
-
+/// Abtraction layer for multiple OS support
 #[derive(Clone, PartialEq, Debug)]
 pub struct SurfaceWrapper(pub *mut void);
 
 impl SurfaceWrapper
 {
+	/// Create a new wrapper
 	#[must_use]
 	pub fn new<T>(wrap: T) -> Self { SurfaceWrapper(void::to_handle(wrap)) }
+	/// Is wrapper valid?
 	#[must_use]
 	pub fn is_null(&self) -> bool { self.0.is_null() }
+	/// cast wrapper to original value
 	#[must_use]
 	pub fn cast<T>(&self) -> T { void::from_handle(self.0) }
 }
 
-// https://github.com/seancroach/hex_color/blob/main/src/lib.rs
+/// RGB color implementation
+/// reference: <https://github.com/seancroach/hex_color/blob/main/src/lib.rs>
 #[derive(PartialEq, Clone, Debug)]
+#[allow(missing_docs, non_snake_case)]
 pub struct Color { pub R: u8, pub G: u8, pub B: u8, pub A: u8, }
 
 impl Color {
+	/// Create new color value
 	#[must_use]
+	#[allow(non_snake_case)]
 	pub fn from(R: u8, G: u8, B: u8, A: u8) -> Self { Self { R, G, B, A } }
 }
 
+/// String type
 #[derive(Clone, PartialEq, Debug)]
 pub struct String {
 	vec: *mut void
@@ -179,10 +227,11 @@ pub struct String {
 
 impl String
 {
+	/// Create string from &str
 	#[must_use]
 	pub fn from(val: &str) -> Self
 		{ Self { vec: void::to_handle(val) } }
-
+	/// convert String to &str
 	pub fn as_str(&mut self) -> &str
 		{ void::from_handle::<&str>(self.vec) }
 }

@@ -11,6 +11,7 @@ mod bindings {
 #[inline]
 pub fn exit(code: crate::f8) -> ! { unsafe { bindings::exit(code) } }
 
+/// write attribute to print strings into the terminal
 #[macro_export]
 macro_rules! write {
 	($($x:expr),+ $(,)?) => {
