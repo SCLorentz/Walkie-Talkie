@@ -2,7 +2,7 @@
 mod wayland;
 
 #[cfg(feature = "wayland")]
-pub use wayland::{NativeDecoration, Wrapper};
+pub use wayland::{NativeDecoration, State as Wrapper};
 
 #[cfg(feature = "x11")]
 mod x11;

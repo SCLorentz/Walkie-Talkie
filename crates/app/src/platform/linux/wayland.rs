@@ -1,47 +1,115 @@
+#![allow(unused_doc_comments)]
+
 use crate::{
 	DecorationMode,
 	Decoration,
-	WRequestResult,
-	WResponse::ProtocolNotSuported,
+	WRequestResult::{self, Success, Fail},
+	WResponse::{ProtocolNotSuported, UnexpectedError},
 	platform::linux::{DE, get_de},
 	void,
-	String,
-	WRequestResult::Success
+	String
 };
+
+use wayland_client::{
+	delegate_noop,
+	protocol::{
+		wl_buffer, wl_compositor, wl_keyboard, wl_registry, wl_seat, wl_shm, wl_shm_pool,
+		wl_surface,
+	},
+	Connection, Dispatch, QueueHandle, WEnum
+};
+
+use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
+#[allow(unused_imports)]
+use wayland_window::{Frame, create_frame, FrameImplementation};
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct State {
+	running:        bool,
+	base_surface:	Option<*mut void>,	// wl_surface::WlSurface
+	buffer:			Option<*mut void>,	// wl_buffer::WlBuffer
+	wm_base:		Option<*mut void>,	// xdg_wm_base::XdgWmBase
+	xdg_surface:	Option<*const void>,
+	configured: 	bool,
+	title:          String,
+	toplevel:       Option<*const void>
+}
+
+impl State {
+	/// this will work as 'make_view()' equivalent
+	fn init_xdg_surface(&mut self, qh: &QueueHandle<State>)
+	{
+		let Some(some_wm_base) = self.wm_base else { return };
+		let Some(some_base_surface) = self.base_surface else { return };
+		
+		let wm_base: xdg_wm_base::XdgWmBase =
+			void::from_handle(some_wm_base);
+		let base_surface: wl_surface::WlSurface =
+			void::from_handle(some_base_surface);
+
+		let xdg_surface = wm_base.get_xdg_surface(&base_surface, qh, ());
+		let toplevel = xdg_surface.get_toplevel(qh, ());
+		//toplevel.set_title(self.title);<<-- toplevel expects String, can only find common::String
+
+		base_surface.commit();
+
+		self.xdg_surface =
+			Some(void::to_handle(xdg_surface));
+		self.toplevel =
+		    Some(void::to_handle(toplevel));
+	}
+}
 
 pub trait NativeDecoration
 {
 	/// Creates a native window frame decoration for Linux DE/WM
-	fn new(title: String, width: f64, height: f64) -> WRequestResult<Self> where Self: core::marker::Sized;
-	/// apply blur to window
+	fn new(title: String, _width: f64, _height: f64) -> WRequestResult<Self> where Self: core::marker::Sized;
 	fn apply_blur(&self) -> WRequestResult<()>;
-	/// exit handler
-	#[allow(unused)]
-	fn exit(&self);
-}
-
-#[derive(PartialEq, Debug, Clone)]
-pub struct Wrapper {
-	pub state: *mut void,
-	pub surface: *mut void,
-	pub socket: *mut void,
+	//fn init_event_state() -> wayland_client::EventQueue<State>;
 }
 
 // wayland_protocols (which include wayland_client) failed to build documentation on version 0.31.12 thks!!
 impl NativeDecoration for Decoration
 {
-	fn new(_title: String, _width: f64, _height: f64) -> WRequestResult<Self>
+	fn new(title: String, _width: f64, _height: f64) -> WRequestResult<Self>
 	{
-		// /run/user/1000 is a workaround and should not be used in production!
-		let address = b"/run/user/1000/wayland-0";
+		/*let address = b"wayland-0";
 		let socket = dirty::Socket::new(address);
 		socket.write_socket(b"hello world");
 
-		let buffer: &[u8] = &[];
-		match socket.read_socket(buffer) {
+		match socket.read_socket(b"") {
 			Some(result) => log::debug!("{:?}", result),
 			None => log::warn!("no message recived"),
 		};
+		socket.close_socket();*/
+		let Ok(conn) = Connection::connect_to_env() else {
+			log::warn!("couldn't connect with wayland");
+			return Fail(UnexpectedError);
+		};
+
+		let mut event_queue = conn.new_event_queue();
+		let qhandle = event_queue.handle();
+
+		let display = conn.display();
+		display.get_registry(&qhandle, ());
+
+		let mut backend = State {
+			running: true,
+			base_surface: None,
+			buffer: None,
+			wm_base: None,
+			toplevel: None,
+			xdg_surface: None,
+			configured: false,
+			title,
+		};
+
+		while backend.running {
+			let Ok(_) =
+				event_queue.blocking_dispatch(&mut backend) else {
+					return Fail(UnexpectedError);	
+				};
+		}
 
 		/**
 		 * This version will include SSDs and DBusMenu
@@ -54,26 +122,16 @@ impl NativeDecoration for Decoration
 		 * On Hyprland, implement:
 		 * - <https://wayland.app/protocols/hyprland-surface-v1>
 		 *
-		 * Other future (optional) implementations may include:
+		 *  Other future (optional) implementations may include:
 		 * - popups, notifications, tablet, ext_background_effect_manager_v1
 		 */
-		let backend = Wrapper {
-			state: core::ptr::null_mut::<void>(),
-			surface: core::ptr::null_mut::<void>(),
-			socket: void::to_handle(socket),
-		};
-
+		let Some(frame) = backend.xdg_surface else { return Fail(UnexpectedError) };
+	
 		Success(Decoration {
 			mode: DecorationMode::ServerSide,
-			frame: core::ptr::null_mut() as *const void, // TODO
+			frame,
 			backend,
 		})
-	}
-
-	fn exit(&self)
-	{
-		//self.backend.socket.close_socket();
-		//todo!();
 	}
 
 	fn apply_blur(&self) -> WRequestResult<()>
@@ -96,5 +154,146 @@ impl NativeDecoration for Decoration
 		}
 
 		WRequestResult::Fail(ProtocolNotSuported)
+	}
+}
+
+// https://github.com/Smithay/wayland-rs/blob/master/wayland-client/examples/simple_window.rs
+impl Dispatch<wl_registry::WlRegistry, ()> for State
+{
+	fn event(
+		state: &mut Self,
+		registry: &wl_registry::WlRegistry,
+		event: wl_registry::Event,
+		_: &(),
+		_: &Connection,
+		qh: &QueueHandle<Self>,
+	) {
+		if let wl_registry::Event::Global { name, interface, .. } = event {
+			match &interface[..] {
+				"wl_compositor" => {
+					let compositor =
+						registry.bind::<wl_compositor::WlCompositor, _, _>(name, 1, qh, ());
+					let mut surface = compositor.create_surface(qh, ());
+					state.base_surface = Some(&mut surface as *mut wl_surface::WlSurface as *mut void);
+
+					//if state.wm_base.is_some() && state.xdg_surface.is_none() {
+					state.init_xdg_surface(qh);
+				}
+				"wl_seat" => {
+					registry.bind::<wl_seat::WlSeat, _, _>(name, 1, qh, ());
+				}
+				"xdg_wm_base" => {
+					let mut wm_base = registry.bind::<xdg_wm_base::XdgWmBase, _, _>(name, 1, qh, ());
+					state.wm_base =
+						Some(&mut wm_base as *mut xdg_wm_base::XdgWmBase as *mut void);
+
+					//let base_surface = state.base_surface as *mut wl_surface::WlSurface;
+					//let xdg_surface = state.xdg_surface as *mut wl_surface::WlSurface;
+
+					// I cant test if is Some or None here
+					// for now I will just pretend that xdg_surface doesn't exist
+					//if (*base_surface).is_alive() && (*xdg_surface).is_not_alive()
+					state.init_xdg_surface(qh);
+				}
+				_ => {}
+			}
+		}
+	}
+}
+
+delegate_noop!(State: ignore wl_compositor::WlCompositor);
+delegate_noop!(State: ignore wl_surface::WlSurface);
+delegate_noop!(State: ignore wl_shm::WlShm);
+delegate_noop!(State: ignore wl_shm_pool::WlShmPool);
+delegate_noop!(State: ignore wl_buffer::WlBuffer);
+
+impl Dispatch<xdg_wm_base::XdgWmBase, ()> for State {
+	fn event(
+		_: &mut Self,
+		wm_base: &xdg_wm_base::XdgWmBase,
+		event: xdg_wm_base::Event,
+		_: &(),
+		_: &Connection,
+		_: &QueueHandle<Self>,
+	) {
+		if let xdg_wm_base::Event::Ping { serial } = event {
+			wm_base.pong(serial);
+		}
+	}
+}
+
+impl Dispatch<xdg_surface::XdgSurface, ()> for State {
+	fn event(
+		state: &mut Self,
+		xdg_surface: &xdg_surface::XdgSurface,
+		event: xdg_surface::Event,
+		_: &(),
+		_: &Connection,
+		_: &QueueHandle<Self>,
+	) {
+		if let xdg_surface::Event::Configure { serial, .. } = event
+		{
+			xdg_surface.ack_configure(serial);
+			state.configured = true;
+
+			let Some(some_surface) = state.base_surface else { return };
+			let surface = some_surface as *mut wl_surface::WlSurface;
+
+			if state.buffer.is_some() {
+				let Some(some_buffer) =
+					state.buffer else { return };
+				let buffer = some_buffer as *mut wl_buffer::WlBuffer;
+
+				unsafe { (*surface).attach(Some(&*buffer), 0, 0) };
+				unsafe { (*surface).commit() };
+			}
+		}
+	}
+}
+
+impl Dispatch<xdg_toplevel::XdgToplevel, ()> for State {
+	fn event(
+		state: &mut Self,
+		_: &xdg_toplevel::XdgToplevel,
+		event: xdg_toplevel::Event,
+		_: &(),
+		_: &Connection,
+		_: &QueueHandle<Self>,
+	) {
+		if let xdg_toplevel::Event::Close = event {
+			state.running = false;
+		}
+	}
+}
+
+impl Dispatch<wl_seat::WlSeat, ()> for State {
+	fn event(
+		_: &mut Self,
+		seat: &wl_seat::WlSeat,
+		event: wl_seat::Event,
+		_: &(),
+		_: &Connection,
+		qh: &QueueHandle<Self>,
+	) {
+		if let wl_seat::Event::Capabilities { capabilities: WEnum::Value(capabilities) } = event
+		&& capabilities.contains(wl_seat::Capability::Keyboard) {
+			seat.get_keyboard(qh, ());
+		}
+	}
+}
+
+impl Dispatch<wl_keyboard::WlKeyboard, ()> for State {
+	fn event(
+		state: &mut Self,
+		_: &wl_keyboard::WlKeyboard,
+		event: wl_keyboard::Event,
+		_: &(),
+		_: &Connection,
+		_: &QueueHandle<Self>,
+	) {
+		if let wl_keyboard::Event::Key { key, .. } = event
+		&& key == 1 /*ESC */ {
+			state.running = false;
+		}
 	}
 }
