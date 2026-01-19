@@ -32,7 +32,8 @@ impl NativeDecoration for Decoration
 {
 	fn new(_title: String, _width: f64, _height: f64) -> WRequestResult<Self>
 	{
-		let address = b"wayland-0";
+		// /run/user/1000 is a workaround and should not be used in production!
+		let address = b"/run/user/1000/wayland-0";
 		let socket = dirty::Socket::new(address);
 		socket.write_socket(b"hello world");
 
@@ -41,7 +42,6 @@ impl NativeDecoration for Decoration
 			Some(result) => log::debug!("{:?}", result),
 			None => log::warn!("no message recived"),
 		};
-		//socket.close_socket();
 
 		/**
 		 * This version will include SSDs and DBusMenu

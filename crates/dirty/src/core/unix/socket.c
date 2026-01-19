@@ -10,24 +10,28 @@ struct SocketResponse {
 
 // the idea is to connect to wayland using sockets
 // https://wayland-book.com/protocol-design/interfaces-reqs-events.html
-struct SocketResponse create_socket(char* address)
+struct SocketResponse create_socket(const char* address)
 {
-	int server_socket;
-	struct sockaddr_un server_addr;
-	int connection_result;
+	struct SocketResponse ret = {0};
 
-	server_socket = socket(AF_UNIX, SOCK_STREAM, 0);
+	int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (fd < 0 ) {
+		ret.status = -1;
+		return ret;
+	}
 
+	struct sockaddr_un server_addr = {0};
 	server_addr.sun_family = AF_UNIX;
-	strcpy(server_addr.sun_path, address);
+	strncpy(server_addr.sun_path, address, sizeof(server_addr.sun_path) - 1);
 
-	connection_result = connect(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr));
+	socklen_t len = offsetof(struct sockaddr_un, sun_path)
+	                + strlen(server_addr.sun_path) + 1;
 
-	struct SocketResponse socket_return;
-	socket_return.server_socket = server_socket;
-	socket_return.status = connection_result;
+	int r = connect(fd, (struct sockaddr*)&server_addr, len);
 
-	return socket_return;
+	ret.server_socket = fd;
+	ret.status = r;
+	return ret;
 }
 
 char* read_socket(int server_socket, char* ch)
