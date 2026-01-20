@@ -10,7 +10,7 @@ fn main() {
 		.init()
 		.unwrap();
 
-	let address = dirty::getenv("PATH");
+	let address = dirty::getenv("PATH").unwrap();
 	log::debug!("address {:?}", address);
 
 	let mut app = App::default();

@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(core_intrinsics, stmt_expr_attributes)]
 #![deny(
 	deprecated,
 	rust_2018_idioms,
@@ -36,7 +37,7 @@
 	clippy::redundant_closure,
 	clippy::large_stack_arrays,
 )]
-#![allow(clippy::tabs_in_doc_comments)]
+#![allow(clippy::tabs_in_doc_comments, internal_features)]
 //! This is a helper crate, with minimum dependencies, not even std included
 //!
 //! Things in here should and will be dirty!
@@ -85,17 +86,25 @@ mod socket {
 
 /**
  * The function will return the size of a string.
+ *
  * This works by prompting the first byte of the string (represented by the pointer `p`),
  * then the loop will get all following characters until the `\0` (string termination character)
+ *
  * this *may cause "SIGSEGV (Address boundary error)" ¯\(ツ)/¯
+ *
+ * the code is bad...
  */
-unsafe fn c_strlen(mut p: *const u8) -> usize
+fn c_strlen(mut p: *const u8, bypass_hardcoded_limit: Option<usize>) -> usize
 {
+	// to avoid (but not prevent) boundary related errors,
+	// 1024 is a hardcoded limit in case `\0` doesn't exist
+	let limit = bypass_hardcoded_limit.unwrap_or(1024);
 	unsafe {
 		let mut len = 0;
-		while *p != 0 {
-			len += 1;		// <-- this will just save how many iterations the loop had
-			p = p.add(1); 	// <-- this will increment the position of the pointer by one
+		while len < limit && *p != 0 {
+			#[allow(clippy::arithmetic_side_effects)]
+			len += 1;		// save how many iterations the loop had
+			p = p.add(1);	// increments the position of the pointer by one
 		}
 		len
 	}
@@ -105,10 +114,10 @@ unsafe fn c_strlen(mut p: *const u8) -> usize
  * this basicly creates a new string based on the initial location and the final size
  * `ptr` is the first byte and `len` is how long it should read the string
  */
-unsafe fn getenv_str(ptr: *const u8) -> &'static [u8]
+fn getenv_str(ptr: *const u8) -> &'static [u8]
 {
 	unsafe {
-		let len = c_strlen(ptr);
+		let len = c_strlen(ptr, None);
 		slice::from_raw_parts(ptr, len)
 	}
 }
@@ -117,8 +126,11 @@ unsafe fn getenv_str(ptr: *const u8) -> &'static [u8]
  * this converts the raw byte value into a readable string
  * <https://doc.rust-lang.org/stable/core/str/fn.from_utf8.html>
  */
-fn convert_bytes_to_string(bytes: &[u8]) -> Result<String, core::str::Utf8Error>
-	{ str::from_utf8(bytes).map(|s| s.to_string()) }
+fn convert_bytes_to_string(bytes: &[u8]) -> Option<String>
+{
+	let Ok(str) = str::from_utf8(bytes) else { return None };
+	Some(ToString::to_string(str))
+}
 
 
 /// this will check the environ array and search for an specific keyword
@@ -129,12 +141,12 @@ fn convert_bytes_to_string(bytes: &[u8]) -> Result<String, core::str::Utf8Error>
 /// ```
 // all of this just makes me hate the `i8 != u8` thing. Fuck the ABI
 #[cfg(not(target_os = "windows"))]
-pub fn getenv(find: &'static str) -> String
+#[must_use]
+pub fn getenv(find: &'static str) -> Option<String>
 {
-	let raw_pointer = unsafe { socket::getenv(find.as_ptr() as *const i8) };
-	let string = unsafe { getenv_str(raw_pointer as *const u8) };
+	let raw_pointer = unsafe { socket::getenv(find.as_ptr().cast::<i8>()) };
+	let string = getenv_str(raw_pointer.cast::<u8>());
 	convert_bytes_to_string(string)
-		.expect("problem")
 }
 
 #[cfg(not(target_os = "windows"))]
