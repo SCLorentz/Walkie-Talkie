@@ -58,7 +58,7 @@ pub trait NativeDecoration
 impl NativeDecoration for Decoration
 {
 	/// Creates the native window frame decoration for macOS
-	fn new(mut title: String, width: f64, height: f64) -> WRequestResult<Self>
+	fn new(title: String, width: f64, height: f64) -> WRequestResult<Self>
 	{
 		let Some(mtm) = MainThreadMarker::new() else { return Fail(WResponse::UnexpectedError) };
 

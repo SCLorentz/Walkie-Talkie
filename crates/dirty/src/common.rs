@@ -45,6 +45,9 @@
 
 extern crate alloc;
 pub use alloc::boxed::Box;
+pub use alloc::string::{String, ToString};
+use core::{slice, str};
+
 /// OS specific methods based on systemcalls (ASM)
 pub mod syscall;
 
@@ -76,7 +79,62 @@ mod socket {
 		pub(crate) fn read_socket(server_socket: i32, ch: *mut void) -> *mut void;
 		pub(crate) fn write_socket(server_socket: i32, ch: *mut void);
 		pub(crate) fn close_socket(server_socket: i32);
+		pub(crate) fn getenv(find: *const i8) -> *const i8;
 	}
+}
+
+/**
+ * The function will return the size of a string.
+ * This works by prompting the first byte of the string (represented by the pointer `p`),
+ * then the loop will get all following characters until the `\0` (string termination character)
+ * this *may cause "SIGSEGV (Address boundary error)" ¯\(ツ)/¯
+ */
+unsafe fn c_strlen(mut p: *const u8) -> usize
+{
+	unsafe {
+		let mut len = 0;
+		while *p != 0 {
+			len += 1;		// <-- this will just save how many iterations the loop had
+			p = p.add(1); 	// <-- this will increment the position of the pointer by one
+		}
+		len
+	}
+}
+
+/**
+ * this basicly creates a new string based on the initial location and the final size
+ * `ptr` is the first byte and `len` is how long it should read the string
+ */
+unsafe fn getenv_str(ptr: *const u8) -> &'static [u8]
+{
+	unsafe {
+		let len = c_strlen(ptr);
+		slice::from_raw_parts(ptr, len)
+	}
+}
+
+/**
+ * this converts the raw byte value into a readable string
+ * <https://doc.rust-lang.org/stable/core/str/fn.from_utf8.html>
+ */
+fn convert_bytes_to_string(bytes: &[u8]) -> Result<String, core::str::Utf8Error>
+	{ str::from_utf8(bytes).map(|s| s.to_string()) }
+
+
+/// this will check the environ array and search for an specific keyword
+///
+/// example:
+/// ```rust
+///	let path = getenv(b"PATH");
+/// ```
+// all of this just makes me hate the `i8 != u8` thing. Fuck the ABI
+#[cfg(not(target_os = "windows"))]
+pub fn getenv(find: &'static str) -> String
+{
+	let raw_pointer = unsafe { socket::getenv(find.as_ptr() as *const i8) };
+	let string = unsafe { getenv_str(raw_pointer as *const u8) };
+	convert_bytes_to_string(string)
+		.expect("problem")
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -87,6 +145,7 @@ pub struct Socket {
 	/// Can be None in case the `socket::create_socket()` returned `-1` (or err in the c lib for sockets)
 	socket_id: Option<i32>,
 }
+
 #[cfg(not(target_os = "windows"))]
 impl Socket {
 	/// Create a new socket connection to the defined address
@@ -236,23 +295,4 @@ impl Color {
 	#[must_use]
 	#[allow(non_snake_case)]
 	pub fn from(R: u8, G: u8, B: u8, A: u8) -> Self { Self { R, G, B, A } }
-}
-
-/// String type
-#[derive(Clone, PartialEq, Debug)]
-pub struct String {
-	/// strings are just a Vec<&str>
-	/// in this case, just a pointer to an u8 string
-	vec: *mut void
-}
-
-impl String
-{
-	/// Create string from &str
-	#[must_use]
-	pub fn from(val: &str) -> Self
-		{ Self { vec: void::to_handle(val) } }
-	/// convert String to &str
-	pub fn as_str(&mut self) -> &str
-		{ void::from_handle::<&str>(self.vec) }
 }

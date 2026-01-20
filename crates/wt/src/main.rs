@@ -10,6 +10,9 @@ fn main() {
 		.init()
 		.unwrap();
 
+	let address = dirty::getenv("PATH");
+	log::debug!("address {:?}", address);
+
 	let mut app = App::default();
 	app.set_blur(true);
 

@@ -32,7 +32,7 @@ impl NativeDecoration for Decoration
 {
 	fn new(_title: String, _width: f64, _height: f64) -> WRequestResult<Self>
 	{
-		let address = b"wayland-0";
+		let address = dirty::getenv(b"XDG_RUNTIME_DIR");
 		let socket = dirty::Socket::new(address);
 		socket.write_socket(b"hello world");
 
