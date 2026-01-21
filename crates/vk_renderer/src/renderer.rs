@@ -237,7 +237,7 @@ impl Renderer {
 		use ash::ext::metal_surface;
 		debug!("creating metal surface");
 
-		let ns_view: &NSObject = unsafe { window.cast().as_ref() };
+		let ns_view: &NSObject = void::from_handle(window.as_ptr());
 		let _: () = unsafe { msg_send![ns_view, setWantsLayer: true] };
 
 		let Some(layer_some): Option<Retained<CALayer>> = (

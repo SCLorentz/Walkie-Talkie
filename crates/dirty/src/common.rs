@@ -36,6 +36,13 @@
 	clippy::needless_pass_by_value,
 	clippy::redundant_closure,
 	clippy::large_stack_arrays,
+	missing_debug_implementations,
+	trivial_casts,
+	trivial_numeric_casts,
+	unused_extern_crates,
+	unused_import_braces,
+	unused_qualifications,
+	unused_results
 )]
 #![allow(clippy::tabs_in_doc_comments, internal_features)]
 //! This is a helper crate, with minimum dependencies, not even std included
@@ -55,6 +62,7 @@ pub mod syscall;
 /// This represents the possible state of the socket response
 #[cfg(not(target_os = "windows"))]
 #[repr(C)]
+#[derive(Debug)]
 pub struct SocketResponse
 {
 	/**
@@ -94,7 +102,7 @@ mod socket {
  *
  * the code is bad...
  */
-fn c_strlen(mut p: *const u8, bypass_hardcoded_limit: Option<usize>) -> usize
+unsafe fn c_strlen(mut p: *const u8, bypass_hardcoded_limit: Option<usize>) -> usize
 {
 	// to avoid (but not prevent) boundary related errors,
 	// 1024 is a hardcoded limit in case `\0` doesn't exist
@@ -114,7 +122,7 @@ fn c_strlen(mut p: *const u8, bypass_hardcoded_limit: Option<usize>) -> usize
  * this basicly creates a new string based on the initial location and the final size
  * `ptr` is the first byte and `len` is how long it should read the string
  */
-fn getenv_str(ptr: *const u8) -> &'static [u8]
+unsafe fn getenv_str(ptr: *const u8) -> &'static [u8]
 {
 	unsafe {
 		let len = c_strlen(ptr, None);
@@ -135,21 +143,28 @@ fn convert_bytes_to_string(bytes: &[u8]) -> Option<String>
 
 /// this will check the environ array and search for an specific keyword
 ///
-/// example:
+/// # Example
+///
 /// ```rust
-///	let path = getenv(b"PATH");
+///	let path = getenv("PATH");
 /// ```
+///
+/// # Safety
+///
+/// Avoid this function as maximum as possible and
+/// test it under every sircunstance before doing anything important with it!
 // all of this just makes me hate the `i8 != u8` thing. Fuck the ABI
 #[cfg(not(target_os = "windows"))]
 #[must_use]
-pub fn getenv(find: &'static str) -> Option<String>
+pub unsafe fn getenv(find: &'static str) -> Option<String>
 {
 	let raw_pointer = unsafe { socket::getenv(find.as_ptr().cast::<i8>()) };
-	let string = getenv_str(raw_pointer.cast::<u8>());
+	let string = unsafe { getenv_str(raw_pointer.cast::<u8>()) };
 	convert_bytes_to_string(string)
 }
 
 #[cfg(not(target_os = "windows"))]
+#[derive(Debug)]
 /// The default Socket struct.
 pub struct Socket {
 	/// The same field of `SocketResponse.server_socket`.
@@ -217,6 +232,7 @@ pub type f8 = u8;
 /// just a void type
 #[repr(C)]
 #[allow(non_camel_case_types)]
+#[derive(Debug)]
 pub struct void {
 	/// This is a pointer of nothing
 	/// An u8 array of size 0
@@ -243,14 +259,6 @@ pub static TRUE: u32 = 1;
 /// int32 bool type
 pub static FALSE: u32 = 0;
 
-/// Handle with errors with this type
-pub enum WRequestResult<T> {
-	/// Function failed
-	Fail(WResponse),
-	/// Function succeded
-	Success(T)
-}
-
 /** Possible responses
  *
  * 6## : Window Request Failed
@@ -259,7 +267,6 @@ pub enum WRequestResult<T> {
  *
  * 5## : General Program limitation
  */
-
 #[derive(Debug)]
 pub enum WResponse
 {
@@ -271,6 +278,8 @@ pub enum WResponse
 	AccessDenied				= 502,
 	/// Recived a value that wasn't supposed to be empty or an error
 	UnexpectedError				= 503,
+	/// this will cause a buffer overflow
+	OutOfBounds					= 504,
 	/// Tried to do something with the window, but the compositor denied
 	ForbiddenByCompositor		= 601,
 	/// Something for macos

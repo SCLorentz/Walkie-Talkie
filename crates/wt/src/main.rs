@@ -1,4 +1,5 @@
 #![no_std]
+#![forbid(unsafe_code)]
 #![doc = include_str!("../README.md")]
 #![doc(issue_tracker_base_url = "https://github.com/SCLorentz/Walkie-Talkie/issues")]
 
@@ -10,9 +11,6 @@ fn main() {
 		.init()
 		.unwrap();
 
-	let address = dirty::getenv("PATH").unwrap();
-	log::debug!("address {:?}", address);
-
 	let mut app = App::default();
 	app.set_blur(true);
 
@@ -21,7 +19,7 @@ fn main() {
 	let renderer = Renderer::new(window.get_backend())
 		.expect("Vulkan inicialization failed");
 
-	window.connect_surface(SurfaceWrapper::new(renderer.surface));
+	let _ = window.connect_surface(SurfaceWrapper::new(renderer.surface));
 
 	app.init();
 }

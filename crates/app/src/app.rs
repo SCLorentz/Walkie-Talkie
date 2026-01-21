@@ -23,12 +23,14 @@
 	clippy::wildcard_imports,
 	missing_docs,
 	clippy::all,
+	trivial_casts,
+	trivial_numeric_casts,
+	unused_extern_crates,
+	unused_import_braces,
+	unused_qualifications,
+	unused_results
 )]
-#![allow(
-	clippy::tabs_in_doc_comments,
-	unused_doc_comments,
-	clippy::missing_errors_doc
-)]
+#![allow(clippy::tabs_in_doc_comments)]
 #![doc = include_str!("../README.md")]
 
 #[cfg(target_os = "none")]
@@ -38,10 +40,11 @@ mod platform;
 mod events;
 
 pub use events::Event;
+#[cfg(target_os = "macos")]
+use objc2_core_graphics::CGError;
 use platform::{NativeDecoration, Wrapper};
 use log::{warn, info};
 use dirty::{
-	WRequestResult::{self, Fail, Success},
 	WResponse,
 	Color,
 	void,
@@ -184,12 +187,12 @@ impl Window
 	{
 		#[allow(unused_mut)]
 		let mut decoration = match Decoration::new(String::from(title), size.0, size.1) {
-			Success(v) => v,
-			Fail(_) => return Err(Box::from("something went wrong creating decoration")),
+			Ok(v) => v,
+			Err(_) => return Err(Box::from("something went wrong creating decoration")),
 		};
 
 		if theme.blur
-		&& let Fail(response) = decoration.apply_blur()
+		&& let Err(response) = decoration.apply_blur()
 			{ warn!("{response:?}") }
 
 		Ok(Window {
@@ -209,15 +212,15 @@ impl Window
 		{ void::to_handle(self.decoration.backend.clone()) }
 
 	/// Connects a specified vulkan surface with the current window
-	pub fn connect_surface(&mut self, surface: SurfaceWrapper) -> WRequestResult<()>
+	pub fn connect_surface(&mut self, surface: SurfaceWrapper) -> Result<(), WResponse>
 	{
 		if !self.has_surface() {
 			self.surface = Some(surface);
-			return Success(());
+			return Ok(());
 		}
 		warn!("this window is already connected to a surface!");
 		info!("to connect to another surface, please remove the current one");
-		Fail(WResponse::ChannelInUse)
+		Err(WResponse::ChannelInUse)
 	}
 
 	/// Returns if window does have a surface or not
@@ -243,7 +246,7 @@ pub trait Theme {
 	/// Set window specific theme
 	fn set_theme(&mut self, theme: ThemeDefault);
 	/// Get window specific theme
-	fn get_current_theme(&mut self) -> WRequestResult<ThemeDefault>;
+	fn get_current_theme(&mut self) -> Result<ThemeDefault, WResponse>;
 	/// Get the global theme
 	fn theme_default() -> ThemeDefault;
 	/// Set the blur effect on specified window
@@ -258,8 +261,8 @@ impl Theme for App
 		{ self.theme = theme; }
 
 	/// Returns the current global theme of the DE/WM
-	fn get_current_theme(&mut self) -> WRequestResult<ThemeDefault>
-		{ Success(self.theme.clone()) }
+	fn get_current_theme(&mut self) -> Result<ThemeDefault, WResponse>
+		{ Ok(self.theme.clone()) }
 
 	fn theme_default() -> ThemeDefault
 	{
@@ -346,7 +349,7 @@ impl Cursor {
 	pub fn hide(&mut self)
 	{
 		#[cfg(target_os = "macos")]
-		objc2_core_graphics::CGDisplayHideCursor(0);
+		let _err: CGError = objc2_core_graphics::CGDisplayHideCursor(0);
 		self.visible = false;
 	}
 
@@ -355,7 +358,7 @@ impl Cursor {
 	pub fn show(&mut self)
 	{
 		#[cfg(target_os = "macos")]
-		objc2_core_graphics::CGDisplayShowCursor(0);
+		let _err: CGError = objc2_core_graphics::CGDisplayShowCursor(0);
 		self.visible = true;
 	}
 

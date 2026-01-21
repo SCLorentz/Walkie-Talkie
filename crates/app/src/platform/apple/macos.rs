@@ -25,42 +25,32 @@ use objc2_foundation::{
 	NSSize, NSString,
 };
 
-use crate::{DecorationMode, Decoration, WRequestResult::{self, Fail, Success}, WResponse};
+use crate::{DecorationMode, Decoration, WResponse};
 
 /// Wrapper struct
 #[derive(PartialEq, Debug, Clone)]
 pub struct Wrapper {
 	pub ns_view: *mut void,		// NSView
 	pub rect:  *const void,		// NSRect
-	pub app:   *const void,		// NSApplication
-}
-
-impl Wrapper
-{
-	fn get<T>(some_ptr: &Retained<T>) -> *mut void where T: Message
-	{
-		let ptr: *mut T = Retained::<T>::as_ptr(some_ptr).cast_mut();
-		ptr.cast()
-	}
 }
 
 pub trait NativeDecoration
 {
+	fn get_app() -> Retained<NSApplication>;
 	fn run(&self);
-	fn new(title: String, width: f64, height: f64) -> WRequestResult<Self> where Self: core::marker::Sized;
+	fn new(title: String, width: f64, height: f64) -> Result<Self, WResponse> where Self: Sized;
 	/// Apply blur to window
-	fn apply_blur(&mut self) -> WRequestResult<()>;
-	/// exit handler
-	#[allow(unused)]
-	fn exit(&self);
+	fn apply_blur(&mut self) -> Result<(), WResponse>;
+	/*/// exit handler
+	fn exit(&self);*/
 }
 
 impl NativeDecoration for Decoration
 {
 	/// Creates the native window frame decoration for macOS
-	fn new(title: String, width: f64, height: f64) -> WRequestResult<Self>
+	fn new(title: String, width: f64, height: f64) -> Result<Self, WResponse>
 	{
-		let Some(mtm) = MainThreadMarker::new() else { return Fail(WResponse::UnexpectedError) };
+		let Some(mtm) = MainThreadMarker::new() else { return Err(WResponse::UnexpectedError) };
 
 		let origin = NSPoint::new(10.0, -2.3);
 		let size = NSSize::new(width, height);
@@ -93,60 +83,56 @@ impl NativeDecoration for Decoration
 		window.makeKeyAndOrderFront(None);
 		unsafe { window.setReleasedWhenClosed(false) };
 
-		let Some(view) = window.contentView() else { return Fail(WResponse::UnexpectedError) };
+		let Some(view) = window.contentView() else { return Err(WResponse::UnexpectedError) };
 
 		window.center();
 		window.setContentMinSize(NSSize::new(width, height));
 
 		let Some(delegate) =
-			Delegate::new(window.clone()) else { return Fail(WResponse::UnexpectedError) };
+			Delegate::new(window.clone()) else { return Err(WResponse::UnexpectedError) };
 		window.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
 		window.makeKeyAndOrderFront(None);
 
 		//delegate.ivars().window.set(window.clone()).unwrap();
 
-		let app =  NSApplication::sharedApplication(mtm);
-		app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
+		let app = NSApplication::sharedApplication(mtm);
+		let _ = app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
 		#[allow(deprecated)]
 		app.activateIgnoringOtherApps(true);
 
 		let backend = Wrapper {
-			ns_view: Wrapper::get(&view),
-			rect: dirty::void::to_handle(&rect),
-			app: Wrapper::get(&app),
+			ns_view: void::to_handle(Retained::<NSView>::as_ptr(&view).cast_mut()),
+			rect: void::to_handle(&rect),
 		};
 
 		debug!("Creating NativeDecoration object");
 
-		Success(Decoration {
+		Ok(Decoration {
 			mode: DecorationMode::ServerSide,
-			frame: Wrapper::get(&window),
+			frame: void::to_handle(Retained::<NSWindow>::as_ptr(&window).cast_mut()),
 			backend,
 		})
 	}
 
 	/// Apply blur effect on the window
-	fn apply_blur(&mut self) -> WRequestResult<()>
+	fn apply_blur(&mut self) -> Result<(), WResponse>
 	{
-		let Some(mtm) = MainThreadMarker::new() else { return Fail(WResponse::UnexpectedError) };
+		let Some(mtm) = MainThreadMarker::new() else { return Err(WResponse::UnexpectedError) };
 
-		let backend = &raw mut self.backend;
-		let rect = unsafe { (*backend).rect.cast::<NSRect>() };
-
+		let backend = self.backend.clone();
+		let rect: NSRect = void::from_handle(backend.rect);
 		/**
 		 * Blur view configs
 		 * Not using liquid glass for this part in specific
 		 * Mostly, other effects will be managed trought renderer/shaders on vulkan and not macOS
 		 */
 		let alloc: Allocated<NSVisualEffectView> = NSVisualEffectView::alloc(mtm);
-		let blur_view_ptr = unsafe { NSVisualEffectView::initWithFrame(alloc, *rect) };
-
-		let window_ptr = self.frame as *mut NSWindow;
-		let window: &NSWindow = unsafe { &*window_ptr };
+		let blur_view_ptr = NSVisualEffectView::initWithFrame(alloc, rect);
+		let window: &NSWindow = void::from_handle(self.frame);
 
 		let Some(content) = window.contentView() else {
 			log::warn!("couldn't set blur");
-			return WRequestResult::Fail(WResponse::UnexpectedError);
+			return Err(WResponse::UnexpectedError);
 		};
 
 		let blur_view = blur_view_ptr.retain();
@@ -164,17 +150,35 @@ impl NativeDecoration for Decoration
 
 		debug!("applying blur on NativeDecoration");
 
-		WRequestResult::Success(())
+		Ok(())
+	}
+
+	// this was totally vibe coded and I cannot belive that it worked
+	// I spent days trying to resolve a compatibility problem with objc,
+	// days debugging, days suffering, creating wrappers over wrappers,
+	// all of that and a fucking probability algorigthm fixed it for me
+	// fuck fuck fuck fuck
+	/// This function returns the NSApplication from the running program
+	fn get_app() -> Retained<NSApplication>
+	{
+		use objc2::{class, runtime::AnyObject};
+
+		let raw: *mut NSApplication = unsafe {
+			msg_send![class!(NSApplication), sharedApplication]
+		};
+
+		unsafe { let _: *mut AnyObject = msg_send![raw, retain]; }
+		unsafe { Retained::from_raw(raw).expect("something went wrong") }
 	}
 
 	/// The default function to run the program, since it's required on macOS
 	fn run(&self)
 	{
-		let app = self.backend.app.cast_mut() as *const NSApplication;
+		let app = Self::get_app();
 		unsafe { msg_send![&*app, run] }
 	}
 
-	fn exit(&self) {}
+	//fn exit(&self) {}
 
 	/*fn set_title(&self, title: &str) {
 		let ns = NSString::from_str(title);
