@@ -52,9 +52,12 @@
 #![doc = include_str!("../README.md")]
 
 extern crate alloc;
-pub use alloc::boxed::Box;
-pub use alloc::string::{String, ToString};
-use core::{slice, str};
+pub use alloc::{
+	boxed::Box,
+	string::{String, ToString},
+	slice,
+};
+use core::str;
 
 /// OS specific methods based on systemcalls (ASM)
 pub mod syscall;
@@ -97,36 +100,38 @@ mod socket {
  *
  * This works by prompting the first byte of the string (represented by the pointer `p`),
  * then the loop will get all following characters until the `\0` (string termination character)
- *
- * this *may cause "SIGSEGV (Address boundary error)" ¯\(ツ)/¯
- *
- * the code is bad...
  */
-unsafe fn c_strlen(mut p: *const u8, bypass_hardcoded_limit: Option<usize>) -> usize
+unsafe fn c_strlen(p: *const u8, bypass_hardcoded_limit: Option<usize>) -> Option<usize>
 {
+	// this fucker.
+	// Sometimes the C function passes a pointer to nowhere (final of the env array),
+	// this happends when the env requested doesn't exist on `char **environ`
+	if p.is_null() { return None; }
+
 	// to avoid (but not prevent) boundary related errors,
 	// 1024 is a hardcoded limit in case `\0` doesn't exist
 	let limit = bypass_hardcoded_limit.unwrap_or(1024);
-	unsafe {
-		let mut len = 0;
-		while len < limit && *p != 0 {
-			#[allow(clippy::arithmetic_side_effects)]
-			len += 1;		// save how many iterations the loop had
-			p = p.add(1);	// increments the position of the pointer by one
+	let mut len = 0;
+
+	while len < limit {
+		if unsafe { *p.add(len) == 0 } {
+			return Some(len);
 		}
-		len
+		len += 1;
 	}
+
+	None
 }
 
 /**
  * this basicly creates a new string based on the initial location and the final size
  * `ptr` is the first byte and `len` is how long it should read the string
  */
-unsafe fn getenv_str(ptr: *const u8) -> &'static [u8]
+unsafe fn getenv_str(ptr: *const u8) -> Option<&'static [u8]>
 {
 	unsafe {
 		let len = c_strlen(ptr, None);
-		slice::from_raw_parts(ptr, len)
+		Some(slice::from_raw_parts(ptr, len?))
 	}
 }
 
@@ -140,27 +145,23 @@ fn convert_bytes_to_string(bytes: &[u8]) -> Option<String>
 	Some(ToString::to_string(str))
 }
 
-
-/// this will check the environ array and search for an specific keyword
-///
-/// # Example
-///
-/// ```rust
-///	let path = getenv("PATH");
-/// ```
-///
-/// # Safety
-///
-/// Avoid this function as maximum as possible and
-/// test it under every sircunstance before doing anything important with it!
-// all of this just makes me hate the `i8 != u8` thing. Fuck the ABI
+/**
+ * this will check the environ array and search for an specific keyword
+ *
+ * # Example
+ * ```rust
+ * if let Some(user) = getenv("USER") {
+ *     log::debug!("your user: {:?}", user);
+ * };
+ * ```
+ */
 #[cfg(not(target_os = "windows"))]
 #[must_use]
-pub unsafe fn getenv(find: &'static str) -> Option<String>
+pub fn getenv(find: &'static str) -> Option<String>
 {
 	let raw_pointer = unsafe { socket::getenv(find.as_ptr().cast::<i8>()) };
 	let string = unsafe { getenv_str(raw_pointer.cast::<u8>()) };
-	convert_bytes_to_string(string)
+	Some(convert_bytes_to_string(string?)?)
 }
 
 #[cfg(not(target_os = "windows"))]

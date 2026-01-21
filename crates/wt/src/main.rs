@@ -11,6 +11,10 @@ fn main() {
 		.init()
 		.unwrap();
 
+	if let Some(path) = dirty::getenv("USER") {
+		log::debug!("your user: {:?}", path);
+	};
+
 	let mut app = App::default();
 	app.set_blur(true);
 

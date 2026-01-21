@@ -5,6 +5,9 @@ edition.workspace = true
 publish.workspace = true
 authors = ["SCLorentz <sclorentz@proton.me>"]
 
+[package.metadata.docs.rs]
+rustdoc-args = ["--cfg", "docsrs"]
+
 [lints]
 workspace = true
 
