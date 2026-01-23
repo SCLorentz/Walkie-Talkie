@@ -28,7 +28,7 @@
 	unused_extern_crates,
 	unused_import_braces,
 	unused_qualifications,
-	unused_results
+	unused_results,
 )]
 #![allow(clippy::tabs_in_doc_comments)]
 #![doc = include_str!("../README.md")]
@@ -44,51 +44,58 @@ pub use events::Event;
 use objc2_core_graphics::CGError;
 use platform::{NativeDecoration, Wrapper};
 use log::{warn, info};
+pub use nb;
 use dirty::{
 	WResponse,
-	Color,
 	void,
 	String,
-	Box
+	Box,
+	Vec
 };
 
-pub use dirty::SurfaceWrapper;
+pub use dirty::{SurfaceWrapper, Color};
 use core::error::Error;
 
 /// The default structure to handle and manage apps
 #[allow(dead_code)]
-pub struct App//<H>
-//where
-//	H: EventHandler + Send + Sync,
+pub struct App<H>
+where
+	H: EventHandler + Send + Sync,
 {
 	/// List of the program windows
-	pub windows: Box<[Window]>,
+	pub windows: Vec<Window>,
 	/// Cursor information
 	pub cursor: Cursor,
 	theme: ThemeDefault,
-	//handler: H,
+	handler: H,
 }
 
-impl Default for App {
-	fn default() -> Self
-		{ Self::new() }
+/// This is the bridge between system events and the lib events
+pub trait EventHandler: Send + Sync
+{
+	/// handle_events is the only function for the trait and it results a non blocking Event object
+	fn handle_events(event: Event) -> nb::Result<(), nb::Error<()>>;
 }
 
-//pub trait EventHandler: Send + Sync
-//	{ fn handle_events(event: Event); }
-
-//impl<H: EventHandler> App<H>
-impl App
+impl<H: EventHandler> App<H>
+//impl App
 {
 	/// Create a new `App`
 	#[must_use]
-	pub fn new() -> Self
+	pub fn new(handler: H) -> Self
 	{
+		let theme = ThemeDefault {
+			blur: false,
+			dark: false,
+			accent_color: Color::from(255, 255, 255, 255),
+			background_color: Color::from(255, 255, 255, 255),
+		};
+
 		Self {
-			windows: Box::new([]),
-			theme: Self::theme_default(),
+			windows: Vec::new(),
+			theme,
 			cursor: Cursor::get_cursor(),
-			//handler,
+			handler,
 		}
 	}
 
@@ -96,35 +103,23 @@ impl App
 	pub fn new_window(
 		&mut self,
 		title: &'static str,
-		size: (f64, f64)
+		size: (f64, f64),
 	) -> Result<Window, Box<dyn Error>>
 	{
 		let window = Window::new(title, self.theme.clone(), size)?;
-		match self.windows.len() {
-			0 => self.windows = Box::new([window.clone()]),
-			len => {
-				let Some(some_window) =
-					self.windows.get_mut(len) else { return Err(Box::from("no window was found")) };
-				*some_window = window.clone();
-			},
-		}
-
+		self.windows.push(window.clone());
 		Ok(window)
 	}
 
 	/// init event handler
 	pub fn init(&self)
 	{
-		// event thread
-		// Use non-blocking I/O here to wait for the events
-		// this will start at 0,0% CPU and at some point it will escalate to 100%
-		// im so stupid...
-		/*std::thread::spawn(move || {
-			loop {
-				H::handle_events(Event::Generic);
-			};
+		// event thread (not a loop)
+		/*let _event = thread::spawn(move || {
+			nb::block!(H::handle_events(Event::Generic)).unwrap();
 		});*/
 
+		dirty::Thread::default(event_thread).run();
 
 		#[cfg(target_os = "macos")]
 		let Some(window) = self.windows.first() else {
@@ -135,6 +130,13 @@ impl App
 		#[cfg(target_os = "macos")]
 		window.decoration.run();
 	}
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn event_thread(p: *mut void) -> *mut void
+{
+	log::debug!("creating new thread!");
+	p
 }
 
 /// Detect if the current system prefers CSDs or SSDs
@@ -186,7 +188,12 @@ impl Window
 	) -> Result<Self, Box<dyn Error>>
 	{
 		#[allow(unused_mut)]
-		let mut decoration = match Decoration::new(String::from(title), size.0, size.1) {
+		let mut decoration = match Decoration::new(
+			String::from(title),
+			size.0,
+			size.1,
+			theme.background_color.clone()
+		) {
 			Ok(v) => v,
 			Err(_) => return Err(Box::from("something went wrong creating decoration")),
 		};
@@ -236,9 +243,14 @@ impl Window
 /// Theme struct
 #[derive(Debug, Clone, PartialEq)]
 pub struct ThemeDefault {
-	blur: bool,
-	dark: bool,
-	accent_color: Color,
+	/// set the alpha value of the window
+	pub blur: bool,
+	/// default color scheme dark/light
+	pub dark: bool,
+	/// the default accent color of higlight text, buttons, etc
+	pub accent_color: Color,
+	/// the background of the window (not of the renderer)
+	pub background_color: Color,
 }
 
 /// Default Trait functions for windows
@@ -247,13 +259,17 @@ pub trait Theme {
 	fn set_theme(&mut self, theme: ThemeDefault);
 	/// Get window specific theme
 	fn get_current_theme(&mut self) -> Result<ThemeDefault, WResponse>;
-	/// Get the global theme
-	fn theme_default() -> ThemeDefault;
+	/*ThemeDefault {
+		blur: false,
+		dark: false,
+		accent_color: Color::from(255, 255, 255, 255),
+		background_color: Color::from(255, 255, 255, 255),
+	}*/
 	/// Set the blur effect on specified window
 	fn set_blur(&mut self, blur: bool);
 }
 
-impl Theme for App
+impl<H: EventHandler> Theme for App<H>
 {
 	/// Modify the current window theme
 	/// If alread set as the value provided, it does nothing
@@ -264,14 +280,15 @@ impl Theme for App
 	fn get_current_theme(&mut self) -> Result<ThemeDefault, WResponse>
 		{ Ok(self.theme.clone()) }
 
-	fn theme_default() -> ThemeDefault
+	/*fn theme_default() -> ThemeDefault
 	{
 		ThemeDefault {
 			blur: false,
 			dark: false,
 			accent_color: Color::from(255, 255, 255, 255),
+			background_color: Color::from(255, 255, 255, 255),
 		}
-	}
+	}*/
 
 	/// Get the current theme and change the blur value to 'true'
 	fn set_blur(&mut self, blur: bool)

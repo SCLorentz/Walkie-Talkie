@@ -21,6 +21,7 @@ linker = "x86_64-unknown-linux-musl-gcc"
 rustflags = [
 	"-C", "link-arg=-s",
 	"-C", "target-cpu=x86-64-v3",
+	"-C", "target-feature=-crt-static",
 ]
 
 # missing linker for cross compile on nix flake!
@@ -31,5 +32,5 @@ linker = "x86_64-w64-mingw32-clang"
 [target.aarch64-apple-darwin]
 rustflags = [
 	"-C", "link-arg=-s",
-	"-C", "target-cpu=apple-m1"
+	"-C", "target-cpu=apple-m1",
 ]

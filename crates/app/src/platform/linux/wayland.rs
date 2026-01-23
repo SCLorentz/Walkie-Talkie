@@ -12,12 +12,11 @@ use crate::{
 pub trait NativeDecoration
 {
 	/// Creates a native window frame decoration for Linux DE/WM
-	fn new(title: String, width: f64, height: f64) -> WRequestResult<Self> where Self: core::marker::Sized;
+	fn new(title: String, width: f64, height: f64) -> Result<Self, WResponse> where Self: core::marker::Sized;
 	/// apply blur to window
-	fn apply_blur(&self) -> WRequestResult<()>;
-	/// exit handler
-	#[allow(unused)]
-	fn exit(&self);
+	fn apply_blur(&self) -> Result<(), WResponse>;
+	/*/// exit handler
+	fn exit(&self);*/
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -30,9 +29,12 @@ pub struct Wrapper {
 // wayland_protocols (which include wayland_client) failed to build documentation on version 0.31.12 thks!!
 impl NativeDecoration for Decoration
 {
-	fn new(_title: String, _width: f64, _height: f64) -> WRequestResult<Self>
+	fn new(_title: String, _width: f64, _height: f64) -> Result<Self, WResponse>
 	{
-		let address = dirty::getenv(b"XDG_RUNTIME_DIR");
+		// https://gaultier.github.io/blog/wayland_from_scratch.html#opening-a-socket
+		let Some(addresss) = getenv("XDG_RUNTIME_DIR") else {
+			return Err(WResponse::ProtocolNotSuported)
+		};
 		let socket = dirty::Socket::new(address);
 		socket.write_socket(b"hello world");
 
@@ -41,7 +43,6 @@ impl NativeDecoration for Decoration
 			Some(result) => log::debug!("{:?}", result),
 			None => log::warn!("no message recived"),
 		};
-		//socket.close_socket();
 
 		/**
 		 * This version will include SSDs and DBusMenu
@@ -63,38 +64,38 @@ impl NativeDecoration for Decoration
 			socket: void::to_handle(socket),
 		};
 
-		Success(Decoration {
+		Ok(Decoration {
 			mode: DecorationMode::ServerSide,
 			frame: core::ptr::null_mut() as *const void, // TODO
 			backend,
 		})
 	}
 
-	fn exit(&self)
+	/*fn exit(&self)
 	{
 		//self.backend.socket.close_socket();
 		//todo!();
-	}
+	}*/
 
-	fn apply_blur(&self) -> WRequestResult<()>
+	fn apply_blur(&self) -> Result<(), WResponse>
 	{
 		/**
 		 * the `hyprland_surface_manager_v1` protocol already covers this, skip
 		 * <https://wayland.app/protocols/hyprland-surface-v1>
 		 */
 		let desktop = match get_de() {
-			dirty::WRequestResult::Success(d) => d,
-			dirty::WRequestResult::Fail(_) => DE::Unknown,
+			Ok(d) => d,
+			Err(_) => DE::Unknown,
 		};
 
 		match desktop {
 			DE::Hyprland =>
-				return WRequestResult::Success(()),
+				return Ok(()),
 			DE::Kde =>
-				return WRequestResult::Success(()),
+				return Ok(()),
 			_ => {}
 		}
 
-		WRequestResult::Fail(ProtocolNotSuported)
+		Err(ProtocolNotSuported)
 	}
 }

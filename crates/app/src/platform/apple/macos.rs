@@ -25,7 +25,7 @@ use objc2_foundation::{
 	NSSize, NSString,
 };
 
-use crate::{DecorationMode, Decoration, WResponse};
+use crate::{DecorationMode, Decoration, WResponse, Color,};
 
 /// Wrapper struct
 #[derive(PartialEq, Debug, Clone)]
@@ -34,21 +34,23 @@ pub struct Wrapper {
 	pub rect:  *const void,		// NSRect
 }
 
+#[allow(unused)]
 pub trait NativeDecoration
 {
-	fn get_app() -> Retained<NSApplication>;
+	fn get_app() -> Option<Retained<NSApplication>>;
+	#[deny(unused)]
 	fn run(&self);
-	fn new(title: String, width: f64, height: f64) -> Result<Self, WResponse> where Self: Sized;
+	fn new(title: String, width: f64, height: f64, color: Color) -> Result<Self, WResponse> where Self: Sized;
 	/// Apply blur to window
 	fn apply_blur(&mut self) -> Result<(), WResponse>;
-	/*/// exit handler
-	fn exit(&self);*/
+	/// exit handler
+	fn exit(&self) -> Result<(), WResponse>;
 }
 
 impl NativeDecoration for Decoration
 {
 	/// Creates the native window frame decoration for macOS
-	fn new(title: String, width: f64, height: f64) -> Result<Self, WResponse>
+	fn new(title: String, width: f64, height: f64, color: Color) -> Result<Self, WResponse>
 	{
 		let Some(mtm) = MainThreadMarker::new() else { return Err(WResponse::UnexpectedError) };
 
@@ -76,8 +78,11 @@ impl NativeDecoration for Decoration
 
 		window.setTitlebarAppearsTransparent(true);
 		window.setTitleVisibility(NSWindowTitleVisibility(1));
+
+		// TODO: this should be vulkan handled
+		let (r, g, b, a) = color.to_default();
 		window.setBackgroundColor(
-			Some(&NSColor::colorWithSRGBRed_green_blue_alpha(0.8, 0.5, 0.5, 1.0,)
+			Some(&NSColor::colorWithSRGBRed_green_blue_alpha(r, g, b, a)
 		));
 
 		window.makeKeyAndOrderFront(None);
@@ -93,12 +98,9 @@ impl NativeDecoration for Decoration
 		window.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
 		window.makeKeyAndOrderFront(None);
 
-		//delegate.ivars().window.set(window.clone()).unwrap();
-
 		let app = NSApplication::sharedApplication(mtm);
 		let _ = app.setActivationPolicy(NSApplicationActivationPolicy::Regular);
-		#[allow(deprecated)]
-		app.activateIgnoringOtherApps(true);
+		app.activate();
 
 		let backend = Wrapper {
 			ns_view: void::to_handle(Retained::<NSView>::as_ptr(&view).cast_mut()),
@@ -149,7 +151,6 @@ impl NativeDecoration for Decoration
 		);
 
 		debug!("applying blur on NativeDecoration");
-
 		Ok(())
 	}
 
@@ -159,7 +160,7 @@ impl NativeDecoration for Decoration
 	// all of that and a fucking probability algorigthm fixed it for me
 	// fuck fuck fuck fuck
 	/// This function returns the NSApplication from the running program
-	fn get_app() -> Retained<NSApplication>
+	fn get_app() -> Option<Retained<NSApplication>>
 	{
 		use objc2::{class, runtime::AnyObject};
 
@@ -168,17 +169,26 @@ impl NativeDecoration for Decoration
 		};
 
 		unsafe { let _: *mut AnyObject = msg_send![raw, retain]; }
-		unsafe { Retained::from_raw(raw).expect("something went wrong") }
+		unsafe { Retained::from_raw(raw) }
 	}
 
 	/// The default function to run the program, since it's required on macOS
 	fn run(&self)
 	{
-		let app = Self::get_app();
+		let Some(app) = Self::get_app() else {
+			log::error!("no NSApplication found");
+			return
+		};
 		unsafe { msg_send![&*app, run] }
 	}
 
-	//fn exit(&self) {}
+	#[inline]
+	fn exit(&self) -> Result<(), WResponse>
+	{
+		let Some(app) = Decoration::get_app() else { return Err(WResponse::UnexpectedError) };
+		app.terminate(None);
+		Ok(())
+	}
 
 	/*fn set_title(&self, title: &str) {
 		let ns = NSString::from_str(title);

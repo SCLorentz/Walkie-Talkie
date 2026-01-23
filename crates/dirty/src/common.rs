@@ -23,8 +23,6 @@
 	clippy::print_stdout,
 	clippy::print_stderr,
 	clippy::indexing_slicing,
-	clippy::arithmetic_side_effects,
-	clippy::float_arithmetic,
 	clippy::unwrap_in_result,
 	clippy::exit,
 	clippy::wildcard_imports,
@@ -42,7 +40,8 @@
 	unused_extern_crates,
 	unused_import_braces,
 	unused_qualifications,
-	unused_results
+	unused_results,
+	macro_use_extern_crate
 )]
 #![allow(clippy::tabs_in_doc_comments, internal_features)]
 //! This is a helper crate, with minimum dependencies, not even std included
@@ -56,8 +55,9 @@ pub use alloc::{
 	boxed::Box,
 	string::{String, ToString},
 	slice,
+	str,
+	vec::Vec
 };
-use core::str;
 
 /// OS specific methods based on systemcalls (ASM)
 pub mod syscall;
@@ -81,10 +81,21 @@ pub struct SocketResponse
 	pub server_socket: i32,
 }
 
+/// Wrapper type for the C `struct` that stores threads
 #[cfg(not(target_os = "windows"))]
+#[derive(Debug)]
+#[repr(C)]
+#[allow(non_camel_case_types, clippy::missing_docs_in_private_items)]
+struct c_Thread
+{
+	pub id: i32,
+	pub thread: *mut void,
+}
+
+#[cfg(target_family = "unix")]
 /// This will handle with our C imports from `unix/socket.c`
-mod socket {
-	use crate::{SocketResponse, void};
+mod unix {
+	use crate::{AnyFunction, SocketResponse, void, c_Thread};
 
 	unsafe extern "C" {
 		pub(crate) fn create_socket(address: *mut void) -> SocketResponse;
@@ -92,6 +103,61 @@ mod socket {
 		pub(crate) fn write_socket(server_socket: i32, ch: *mut void);
 		pub(crate) fn close_socket(server_socket: i32);
 		pub(crate) fn getenv(find: *const i8) -> *const i8;
+		pub(crate) fn create_thread(function: AnyFunction) -> c_Thread;
+		pub(crate) fn kill_thread(thread: &c_Thread);
+	}
+}
+
+/// Type for a function repr in C that takes `void* arg` and returns `void*`
+pub type AnyFunction = extern "C" fn(*mut void) -> *mut void;
+
+/*#[unsafe(no_mangle)]
+pub extern "C" fn fn_wrapper(function: *mut fn(*mut void) -> *mut void) -> *mut void
+{
+	let rs_function = unsafe { *function };
+	rs_function(core::ptr::null_mut())
+}*/
+
+/// This is a thread interface with the C implementation
+#[derive(Debug)]
+pub struct Thread {
+	/// The function beeing executed in the new thread
+	pub function: AnyFunction,
+	/// If the thread is active, this contains the ID and `pthread_t` struct
+	thread: Option<c_Thread>,
+}
+
+impl Thread
+{
+	/// Creates a new thread with the field `thread_id` and a provided function
+	#[must_use]
+	pub fn default(function: AnyFunction) -> Self
+	{
+		Self {
+			function,
+			thread: None
+		}
+	}
+
+	/// Runs the `&self.thread`
+	pub fn run(&mut self)
+	{
+		let thread = unsafe { unix::create_thread(self.function) };
+		self.thread = Some(thread);
+	}
+
+	/**
+	 * Kills the specified running thread
+	 *
+	 * # Errors
+	 *
+	 * if the user tries to kill a thread that is not running, it will return Err(InvalidRequest)
+	 */
+	pub fn kill(&self) -> Result<(), WResponse>
+	{
+		let Some(ref thread) = self.thread else { return Err(WResponse::InvalidRequest) };
+		unsafe { unix::kill_thread(thread); }
+		Ok(())
 	}
 }
 
@@ -101,6 +167,7 @@ mod socket {
  * This works by prompting the first byte of the string (represented by the pointer `p`),
  * then the loop will get all following characters until the `\0` (string termination character)
  */
+#[cfg(target_family = "unix")]
 unsafe fn c_strlen(p: *const u8, bypass_hardcoded_limit: Option<usize>) -> Option<usize>
 {
 	// this fucker.
@@ -114,9 +181,7 @@ unsafe fn c_strlen(p: *const u8, bypass_hardcoded_limit: Option<usize>) -> Optio
 	let mut len = 0;
 
 	while len < limit {
-		if unsafe { *p.add(len) == 0 } {
-			return Some(len);
-		}
+		if unsafe { *p.add(len) == 0 } { return Some(len); }
 		len += 1;
 	}
 
@@ -127,6 +192,7 @@ unsafe fn c_strlen(p: *const u8, bypass_hardcoded_limit: Option<usize>) -> Optio
  * this basicly creates a new string based on the initial location and the final size
  * `ptr` is the first byte and `len` is how long it should read the string
  */
+#[cfg(target_family = "unix")]
 unsafe fn getenv_str(ptr: *const u8) -> Option<&'static [u8]>
 {
 	unsafe {
@@ -139,6 +205,7 @@ unsafe fn getenv_str(ptr: *const u8) -> Option<&'static [u8]>
  * this converts the raw byte value into a readable string
  * <https://doc.rust-lang.org/stable/core/str/fn.from_utf8.html>
  */
+#[cfg(target_family = "unix")]
 fn convert_bytes_to_string(bytes: &[u8]) -> Option<String>
 {
 	let Ok(str) = str::from_utf8(bytes) else { return None };
@@ -155,16 +222,16 @@ fn convert_bytes_to_string(bytes: &[u8]) -> Option<String>
  * };
  * ```
  */
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_family = "unix")]
 #[must_use]
 pub fn getenv(find: &'static str) -> Option<String>
 {
-	let raw_pointer = unsafe { socket::getenv(find.as_ptr().cast::<i8>()) };
+	let raw_pointer = unsafe { unix::getenv(find.as_ptr().cast::<i8>()) };
 	let string = unsafe { getenv_str(raw_pointer.cast::<u8>()) };
-	Some(convert_bytes_to_string(string?)?)
+	convert_bytes_to_string(string?)
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_family = "unix")]
 #[derive(Debug)]
 /// The default Socket struct.
 pub struct Socket {
@@ -174,14 +241,14 @@ pub struct Socket {
 	socket_id: Option<i32>,
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_family = "unix")]
 impl Socket {
 	/// Create a new socket connection to the defined address
 	#[must_use]
 	pub fn new(address: &'static [u8]) -> Self
 	{
 		let response: SocketResponse =
-			unsafe { socket::create_socket(void::to_handle(address)) };
+			unsafe { unix::create_socket(void::to_handle(address)) };
 
 		if response.status == -1 {
 			return Socket { socket_id: None };
@@ -196,7 +263,7 @@ impl Socket {
 	pub fn read_socket(&self, ch: &'static [u8]) -> Option<Box<&[f8]>>
 	{
 		let socket_id = self.socket_id?;
-		let response = unsafe { socket::read_socket(socket_id, void::to_handle(ch)) };
+		let response = unsafe { unix::read_socket(socket_id, void::to_handle(ch)) };
 		Some(Box::new(void::from_handle(response)))
 	}
 
@@ -204,14 +271,14 @@ impl Socket {
 	pub fn write_socket(&self, ch: &'static [u8])
 	{
 		let Some(socket_id) = self.socket_id else { return };
-		unsafe { socket::write_socket(socket_id, void::to_handle(ch)) };
+		unsafe { unix::write_socket(socket_id, void::to_handle(ch)) };
 	}
 
 	/// close the connection with the socket
 	pub fn close_socket(&self)
 	{
 		let Some(socket_id) = self.socket_id else { return };
-		unsafe { socket::close_socket(socket_id) }
+		unsafe { unix::close_socket(socket_id) }
 	}
 }
 
@@ -281,6 +348,8 @@ pub enum WResponse
 	UnexpectedError				= 503,
 	/// this will cause a buffer overflow
 	OutOfBounds					= 504,
+	/// user tried to do an impossible action
+	InvalidRequest				= 505,
 	/// Tried to do something with the window, but the compositor denied
 	ForbiddenByCompositor		= 601,
 	/// Something for macos
@@ -312,9 +381,24 @@ impl SurfaceWrapper
 #[allow(missing_docs, non_snake_case)]
 pub struct Color { pub R: u8, pub G: u8, pub B: u8, pub A: u8, }
 
+// 0.0039215686274 <- I got here before realizing that this is just 1/255
+/// Just a simple constant to normalize the RGB (0-255) value to the normal shader value (0-1)
+/// In old days people used to this trick: `(x * 257) >> 16` (nice ✧ദ്ദി)
+const RGB_NORM: f64 = 1.0 / 255.0;
+
 impl Color {
 	/// Create new color value
 	#[must_use]
 	#[allow(non_snake_case)]
 	pub fn from(R: u8, G: u8, B: u8, A: u8) -> Self { Self { R, G, B, A } }
+
+	/// Converts this to a functional method to be used inside functions
+	#[must_use]
+	pub fn to_default(&self) -> ( f64, f64, f64, f64 )
+	{(
+		f64::from(self.R) * RGB_NORM,
+		f64::from(self.G) * RGB_NORM,
+		f64::from(self.B) * RGB_NORM,
+		f64::from(self.A) * RGB_NORM,
+	)}
 }

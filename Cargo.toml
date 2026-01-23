@@ -22,24 +22,25 @@ version = "0.0.1"
 [workspace.dependencies]
 app = { path = "crates/app" }
 vk_renderer = { path = "crates/vk_renderer" }
-#logger = { path = "crates/logger" }
-#auth = { path = "crates/auth" }
-#gui = { path = "crates/gui" }
-#api = { path = "crates/matrix_client_protocols" }
 dirty = { path = "crates/dirty" }
+
 # logging
 log = "0.4.28"
+# macos
+objc2				= "0.6.3"
+objc2-app-kit		= "0.3.2"
+objc2-foundation	= "0.3.2"
+objc2-quartz-core	= "0.3.2"
+objc2-core-graphics	= "0.3.2"
+# android
+ndk-sys = "0.6.0"
 # linux
 #tikv-jemallocator = "0.6.1"
 #dbus = "0.9.10"
-# macos
-objc2 = "0.6.3"
-objc2-app-kit = "0.3.2"
-objc2-foundation = "0.3.2"
-objc2-quartz-core = "0.3.2"
-objc2-core-graphics = "0.3.2"
-# android
-ndk-sys = "0.6.0"
+
+# Minimal and reusable non-blocking I/O layer
+[workspace.dependencies.nb]
+version = "1.1.0"
 
 [workspace.dependencies.simple_logger]
 version = "5.1.0"
