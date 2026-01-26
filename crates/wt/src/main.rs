@@ -3,51 +3,47 @@
 #![doc = include_str!("../README.md")]
 #![doc(issue_tracker_base_url = "https://github.com/SCLorentz/Walkie-Talkie/issues")]
 
-use app::{App, SurfaceWrapper, Theme, ThemeDefault, Color, Event, EventHandler, nb};
-use vk_renderer::Renderer;
-use nb::Error;
+use app::{App, Event, EventHandler};
+
+#[allow(unused)]
+struct MatrixClient {
+	field: bool
+}
+
+impl EventHandler for MatrixClient
+{
+	fn handle_events(e: Event)
+	{
+		match e {
+			Event::CloseRequest => log::info!("closing now"),
+			Event::WindowResized { window: w, .. } => log::info!("Resizing window: {:?}", w.title),
+			Event::OsThemeChange { new_theme: theme } => log::info!("changed: {:?}", theme),
+			_ => {}
+		}
+	}
+}
 
 fn main() {
 	simple_logger::SimpleLogger::new()
 		.init()
 		.unwrap();
 
-	if let Some(path) = dirty::getenv("USER") {
-		log::debug!("your user: {:?}", path);
-	};
+	let matrix_client = MatrixClient { field: true };
 
-	//let mut theme = App::theme_default(MatrixClient);
-	let theme = ThemeDefault {
-		blur: true,
-		dark: false,
-		accent_color: Color::from(255, 255, 255, 255),
-		background_color: Color::from(255, 255, 255, 255),
-	};
+	let mut app = App::new(matrix_client);
+	let mut theme = app.get_global_theme();
+			theme.blur = true;
+			theme.has_title = true;
+	app.set_global_theme(theme);
 
-	let mut app = App::new(MatrixClient);
-	app.set_theme(theme);
-
-	let mut window = app.new_window("walkie talkie", (600.0, 500.0))
-		.expect("window inicialization failed");
-	let renderer = Renderer::new(window.get_backend())
-		.expect("Vulkan inicialization failed");
-
-	let _ = window.connect_surface(SurfaceWrapper::new(renderer.surface));
-	app.init();
-}
-
-struct MatrixClient;
-
-impl EventHandler for MatrixClient
-{
-	fn handle_events(e: Event) -> nb::Result<(), nb::Error<()>>
+	if let Ok(mut window) = app.new_window("walkie talkie", (600.0, 500.0))
 	{
-		match e {
-			Event::CloseRequest => log::info!("closing now"),
-			Event::WindowResized { window: w, .. } => log::info!("Resizing window: {:?}", w.title),
-			Event::ThemeChange { new_theme: theme } => log::info!("changed: {:?}", theme),
-			_ => return Err(Error::WouldBlock),
-		}
-		Ok(())
-	}
+		let renderer = vk_renderer::Renderer::new(window.get_backend())
+			.expect("Vulkan inicialization failed");
+		let _ = window.connect_surface(renderer.get_surface());
+	};
+
+	let _ = app.new_window("window 2", (500.0, 500.0));
+
+	app.init();
 }

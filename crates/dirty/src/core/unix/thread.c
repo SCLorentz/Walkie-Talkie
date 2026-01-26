@@ -18,6 +18,4 @@ struct c_Thread create_thread(typeof(void *(void *)) function)
 }
 
 void kill_thread(struct c_Thread my_thread)
-{
-	pthread_cancel(my_thread.thread);
-}
+	{ pthread_cancel(my_thread.thread); }

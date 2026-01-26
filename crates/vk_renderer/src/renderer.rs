@@ -34,7 +34,7 @@ use ash::Instance;
 use ash::vk::{self, SurfaceKHR, RenderPass, PhysicalDevice};
 use log::debug;
 use core::{slice, ptr::NonNull, error::Error};
-use dirty::{Box, void, f8};
+use dirty::{Box, void, f8, SurfaceWrapper};
 
 mod wrapper;
 use wrapper::Wrapper;
@@ -43,7 +43,7 @@ use wrapper::Wrapper;
 #[allow(dead_code)]
 pub struct Renderer {
 	/// Vulkan Surface
-	pub surface: SurfaceKHR,
+	surface: SurfaceKHR,
 	renderpass: RenderPass,
 	device: ash::Device,
 	instance: Instance,
@@ -136,6 +136,11 @@ impl Renderer {
 			instance,
 		})
 	}
+
+	/// Returns the Wrapper for the `SurfaceKHR`
+	pub fn get_surface(&self) -> SurfaceWrapper
+		{ SurfaceWrapper::new(self.surface) }
+
 	/**
 	 * in the future, implement a rate to pick the best device avaliable
 	 * get the device properties and check it can be used

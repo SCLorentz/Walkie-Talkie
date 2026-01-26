@@ -4,16 +4,9 @@ use crate::{
 	platform::linux::{DE, get_de},
 	WResponse::NotImplementedInCompositor,
 	SurfaceBackend,
+	NativeDecoration,
 	warn
 };
-
-pub trait NativeDecoration
-{
-	/// Creates a native window frame decoration for Linux DE/WM
-	fn new(title: &str, width: f64, height: f64) -> Decoration;
-	fn make_view();
-	fn apply_blur(&self);
-}
 
 impl NativeDecoration for Decoration
 {

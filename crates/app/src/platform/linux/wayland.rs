@@ -1,5 +1,6 @@
 use crate::{
 	DecorationMode,
+	NativeDecoration,
 	Decoration,
 	WRequestResult,
 	WResponse::ProtocolNotSuported,
@@ -8,16 +9,6 @@ use crate::{
 	String,
 	WRequestResult::Success
 };
-
-pub trait NativeDecoration
-{
-	/// Creates a native window frame decoration for Linux DE/WM
-	fn new(title: String, width: f64, height: f64) -> Result<Self, WResponse> where Self: core::marker::Sized;
-	/// apply blur to window
-	fn apply_blur(&self) -> Result<(), WResponse>;
-	/*/// exit handler
-	fn exit(&self);*/
-}
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Wrapper {

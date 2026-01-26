@@ -25,7 +25,7 @@ use objc2_foundation::{
 	NSSize, NSString,
 };
 
-use crate::{DecorationMode, Decoration, WResponse, Color,};
+use crate::{DecorationMode, Decoration, WResponse, Color, ThemeDefault, NativeDecoration};
 
 /// Wrapper struct
 #[derive(PartialEq, Debug, Clone)]
@@ -34,23 +34,10 @@ pub struct Wrapper {
 	pub rect:  *const void,		// NSRect
 }
 
-#[allow(unused)]
-pub trait NativeDecoration
-{
-	fn get_app() -> Option<Retained<NSApplication>>;
-	#[deny(unused)]
-	fn run(&self);
-	fn new(title: String, width: f64, height: f64, color: Color) -> Result<Self, WResponse> where Self: Sized;
-	/// Apply blur to window
-	fn apply_blur(&mut self) -> Result<(), WResponse>;
-	/// exit handler
-	fn exit(&self) -> Result<(), WResponse>;
-}
-
 impl NativeDecoration for Decoration
 {
 	/// Creates the native window frame decoration for macOS
-	fn new(title: String, width: f64, height: f64, color: Color) -> Result<Self, WResponse>
+	fn new(title: String, width: f64, height: f64, theme: ThemeDefault) -> Result<Self, WResponse>
 	{
 		let Some(mtm) = MainThreadMarker::new() else { return Err(WResponse::UnexpectedError) };
 
@@ -76,11 +63,13 @@ impl NativeDecoration for Decoration
 		 */
 		window.setTitle(&NSString::from_str(title.as_str()));
 
-		window.setTitlebarAppearsTransparent(true);
-		window.setTitleVisibility(NSWindowTitleVisibility(1));
+		if !theme.has_title {
+			window.setTitlebarAppearsTransparent(true);
+			window.setTitleVisibility(NSWindowTitleVisibility(1));
+		}
 
 		// TODO: this should be vulkan handled
-		let (r, g, b, a) = color.to_default();
+		let (r, g, b, a) = theme.background_color.to_default();
 		window.setBackgroundColor(
 			Some(&NSColor::colorWithSRGBRed_green_blue_alpha(r, g, b, a)
 		));
@@ -154,38 +143,36 @@ impl NativeDecoration for Decoration
 		Ok(())
 	}
 
-	// this was totally vibe coded and I cannot belive that it worked
-	// I spent days trying to resolve a compatibility problem with objc,
-	// days debugging, days suffering, creating wrappers over wrappers,
-	// all of that and a fucking probability algorigthm fixed it for me
-	// fuck fuck fuck fuck
-	/// This function returns the NSApplication from the running program
-	fn get_app() -> Option<Retained<NSApplication>>
+	/// The default function to run the program, since it's required on macOS
+	fn run(&self)
 	{
 		use objc2::{class, runtime::AnyObject};
-
 		let raw: *mut NSApplication = unsafe {
 			msg_send![class!(NSApplication), sharedApplication]
 		};
 
 		unsafe { let _: *mut AnyObject = msg_send![raw, retain]; }
-		unsafe { Retained::from_raw(raw) }
-	}
-
-	/// The default function to run the program, since it's required on macOS
-	fn run(&self)
-	{
-		let Some(app) = Self::get_app() else {
+		let Some(app) = (unsafe { Retained::from_raw(raw) }) else {
 			log::error!("no NSApplication found");
 			return
 		};
+
 		unsafe { msg_send![&*app, run] }
 	}
 
 	#[inline]
 	fn exit(&self) -> Result<(), WResponse>
 	{
-		let Some(app) = Decoration::get_app() else { return Err(WResponse::UnexpectedError) };
+		use objc2::{class, runtime::AnyObject};
+		let raw: *mut NSApplication = unsafe {
+			msg_send![class!(NSApplication), sharedApplication]
+		};
+
+		unsafe { let _: *mut AnyObject = msg_send![raw, retain]; }
+		let Some(app) = (unsafe { Retained::from_raw(raw) }) else {
+			 return Err(WResponse::UnexpectedError);
+		};
+
 		app.terminate(None);
 		Ok(())
 	}

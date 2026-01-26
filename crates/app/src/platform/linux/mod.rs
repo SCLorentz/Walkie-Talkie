@@ -2,13 +2,13 @@
 mod wayland;
 
 #[cfg(feature = "wayland")]
-pub use wayland::{NativeDecoration, Wrapper};
+pub use wayland::Wrapper;
 
 #[cfg(feature = "x11")]
 mod x11;
 
 #[cfg(feature = "x11")]
-pub use x11::{NativeDecoration, Wrapper};
+pub use x11::Wrapper;
 
 /// List of supported DEs/WMs
 #[derive(Debug, PartialEq)]

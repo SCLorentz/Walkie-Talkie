@@ -46,7 +46,7 @@ pub enum Event {
 		new_positon: (f64, f64)
 	},
 	/// User changed global theme
-	ThemeChange {
+	OsThemeChange {
 		/// The new theme
 		new_theme: ThemeDefault
 	},

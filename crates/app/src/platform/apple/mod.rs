@@ -1,3 +1,3 @@
 mod macos;
 
-pub use macos::{NativeDecoration, Wrapper};
+pub use macos::Wrapper;

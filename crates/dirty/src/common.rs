@@ -109,6 +109,7 @@ mod unix {
 }
 
 /// Type for a function repr in C that takes `void* arg` and returns `void*`
+#[cfg(not(target_os = "windows"))]
 pub type AnyFunction = extern "C" fn(*mut void) -> *mut void;
 
 /*#[unsafe(no_mangle)]
@@ -120,6 +121,7 @@ pub extern "C" fn fn_wrapper(function: *mut fn(*mut void) -> *mut void) -> *mut 
 
 /// This is a thread interface with the C implementation
 #[derive(Debug)]
+#[cfg(not(target_os = "windows"))]
 pub struct Thread {
 	/// The function beeing executed in the new thread
 	pub function: AnyFunction,
@@ -127,6 +129,7 @@ pub struct Thread {
 	thread: Option<c_Thread>,
 }
 
+#[cfg(not(target_os = "windows"))]
 impl Thread
 {
 	/// Creates a new thread with the field `thread_id` and a provided function
@@ -358,6 +361,7 @@ pub enum WResponse
 	MissingDependencies			= 401,
 }
 
+// for some reason I can't move this to app.rs
 /// Abtraction layer for multiple OS support
 #[derive(Clone, PartialEq, Debug)]
 pub struct SurfaceWrapper(pub *mut void);

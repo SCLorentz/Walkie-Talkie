@@ -39,8 +39,8 @@ ndk-sys = "0.6.0"
 #dbus = "0.9.10"
 
 # Minimal and reusable non-blocking I/O layer
-[workspace.dependencies.nb]
-version = "1.1.0"
+#[workspace.dependencies.nb]
+#version = "1.1.0"
 
 [workspace.dependencies.simple_logger]
 version = "5.1.0"

@@ -20,7 +20,7 @@ dirty.workspace = true
 simple_logger.workspace = true
 ash.workspace = true
 vk_renderer.workspace = true
-nb.workspace = true
+#nb.workspace = true
 
 #[target.'cfg(target_os = "linux")'.dependencies]
 #tikv-jemallocator.workspace = true

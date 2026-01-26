@@ -42,9 +42,10 @@ mod events;
 pub use events::Event;
 #[cfg(target_os = "macos")]
 use objc2_core_graphics::CGError;
-use platform::{NativeDecoration, Wrapper};
+use platform::Wrapper;
 use log::{warn, info};
-pub use nb;
+
+//pub use nb;
 use dirty::{
 	WResponse,
 	void,
@@ -53,7 +54,7 @@ use dirty::{
 	Vec
 };
 
-pub use dirty::{SurfaceWrapper, Color};
+pub use dirty::{SurfaceWrapper as Surface, Color};
 use core::error::Error;
 
 /// The default structure to handle and manage apps
@@ -74,7 +75,7 @@ where
 pub trait EventHandler: Send + Sync
 {
 	/// handle_events is the only function for the trait and it results a non blocking Event object
-	fn handle_events(event: Event) -> nb::Result<(), nb::Error<()>>;
+	fn handle_events(event: Event); //-> nb::Result<(), nb::Error<()>>;
 }
 
 impl<H: EventHandler> App<H>
@@ -89,15 +90,25 @@ impl<H: EventHandler> App<H>
 			dark: false,
 			accent_color: Color::from(255, 255, 255, 255),
 			background_color: Color::from(255, 255, 255, 255),
+			has_title: true,
 		};
 
 		Self {
 			windows: Vec::new(),
-			theme,
 			cursor: Cursor::get_cursor(),
+			theme,
 			handler,
 		}
 	}
+
+	/// Returns the global theme defined as Self::theme_get_default()
+	pub fn get_global_theme(&self) -> ThemeDefault
+		{ self.theme.clone() }
+
+	/// Modify the current window theme
+	/// If alread set as the value provided, it does nothing
+	pub fn set_global_theme(&mut self, theme: ThemeDefault)
+		{ self.theme = theme }
 
 	/// Creates a new Window element and pushes to the App
 	pub fn new_window(
@@ -114,7 +125,6 @@ impl<H: EventHandler> App<H>
 	/// init event handler
 	pub fn init(&self)
 	{
-		// event thread (not a loop)
 		/*let _event = thread::spawn(move || {
 			nb::block!(H::handle_events(Event::Generic)).unwrap();
 		});*/
@@ -139,6 +149,34 @@ extern "C" fn event_thread(p: *mut void) -> *mut void
 	p
 }
 
+/// Theme struct
+#[derive(Debug, Clone, PartialEq)]
+pub struct ThemeDefault {
+	/// set the alpha value of the window
+	pub blur: bool,
+	/// default color scheme dark/light
+	pub dark: bool,
+	/// the default accent color of higlight text, buttons, etc
+	pub accent_color: Color,
+	/// the background of the window (not of the renderer)
+	pub background_color: Color,
+	/// Titlebar must be rendered or not
+	pub has_title: bool,
+}
+
+/// NativeDecoration provides the necessary abstraction used inside the `platform` modules
+pub trait NativeDecoration
+{
+	/// executes the application window
+	fn run(&self);
+	/// creates a new decoration on the system
+	fn new(title: String, width: f64, height: f64, theme: ThemeDefault) -> Result<Self, WResponse> where Self: Sized;
+	/// Apply blur to window
+	fn apply_blur(&mut self) -> Result<(), WResponse>;
+	/// exit handler
+	fn exit(&self) -> Result<(), WResponse>;
+}
+
 /// Detect if the current system prefers CSDs or SSDs
 /// By default, prefer server side decorations
 #[derive(Clone, PartialEq, Debug)]
@@ -157,8 +195,7 @@ pub struct Decoration {
 	mode: DecorationMode,
 }
 
-/// Decoration specific values
-/// This is empty because each OS implements their own traits
+/// OS specific, check platform apple, nt, linux, etc
 impl Decoration {}
 
 /// Window interface
@@ -167,15 +204,14 @@ impl Decoration {}
 pub struct Window {
 	/// Window title
 	pub title: String,
-	/// The vulkan render surface
-	pub surface: Option<SurfaceWrapper>,
+	/// The graphical backend (on our case, vulkan)
+	pub surface: Option<Surface>,
 	/// The native window frame
 	decoration: Decoration,
 	resizable: bool,
 	position: (f32, f32),
 	active: bool,
 	theme: ThemeDefault,
-	//id: u32,
 }
 
 impl Window
@@ -192,7 +228,7 @@ impl Window
 			String::from(title),
 			size.0,
 			size.1,
-			theme.background_color.clone()
+			theme.clone()
 		) {
 			Ok(v) => v,
 			Err(_) => return Err(Box::from("something went wrong creating decoration")),
@@ -219,7 +255,7 @@ impl Window
 		{ void::to_handle(self.decoration.backend.clone()) }
 
 	/// Connects a specified vulkan surface with the current window
-	pub fn connect_surface(&mut self, surface: SurfaceWrapper) -> Result<(), WResponse>
+	pub fn connect_surface(&mut self, surface: Surface) -> Result<(), WResponse>
 	{
 		if !self.has_surface() {
 			self.surface = Some(surface);
@@ -240,61 +276,6 @@ impl Window
 	pub fn is_active(&self) -> bool { self.active }
 }
 
-/// Theme struct
-#[derive(Debug, Clone, PartialEq)]
-pub struct ThemeDefault {
-	/// set the alpha value of the window
-	pub blur: bool,
-	/// default color scheme dark/light
-	pub dark: bool,
-	/// the default accent color of higlight text, buttons, etc
-	pub accent_color: Color,
-	/// the background of the window (not of the renderer)
-	pub background_color: Color,
-}
-
-/// Default Trait functions for windows
-pub trait Theme {
-	/// Set window specific theme
-	fn set_theme(&mut self, theme: ThemeDefault);
-	/// Get window specific theme
-	fn get_current_theme(&mut self) -> Result<ThemeDefault, WResponse>;
-	/*ThemeDefault {
-		blur: false,
-		dark: false,
-		accent_color: Color::from(255, 255, 255, 255),
-		background_color: Color::from(255, 255, 255, 255),
-	}*/
-	/// Set the blur effect on specified window
-	fn set_blur(&mut self, blur: bool);
-}
-
-impl<H: EventHandler> Theme for App<H>
-{
-	/// Modify the current window theme
-	/// If alread set as the value provided, it does nothing
-	fn set_theme(&mut self, theme: ThemeDefault)
-		{ self.theme = theme; }
-
-	/// Returns the current global theme of the DE/WM
-	fn get_current_theme(&mut self) -> Result<ThemeDefault, WResponse>
-		{ Ok(self.theme.clone()) }
-
-	/*fn theme_default() -> ThemeDefault
-	{
-		ThemeDefault {
-			blur: false,
-			dark: false,
-			accent_color: Color::from(255, 255, 255, 255),
-			background_color: Color::from(255, 255, 255, 255),
-		}
-	}*/
-
-	/// Get the current theme and change the blur value to 'true'
-	fn set_blur(&mut self, blur: bool)
-		{ self.theme.blur = blur; }
-}
-
 /// List of possible types for the cursor
 #[derive(Debug, PartialEq, Clone)]
 pub enum CursorType {
@@ -308,7 +289,8 @@ pub enum CursorType {
 	Loading,
 	/// Forbidden cursor
 	Forbidden,
-	//Custom(Box<Path>),
+	/*/// Custom cursor sprite
+	 Custom(Box<Path>)*/
 }
 
 /// Default cursor struct
