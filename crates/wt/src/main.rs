@@ -2,13 +2,9 @@
 #![forbid(unsafe_code)]
 #![doc = include_str!("../README.md")]
 #![doc(issue_tracker_base_url = "https://github.com/SCLorentz/Walkie-Talkie/issues")]
+use app::{Event, EventHandler};
 
-use app::{App, Event, EventHandler};
-
-#[allow(unused)]
-struct MatrixClient {
-	field: bool
-}
+struct MatrixClient;
 
 impl EventHandler for MatrixClient
 {
@@ -23,14 +19,14 @@ impl EventHandler for MatrixClient
 	}
 }
 
-fn main() {
+fn main()
+{
+	use app::App;
 	simple_logger::SimpleLogger::new()
 		.init()
 		.unwrap();
 
-	let matrix_client = MatrixClient { field: true };
-
-	let mut app = App::new(matrix_client);
+	let mut app = App::new(MatrixClient, "Walkie Talkie");
 	let mut theme = app.get_global_theme();
 			theme.blur = true;
 			theme.has_title = true;
@@ -47,3 +43,8 @@ fn main() {
 
 	app.init();
 }
+
+/*
+ * maybe useful:
+ * https://developer.apple.com/documentation/accelerate/vimage-library
+ */

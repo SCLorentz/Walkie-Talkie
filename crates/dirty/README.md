@@ -1,6 +1,6 @@
 # Dirty
 
-this is hell
+Library made to handle unsafe code and interface with the OS
 
 ## Want to use a String?
 
@@ -43,8 +43,7 @@ sockets are useful to comunicate with other process within the same UNIX based O
 let socket = dirty::Socket::new();
 socket.write_socket(b"hello socket");
 
-let buffer: &[u8] = &[];
-match socket.read_socket(buffer) {
+match socket.read_socket() {
 	Some(result) => debug!("{:?}", result),
 	None => warn!("no message recived"),
 };

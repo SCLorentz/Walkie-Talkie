@@ -56,14 +56,15 @@ pub use alloc::{
 	string::{String, ToString},
 	slice,
 	str,
-	vec::Vec
+	vec::Vec,
+	format,
 };
 
 /// OS specific methods based on systemcalls (ASM)
 pub mod syscall;
 
 /// This represents the possible state of the socket response
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_family = "unix")]
 #[repr(C)]
 #[derive(Debug)]
 pub struct SocketResponse
@@ -82,7 +83,7 @@ pub struct SocketResponse
 }
 
 /// Wrapper type for the C `struct` that stores threads
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_family = "unix")]
 #[derive(Debug)]
 #[repr(C)]
 #[allow(non_camel_case_types, clippy::missing_docs_in_private_items)]
@@ -109,7 +110,7 @@ mod unix {
 }
 
 /// Type for a function repr in C that takes `void* arg` and returns `void*`
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_family = "unix")]
 pub type AnyFunction = extern "C" fn(*mut void) -> *mut void;
 
 /*#[unsafe(no_mangle)]
@@ -121,7 +122,7 @@ pub extern "C" fn fn_wrapper(function: *mut fn(*mut void) -> *mut void) -> *mut 
 
 /// This is a thread interface with the C implementation
 #[derive(Debug)]
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_family = "unix")]
 pub struct Thread {
 	/// The function beeing executed in the new thread
 	pub function: AnyFunction,
@@ -129,7 +130,7 @@ pub struct Thread {
 	thread: Option<c_Thread>,
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_family = "unix")]
 impl Thread
 {
 	/// Creates a new thread with the field `thread_id` and a provided function

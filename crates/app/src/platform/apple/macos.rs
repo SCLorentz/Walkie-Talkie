@@ -10,14 +10,16 @@ use objc2::{
 	DefinedClass,
 	MainThreadOnly,
 	Message,
-	ClassType
+	ClassType,
+	sel
 };
 
 use objc2_app_kit::{
 	NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate,
 	NSBackingStoreType, NSColor, NSFont, NSTextAlignment, NSTextField, NSWindow, NSWindowDelegate,
 	NSWindowStyleMask, NSView, NSWindowTitleVisibility, NSVisualEffectBlendingMode,
-	NSVisualEffectView, NSVisualEffectMaterial, NSVisualEffectState, NSAutoresizingMaskOptions
+	NSVisualEffectView, NSVisualEffectMaterial, NSVisualEffectState, NSAutoresizingMaskOptions,
+	NSMenu, NSMenuItem
 };
 
 use objc2_foundation::{
@@ -57,10 +59,6 @@ impl NativeDecoration for Decoration
 			false,
 		)};
 
-		/**
-		 * setting the title here even tought it will not be rendered, bc setTitleVisibility
-		 * this may change in the future when the GUI is ready
-		 */
 		window.setTitle(&NSString::from_str(title.as_str()));
 
 		if !theme.has_title {
@@ -68,7 +66,7 @@ impl NativeDecoration for Decoration
 			window.setTitleVisibility(NSWindowTitleVisibility(1));
 		}
 
-		// TODO: this should be vulkan handled
+		// TODO: this should be handled by the graphical backend if used with `blur`
 		let (r, g, b, a) = theme.background_color.to_default();
 		window.setBackgroundColor(
 			Some(&NSColor::colorWithSRGBRed_green_blue_alpha(r, g, b, a)
@@ -84,6 +82,7 @@ impl NativeDecoration for Decoration
 
 		let Some(delegate) =
 			Delegate::new(window.clone()) else { return Err(WResponse::UnexpectedError) };
+
 		window.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
 		window.makeKeyAndOrderFront(None);
 
@@ -140,6 +139,35 @@ impl NativeDecoration for Decoration
 		);
 
 		debug!("applying blur on NativeDecoration");
+		Ok(())
+	}
+
+	// this is way easier in swift...
+	fn create_app_menu(&self, app_name: String) -> Result<(), WResponse>
+	{
+		let Some(mtm) = MainThreadMarker::new() else { return Err(WResponse::UnexpectedError) };
+		let app = NSApplication::sharedApplication(mtm);
+
+		let item_menu = NSMenuItem::alloc(mtm);
+		let quit_item = unsafe { NSMenuItem::initWithTitle_action_keyEquivalent(
+			item_menu,
+			&NSString::from_str(dirty::format!("Quit {}", app_name).as_str()),
+			Some(sel!(terminate:)),
+			&NSString::from_str("q")
+		) };
+		unsafe { quit_item.setTarget(Some(&app)) };
+
+		let app_menu = NSMenu::new(mtm);
+			app_menu.addItem(&quit_item);
+
+		let app_menu_item = NSMenuItem::new(mtm);
+		let menubar = NSMenu::new(mtm);
+			menubar.addItem(&app_menu_item);
+
+		app_menu_item.setSubmenu(Some(&app_menu));
+		app.setMainMenu(Some(&menubar));
+
+		debug!("creating app menu");
 		Ok(())
 	}
 

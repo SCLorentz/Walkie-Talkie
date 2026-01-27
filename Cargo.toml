@@ -28,7 +28,7 @@ dirty = { path = "crates/dirty" }
 log = "0.4.28"
 # macos
 objc2				= "0.6.3"
-objc2-app-kit		= "0.3.2"
+objc2-app-kit		= { version = "0.3.2", features = ["NSMenu"] }
 objc2-foundation	= "0.3.2"
 objc2-quartz-core	= "0.3.2"
 objc2-core-graphics	= "0.3.2"

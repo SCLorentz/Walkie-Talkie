@@ -40,8 +40,6 @@ mod platform;
 mod events;
 
 pub use events::Event;
-#[cfg(target_os = "macos")]
-use objc2_core_graphics::CGError;
 use platform::Wrapper;
 use log::{warn, info};
 
@@ -50,12 +48,10 @@ use dirty::{
 	WResponse,
 	void,
 	String,
-	Box,
 	Vec
 };
 
 pub use dirty::{SurfaceWrapper as Surface, Color};
-use core::error::Error;
 
 /// The default structure to handle and manage apps
 #[allow(dead_code)]
@@ -69,6 +65,7 @@ where
 	pub cursor: Cursor,
 	theme: ThemeDefault,
 	handler: H,
+	name: String,
 }
 
 /// This is the bridge between system events and the lib events
@@ -79,11 +76,10 @@ pub trait EventHandler: Send + Sync
 }
 
 impl<H: EventHandler> App<H>
-//impl App
 {
 	/// Create a new `App`
 	#[must_use]
-	pub fn new(handler: H) -> Self
+	pub fn new(handler: H, name: &'static str) -> Self
 	{
 		let theme = ThemeDefault {
 			blur: false,
@@ -98,6 +94,7 @@ impl<H: EventHandler> App<H>
 			cursor: Cursor::get_cursor(),
 			theme,
 			handler,
+			name: String::from(name),
 		}
 	}
 
@@ -115,9 +112,9 @@ impl<H: EventHandler> App<H>
 		&mut self,
 		title: &'static str,
 		size: (f64, f64),
-	) -> Result<Window, Box<dyn Error>>
+	) -> Result<Window, WResponse>
 	{
-		let window = Window::new(title, self.theme.clone(), size)?;
+		let window = Window::new(self.name.clone(), title, self.theme.clone(), size)?;
 		self.windows.push(window.clone());
 		Ok(window)
 	}
@@ -132,20 +129,16 @@ impl<H: EventHandler> App<H>
 		dirty::Thread::default(event_thread).run();
 
 		#[cfg(target_os = "macos")]
-		let Some(window) = self.windows.first() else {
-			log::warn!("no windows found on self.windows");
-			return
+		if let Some(window) = self.windows.first() {
+			window.decoration.run();
 		};
-
-		#[cfg(target_os = "macos")]
-		window.decoration.run();
 	}
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn event_thread(p: *mut void) -> *mut void
 {
-	log::debug!("creating new thread!");
+	log::debug!("creating event thread!");
 	p
 }
 
@@ -175,6 +168,8 @@ pub trait NativeDecoration
 	fn apply_blur(&mut self) -> Result<(), WResponse>;
 	/// exit handler
 	fn exit(&self) -> Result<(), WResponse>;
+	/// App Menu Controls
+	fn create_app_menu(&self, app_name: String) -> Result<(), WResponse>;
 }
 
 /// Detect if the current system prefers CSDs or SSDs
@@ -195,11 +190,10 @@ pub struct Decoration {
 	mode: DecorationMode,
 }
 
-/// OS specific, check platform apple, nt, linux, etc
+/// OS specific. Check platform apple, nt, linux, etc
 impl Decoration {}
 
 /// Window interface
-#[allow(dead_code)]
 #[derive(Clone, PartialEq, Debug)]
 pub struct Window {
 	/// Window title
@@ -214,14 +208,16 @@ pub struct Window {
 	theme: ThemeDefault,
 }
 
+#[forbid(unsafe_code)]
 impl Window
 {
 	/// Create a new window
 	pub fn new(
+		app_name: String,
 		title: &'static str,
 		theme: ThemeDefault,
 		size: (f64, f64)
-	) -> Result<Self, Box<dyn Error>>
+	) -> Result<Self, WResponse>
 	{
 		#[allow(unused_mut)]
 		let mut decoration = match Decoration::new(
@@ -231,8 +227,10 @@ impl Window
 			theme.clone()
 		) {
 			Ok(v) => v,
-			Err(_) => return Err(Box::from("something went wrong creating decoration")),
+			Err(_) => return Err(WResponse::UnexpectedError),
 		};
+
+		let _menu = decoration.create_app_menu(app_name);
 
 		if theme.blur
 		&& let Err(response) = decoration.apply_blur()
@@ -274,6 +272,9 @@ impl Window
 	/// Detects if the window is focused
 	#[must_use]
 	pub fn is_active(&self) -> bool { self.active }
+
+	/// Changes the `window.resizable` argument to a specific bool val
+	pub fn resizable(&mut self, arg: bool) { self.resizable = arg }
 }
 
 /// List of possible types for the cursor
@@ -298,7 +299,7 @@ pub enum CursorType {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Cursor {
 	position: (f64, f64),
-	r#type: CursorType,
+	mode: CursorType,
 	visible: bool,
 	disabled: bool,
 }
@@ -312,7 +313,7 @@ impl Cursor {
 	{
 		Cursor {
 			position: Self::get_position(),
-			r#type: CursorType::Default,
+			mode: CursorType::Default,
 			visible: true,
 			disabled: false,
 		}
@@ -348,7 +349,9 @@ impl Cursor {
 	pub fn hide(&mut self)
 	{
 		#[cfg(target_os = "macos")]
-		let _err: CGError = objc2_core_graphics::CGDisplayHideCursor(0);
+		let _err: objc2_core_graphics::CGError =
+			objc2_core_graphics::CGDisplayHideCursor(0);
+
 		self.visible = false;
 	}
 
@@ -357,7 +360,9 @@ impl Cursor {
 	pub fn show(&mut self)
 	{
 		#[cfg(target_os = "macos")]
-		let _err: CGError = objc2_core_graphics::CGDisplayShowCursor(0);
+		let _err: objc2_core_graphics::CGError =
+			objc2_core_graphics::CGDisplayShowCursor(0);
+
 		self.visible = true;
 	}
 
@@ -371,8 +376,8 @@ impl Cursor {
 
 	/// Set the cursor type
 	/// For example: `CursorType::Pointer` for click actions or `CursorType::Custom(Path)` for custom textures
-	pub fn set_type(&mut self, appearence: CursorType)
-		{ self.r#type = appearence; }
+	pub fn set_type(&mut self, mode: CursorType)
+		{ self.mode = mode; }
 
 	/// Detects if the cursor is visible or not
 	#[must_use]
