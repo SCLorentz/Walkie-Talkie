@@ -211,8 +211,43 @@ pub struct Window {
 #[forbid(unsafe_code)]
 impl Window
 {
-	/// Create a new window
-	pub fn new(
+	/// Get system specific window backend (for renderer)
+	#[must_use]
+	pub fn get_backend(&self) -> *mut void
+		{ void::to_handle(self.decoration.backend.clone()) }
+
+	/// Connects a specified vulkan surface with the current window
+	pub fn connect_surface(&mut self, surface: Surface) -> Result<(), WResponse>
+	{
+		if !self.has_surface() {
+			self.surface = Some(surface);
+			return Ok(());
+		}
+		warn!("this window is already connected to a surface!");
+		info!("to connect to another surface, please remove the current one");
+		Err(WResponse::ChannelInUse)
+	}
+
+	/// Returns if window does have a surface or not
+	#[must_use]
+	pub fn has_surface(&self) -> bool
+		{ self.surface.is_some() }
+
+	/// Detects if the window is focused
+	#[must_use]
+	pub fn is_active(&self) -> bool { self.active }
+
+	/// Changes the `window.resizable` argument to a specific bool val
+	pub fn resizable(&mut self, arg: bool) { self.resizable = arg }
+}
+
+trait PrivateWindow {
+	fn new(app_name: String, title: &'static str, theme: ThemeDefault, size: (f64, f64)) ->
+		Result<Window, WResponse>;
+}
+
+impl PrivateWindow for Window {
+	fn new(
 		app_name: String,
 		title: &'static str,
 		theme: ThemeDefault,
@@ -246,35 +281,6 @@ impl Window
 			theme,
 		})
 	}
-
-	/// Get system specific window backend (for renderer)
-	#[must_use]
-	pub fn get_backend(&self) -> *mut void
-		{ void::to_handle(self.decoration.backend.clone()) }
-
-	/// Connects a specified vulkan surface with the current window
-	pub fn connect_surface(&mut self, surface: Surface) -> Result<(), WResponse>
-	{
-		if !self.has_surface() {
-			self.surface = Some(surface);
-			return Ok(());
-		}
-		warn!("this window is already connected to a surface!");
-		info!("to connect to another surface, please remove the current one");
-		Err(WResponse::ChannelInUse)
-	}
-
-	/// Returns if window does have a surface or not
-	#[must_use]
-	pub fn has_surface(&self) -> bool
-		{ self.surface.is_some() }
-
-	/// Detects if the window is focused
-	#[must_use]
-	pub fn is_active(&self) -> bool { self.active }
-
-	/// Changes the `window.resizable` argument to a specific bool val
-	pub fn resizable(&mut self, arg: bool) { self.resizable = arg }
 }
 
 /// List of possible types for the cursor

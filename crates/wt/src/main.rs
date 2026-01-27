@@ -2,7 +2,7 @@
 #![forbid(unsafe_code)]
 #![doc = include_str!("../README.md")]
 #![doc(issue_tracker_base_url = "https://github.com/SCLorentz/Walkie-Talkie/issues")]
-use app::{Event, EventHandler};
+use app::{Event, EventHandler, Window};
 
 struct MatrixClient;
 
