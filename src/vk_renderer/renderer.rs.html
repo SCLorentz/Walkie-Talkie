@@ -1,366 +1,430 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/vk_renderer/src/renderer.rs`."><title>renderer.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="vk_renderer" data-themes="" data-resource-suffix="" data-rustdoc-version="1.92.0 (ded5c06cf 2025-12-08)" data-channel="1.92.0" data-search-js="search-d69d8955.js" data-stringdex-js="stringdex-c3e638e9.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-ce535bd0.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">vk_renderer/</div>renderer.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="attr">#![no_std]
-<a href=#2 id=2 data-nosnippet>2</a>#![allow(unused_doc_comments)]
-<a href=#3 id=3 data-nosnippet>3</a>#![doc = <span class="macro">include_str!</span>(<span class="string">"../README.md"</span>)]
-<a href=#4 id=4 data-nosnippet>4</a>
-<a href=#5 id=5 data-nosnippet>5</a></span><span class="kw">use </span>ash::Instance;
-<a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>ash::vk::{<span class="self">self</span>, SurfaceKHR, RenderPass, PhysicalDevice};
-<a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span>log::debug;
-<a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>core::{slice, ptr::NonNull, error::Error};
-<a href=#9 id=9 data-nosnippet>9</a><span class="kw">use </span>dirty::{Box, void, f8};
-<a href=#10 id=10 data-nosnippet>10</a>
-<a href=#11 id=11 data-nosnippet>11</a><span class="kw">mod </span>wrapper;
-<a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span>wrapper::Wrapper;
-<a href=#13 id=13 data-nosnippet>13</a>
-<a href=#14 id=14 data-nosnippet>14</a><span class="attr">#[allow(dead_code)]
-<a href=#15 id=15 data-nosnippet>15</a></span><span class="kw">pub struct </span>Renderer {
-<a href=#16 id=16 data-nosnippet>16</a>	<span class="kw">pub </span>surface: SurfaceKHR,
-<a href=#17 id=17 data-nosnippet>17</a>	renderpass: RenderPass,
-<a href=#18 id=18 data-nosnippet>18</a>	device: ash::Device,
-<a href=#19 id=19 data-nosnippet>19</a>	instance: Instance,
-<a href=#20 id=20 data-nosnippet>20</a>}
-<a href=#21 id=21 data-nosnippet>21</a>
-<a href=#22 id=22 data-nosnippet>22</a><span class="doccomment">/// The rendring interface
-<a href=#23 id=23 data-nosnippet>23</a></span><span class="kw">impl </span>Renderer {
-<a href=#24 id=24 data-nosnippet>24</a>	<span class="doccomment">/// Creates a new Vulkan render
-<a href=#25 id=25 data-nosnippet>25</a>	/// this will be our initVulkan() from the tutorial
-<a href=#26 id=26 data-nosnippet>26</a>	/// &lt;https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Base_code#:~:text=initVulkan()&gt;
-<a href=#27 id=27 data-nosnippet>27</a>	</span><span class="kw">pub fn </span>new(surface_backend: <span class="kw-2">*mut </span>void) -&gt; <span class="prelude-ty">Result</span>&lt;Renderer, Box&lt;<span class="kw">dyn </span>Error&gt;&gt;
-<a href=#28 id=28 data-nosnippet>28</a>	{
-<a href=#29 id=29 data-nosnippet>29</a>		<span class="kw">let </span>backend: Wrapper = void::from_handle(surface_backend);
-<a href=#30 id=30 data-nosnippet>30</a>		<span class="macro">debug!</span>(<span class="string">"Creating new vulkan render"</span>);
-<a href=#31 id=31 data-nosnippet>31</a>
-<a href=#32 id=32 data-nosnippet>32</a>		<span class="doccomment">/**
-<a href=#33 id=33 data-nosnippet>33</a>		 * load vulkan in execution, otherwise one might have a problem compiling it for macos (apple beeing apple)
-<a href=#34 id=34 data-nosnippet>34</a>		 * another problem is the inexistence of a vulkan dylib natively on mac
-<a href=#35 id=35 data-nosnippet>35</a>		 * the solution for that problem is packaging the necessary files (dylib) inside the .app
-<a href=#36 id=36 data-nosnippet>36</a>		 * &lt;https://stackoverflow.com/questions/39204908/how-to-check-release-debug-builds-using-cfg-in-rust&gt;
-<a href=#37 id=37 data-nosnippet>37</a>		 */
-<a href=#38 id=38 data-nosnippet>38</a>		</span><span class="kw">let </span>entry = <span class="kw">unsafe </span>{ ash::Entry::load()<span class="question-mark">? </span>};
-<a href=#39 id=39 data-nosnippet>39</a>
-<a href=#40 id=40 data-nosnippet>40</a>		<span class="doccomment">/**
-<a href=#41 id=41 data-nosnippet>41</a>		 * Create Instance
-<a href=#42 id=42 data-nosnippet>42</a>		 * &lt;https://vulkan-tutorial.com/en/Drawing_a_triangle/Setup/Instance&gt;
-<a href=#43 id=43 data-nosnippet>43</a>		 * VkApplicationInfo appInfo{};
-<a href=#44 id=44 data-nosnippet>44</a>		 * for some reason on target linux-a64 it expects "u8" and not "i8" idk y
-<a href=#45 id=45 data-nosnippet>45</a>		 */
-<a href=#46 id=46 data-nosnippet>46</a>		</span><span class="kw">let </span>app_info = vk::ApplicationInfo::default()
-<a href=#47 id=47 data-nosnippet>47</a>			.api_version(vk::make_api_version(<span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>));
-<a href=#48 id=48 data-nosnippet>48</a>
-<a href=#49 id=49 data-nosnippet>49</a>		<span class="kw">let </span>extensions: <span class="kw-2">&amp;</span>[<span class="kw-2">*const </span>f8] = <span class="kw-2">&amp;</span>[
-<a href=#50 id=50 data-nosnippet>50</a>			vk::KHR_PORTABILITY_ENUMERATION_NAME.as_ptr(),
-<a href=#51 id=51 data-nosnippet>51</a>			vk::KHR_SURFACE_NAME.as_ptr(),
-<a href=#52 id=52 data-nosnippet>52</a>			<span class="attr">#[cfg(target_os = <span class="string">"macos"</span>)]
-<a href=#53 id=53 data-nosnippet>53</a>			</span>vk::EXT_METAL_SURFACE_NAME.as_ptr()
-<a href=#54 id=54 data-nosnippet>54</a>		];
-<a href=#55 id=55 data-nosnippet>55</a>
-<a href=#56 id=56 data-nosnippet>56</a>		<span class="comment">/* */
-<a href=#57 id=57 data-nosnippet>57</a>
-<a href=#58 id=58 data-nosnippet>58</a>		</span><span class="kw">let </span>instance_desc = vk::InstanceCreateInfo::default()
-<a href=#59 id=59 data-nosnippet>59</a>			.application_info(<span class="kw-2">&amp;</span>app_info)
-<a href=#60 id=60 data-nosnippet>60</a>			.enabled_extension_names(extensions);
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/vk_renderer/src/renderer.rs`."><title>renderer.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-0bd2dfd4.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="vk_renderer" data-themes="" data-resource-suffix="" data-rustdoc-version="1.95.0-nightly (474276961 2026-01-26)" data-channel="nightly" data-search-js="search-86d08462.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-f9617a14.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-12f88f4f.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">vk_renderer/</div>renderer.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="attr">#![no_std]
+<a href=#2 id=2 data-nosnippet>2</a>#![deny(
+<a href=#3 id=3 data-nosnippet>3</a>	deprecated,
+<a href=#4 id=4 data-nosnippet>4</a>	rust_2018_idioms,
+<a href=#5 id=5 data-nosnippet>5</a>	clippy::shadow_unrelated,
+<a href=#6 id=6 data-nosnippet>6</a>	unreachable_code,
+<a href=#7 id=7 data-nosnippet>7</a>	unused_imports,
+<a href=#8 id=8 data-nosnippet>8</a>	unused_variables,
+<a href=#9 id=9 data-nosnippet>9</a>	unsafe_op_in_unsafe_fn,
+<a href=#10 id=10 data-nosnippet>10</a>	clippy::unwrap_used,
+<a href=#11 id=11 data-nosnippet>11</a>	clippy::expect_used,
+<a href=#12 id=12 data-nosnippet>12</a>	clippy::shadow_reuse,
+<a href=#13 id=13 data-nosnippet>13</a>	clippy::shadow_same,
+<a href=#14 id=14 data-nosnippet>14</a>	clippy::dbg_macro,
+<a href=#15 id=15 data-nosnippet>15</a>	clippy::print_stdout,
+<a href=#16 id=16 data-nosnippet>16</a>	clippy::print_stderr,
+<a href=#17 id=17 data-nosnippet>17</a>	clippy::panic,
+<a href=#18 id=18 data-nosnippet>18</a>	clippy::indexing_slicing,
+<a href=#19 id=19 data-nosnippet>19</a>	clippy::arithmetic_side_effects,
+<a href=#20 id=20 data-nosnippet>20</a>	clippy::float_arithmetic,
+<a href=#21 id=21 data-nosnippet>21</a>	clippy::unwrap_in_result,
+<a href=#22 id=22 data-nosnippet>22</a>	clippy::exit,
+<a href=#23 id=23 data-nosnippet>23</a>	clippy::wildcard_imports,
+<a href=#24 id=24 data-nosnippet>24</a>	missing_docs,
+<a href=#25 id=25 data-nosnippet>25</a>	clippy::all,
+<a href=#26 id=26 data-nosnippet>26</a>)]
+<a href=#27 id=27 data-nosnippet>27</a>#![allow(
+<a href=#28 id=28 data-nosnippet>28</a>	clippy::tabs_in_doc_comments,
+<a href=#29 id=29 data-nosnippet>29</a>	unused_doc_comments
+<a href=#30 id=30 data-nosnippet>30</a>)]
+<a href=#31 id=31 data-nosnippet>31</a>#![doc = <span class="macro">include_str!</span>(<span class="string">"../README.md"</span>)]
+<a href=#32 id=32 data-nosnippet>32</a>
+<a href=#33 id=33 data-nosnippet>33</a></span><span class="kw">use </span>ash::Instance;
+<a href=#34 id=34 data-nosnippet>34</a><span class="kw">use </span>ash::vk::{<span class="self">self</span>, SurfaceKHR, RenderPass, PhysicalDevice};
+<a href=#35 id=35 data-nosnippet>35</a><span class="kw">use </span>log::debug;
+<a href=#36 id=36 data-nosnippet>36</a><span class="kw">use </span>core::{slice, ptr::NonNull, error::Error};
+<a href=#37 id=37 data-nosnippet>37</a><span class="kw">use </span>dirty::{Box, void, f8, SurfaceWrapper};
+<a href=#38 id=38 data-nosnippet>38</a>
+<a href=#39 id=39 data-nosnippet>39</a><span class="kw">mod </span>wrapper;
+<a href=#40 id=40 data-nosnippet>40</a><span class="kw">use </span>wrapper::Wrapper;
+<a href=#41 id=41 data-nosnippet>41</a>
+<a href=#42 id=42 data-nosnippet>42</a><span class="doccomment">/// Default Renderer struct
+<a href=#43 id=43 data-nosnippet>43</a></span><span class="attr">#[allow(dead_code)]
+<a href=#44 id=44 data-nosnippet>44</a></span><span class="kw">pub struct </span>Renderer {
+<a href=#45 id=45 data-nosnippet>45</a>	<span class="doccomment">/// Vulkan Surface
+<a href=#46 id=46 data-nosnippet>46</a>	</span>surface: SurfaceKHR,
+<a href=#47 id=47 data-nosnippet>47</a>	renderpass: RenderPass,
+<a href=#48 id=48 data-nosnippet>48</a>	device: ash::Device,
+<a href=#49 id=49 data-nosnippet>49</a>	instance: Instance,
+<a href=#50 id=50 data-nosnippet>50</a>}
+<a href=#51 id=51 data-nosnippet>51</a>
+<a href=#52 id=52 data-nosnippet>52</a><span class="doccomment">/// The rendring interface
+<a href=#53 id=53 data-nosnippet>53</a></span><span class="kw">impl </span>Renderer {
+<a href=#54 id=54 data-nosnippet>54</a>	<span class="doccomment">/// Creates a new Vulkan render
+<a href=#55 id=55 data-nosnippet>55</a>	/// this will be our `initVulkan()` from the tutorial
+<a href=#56 id=56 data-nosnippet>56</a>	/// &lt;https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Base_code#:~:text=initVulkan()&gt;
+<a href=#57 id=57 data-nosnippet>57</a>	</span><span class="kw">pub fn </span>new(surface_backend: <span class="kw-2">*mut </span>void) -&gt; <span class="prelude-ty">Result</span>&lt;Renderer, Box&lt;<span class="kw">dyn </span>Error&gt;&gt;
+<a href=#58 id=58 data-nosnippet>58</a>	{
+<a href=#59 id=59 data-nosnippet>59</a>		<span class="kw">let </span>backend: Wrapper = void::from_handle(surface_backend);
+<a href=#60 id=60 data-nosnippet>60</a>		<span class="macro">debug!</span>(<span class="string">"Creating new vulkan render"</span>);
 <a href=#61 id=61 data-nosnippet>61</a>
-<a href=#62 id=62 data-nosnippet>62</a>		<span class="kw">let </span>instance: Instance = <span class="kw">unsafe </span>{
-<a href=#63 id=63 data-nosnippet>63</a>			<span class="doccomment">/**
-<a href=#64 id=64 data-nosnippet>64</a>			 * vkCreateInstance(&amp;createInfo, nullptr, &amp;instance) -&gt; function from C++
-<a href=#65 id=65 data-nosnippet>65</a>			 * in this case, createInfo is instance_desc
-<a href=#66 id=66 data-nosnippet>66</a>			 * the Pointer to the variable that stores the handle to the new object (&amp;instance) value isn't necessary
-<a href=#67 id=67 data-nosnippet>67</a>			 *
-<a href=#68 id=68 data-nosnippet>68</a>			 * VK_ERROR_INCOMPATIBLE_DRIVER:
-<a href=#69 id=69 data-nosnippet>69</a>			 * &lt;https://vulkan-tutorial.com/en/Drawing_a_triangle/Setup/Instance#:~:text=Encountered%20VK%5FERROR%5FINCOMPATIBLE%5FDRIVER&gt;
-<a href=#70 id=70 data-nosnippet>70</a>			 */
-<a href=#71 id=71 data-nosnippet>71</a>			</span>entry.create_instance(<span class="kw-2">&amp;</span>instance_desc, <span class="prelude-val">None</span>)<span class="question-mark">?
-<a href=#72 id=72 data-nosnippet>72</a>		</span>};
-<a href=#73 id=73 data-nosnippet>73</a>
-<a href=#74 id=74 data-nosnippet>74</a>		<span class="doccomment">/**
-<a href=#75 id=75 data-nosnippet>75</a>		 * Handlers
-<a href=#76 id=76 data-nosnippet>76</a>		 */
-<a href=#77 id=77 data-nosnippet>77</a>		</span><span class="kw">let </span>device = <span class="self">Self</span>::get_device(<span class="kw-2">&amp;</span>instance)<span class="question-mark">?</span>;
-<a href=#78 id=78 data-nosnippet>78</a>		<span class="comment">//let _logic = Self::create_logic_device();
-<a href=#79 id=79 data-nosnippet>79</a>		</span><span class="kw">let </span>renderpass = <span class="self">Self</span>::render_pass(<span class="kw-2">&amp;</span>device)<span class="question-mark">?</span>;
-<a href=#80 id=80 data-nosnippet>80</a>
-<a href=#81 id=81 data-nosnippet>81</a>		<span class="doccomment">/** &lt;https://github.com/ash-rs/ash/blob/master/ash-examples/src/lib.rs&gt;
-<a href=#82 id=82 data-nosnippet>82</a>		 * The Headless backend will be used to implement tests
-<a href=#83 id=83 data-nosnippet>83</a>		 * the repo uses `let surface_loader = surface::Instance::load(&amp;entry, &amp;instance);`
-<a href=#84 id=84 data-nosnippet>84</a>		 * but the way it is created is different, using `SurfaceFactory`, for that I would need winit
-<a href=#85 id=85 data-nosnippet>85</a>		 */
-<a href=#86 id=86 data-nosnippet>86</a>
-<a href=#87 id=87 data-nosnippet>87</a>		</span><span class="attr">#[cfg(target_os = <span class="string">"macos"</span>)]
-<a href=#88 id=88 data-nosnippet>88</a>		</span><span class="kw">let </span>view = backend.ns_view;
-<a href=#89 id=89 data-nosnippet>89</a>
-<a href=#90 id=90 data-nosnippet>90</a>		<span class="attr">#[cfg(target_os = <span class="string">"linux"</span>)]
-<a href=#91 id=91 data-nosnippet>91</a>		</span><span class="kw">let </span>view: <span class="kw-2">*mut </span>void = <span class="macro">todo!</span>();
-<a href=#92 id=92 data-nosnippet>92</a>
-<a href=#93 id=93 data-nosnippet>93</a>		<span class="attr">#[cfg(target_os = <span class="string">"windows"</span>)]
-<a href=#94 id=94 data-nosnippet>94</a>		</span><span class="kw">let </span>view: <span class="kw-2">*mut </span>void = <span class="macro">todo!</span>();
-<a href=#95 id=95 data-nosnippet>95</a>
-<a href=#96 id=96 data-nosnippet>96</a>		<span class="kw">let </span>nn_view = NonNull::new(view)
-<a href=#97 id=97 data-nosnippet>97</a>			.expect(<span class="string">"NSView shouldn't be null"</span>)
-<a href=#98 id=98 data-nosnippet>98</a>			.cast();
-<a href=#99 id=99 data-nosnippet>99</a>
-<a href=#100 id=100 data-nosnippet>100</a>		<span class="kw">let </span>surface = <span class="self">Self</span>::new_surface(<span class="kw-2">&amp;</span>instance, <span class="kw-2">&amp;</span>entry, nn_view);
-<a href=#101 id=101 data-nosnippet>101</a>
-<a href=#102 id=102 data-nosnippet>102</a>		<span class="prelude-val">Ok</span>(Renderer {
-<a href=#103 id=103 data-nosnippet>103</a>			instance,
-<a href=#104 id=104 data-nosnippet>104</a>			surface,
-<a href=#105 id=105 data-nosnippet>105</a>			device,
-<a href=#106 id=106 data-nosnippet>106</a>			renderpass,
-<a href=#107 id=107 data-nosnippet>107</a>		})
-<a href=#108 id=108 data-nosnippet>108</a>	}
-<a href=#109 id=109 data-nosnippet>109</a>	<span class="doccomment">/**
-<a href=#110 id=110 data-nosnippet>110</a>	 * in the future, implement a rate to pick the best device avaliable
-<a href=#111 id=111 data-nosnippet>111</a>	 * get the device properties and check it can be used
-<a href=#112 id=112 data-nosnippet>112</a>	 * &lt;https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/00_Setup/03_Physical_devices_and_queue_families.html&gt;
-<a href=#113 id=113 data-nosnippet>113</a>	 * &lt;https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families#:~:text=isDeviceSuitable&gt;
-<a href=#114 id=114 data-nosnippet>114</a>	 */
-<a href=#115 id=115 data-nosnippet>115</a>	</span><span class="attr">#[inline]
-<a href=#116 id=116 data-nosnippet>116</a>	</span><span class="kw">fn </span>is_device_suitable(instance: <span class="kw-2">&amp;</span>ash::Instance, device: PhysicalDevice) -&gt; bool
-<a href=#117 id=117 data-nosnippet>117</a>	{
-<a href=#118 id=118 data-nosnippet>118</a>		<span class="kw">let </span>prop = <span class="kw">unsafe </span>{ instance.get_physical_device_properties(device) };
-<a href=#119 id=119 data-nosnippet>119</a>		<span class="kw">let </span>feat = <span class="kw">unsafe </span>{ instance.get_physical_device_features(device) };
-<a href=#120 id=120 data-nosnippet>120</a>
-<a href=#121 id=121 data-nosnippet>121</a>		<span class="doccomment">/**
-<a href=#122 id=122 data-nosnippet>122</a>		 * INTEGRATED_GPU will be the case on MacOS
-<a href=#123 id=123 data-nosnippet>123</a>		 * for some reason the constant value for that is not working, so im using `.as_raw() == 1`
-<a href=#124 id=124 data-nosnippet>124</a>		 * "associated item not found in `PhysicalDevice`"
-<a href=#125 id=125 data-nosnippet>125</a>		 */
-<a href=#126 id=126 data-nosnippet>126</a>		</span><span class="kw">if </span>feat.geometry_shader == dirty::TRUE
-<a href=#127 id=127 data-nosnippet>127</a>			&amp;&amp; prop.device_type == vk::PhysicalDeviceType::DISCRETE_GPU
-<a href=#128 id=128 data-nosnippet>128</a>			|| prop.device_type.as_raw() == <span class="number">1 </span><span class="comment">// this represents Self(1) or INTEGRATED_GPU
-<a href=#129 id=129 data-nosnippet>129</a>		</span>{ <span class="kw">return </span><span class="bool-val">true</span>; }
-<a href=#130 id=130 data-nosnippet>130</a>
-<a href=#131 id=131 data-nosnippet>131</a>		<span class="bool-val">false
-<a href=#132 id=132 data-nosnippet>132</a>	</span>}
-<a href=#133 id=133 data-nosnippet>133</a>
-<a href=#134 id=134 data-nosnippet>134</a>	<span class="doccomment">/**
-<a href=#135 id=135 data-nosnippet>135</a>	 * &lt;https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families&gt;
-<a href=#136 id=136 data-nosnippet>136</a>	 * this will get the first graphics card avaliable
-<a href=#137 id=137 data-nosnippet>137</a>	 */
-<a href=#138 id=138 data-nosnippet>138</a>	</span><span class="kw">fn </span>get_device(instance: <span class="kw-2">&amp;</span>ash::Instance) -&gt; <span class="prelude-ty">Result</span>&lt;ash::Device, Box&lt;<span class="kw">dyn </span>Error&gt;&gt;
-<a href=#139 id=139 data-nosnippet>139</a>	{
-<a href=#140 id=140 data-nosnippet>140</a>		<span class="doccomment">/**
-<a href=#141 id=141 data-nosnippet>141</a>		 * C++
-<a href=#142 id=142 data-nosnippet>142</a>		 * uint32_t deviceCount = 0;
-<a href=#143 id=143 data-nosnippet>143</a>		 * vkEnumeratePhysicalDevices(instance, &amp;deviceCount, nullptr);
-<a href=#144 id=144 data-nosnippet>144</a>		 * same idea from ours, but ash offers less control, no need to implement verifications of support
-<a href=#145 id=145 data-nosnippet>145</a>		 */
-<a href=#146 id=146 data-nosnippet>146</a>		</span><span class="kw">let </span>physical_devices = <span class="kw">unsafe </span>{ instance.enumerate_physical_devices()<span class="question-mark">? </span>};
-<a href=#147 id=147 data-nosnippet>147</a>
-<a href=#148 id=148 data-nosnippet>148</a>		<span class="kw">let </span><span class="kw-2">mut </span>selected_device: <span class="prelude-ty">Option</span>&lt;PhysicalDevice&gt; = <span class="prelude-val">None</span>;
-<a href=#149 id=149 data-nosnippet>149</a>		<span class="kw">for </span>device <span class="kw">in </span>physical_devices {
-<a href=#150 id=150 data-nosnippet>150</a>			<span class="kw">if </span>!<span class="self">Self</span>::is_device_suitable(instance, device) { <span class="kw">continue </span>}
-<a href=#151 id=151 data-nosnippet>151</a>			<span class="macro">debug!</span>(<span class="string">"found suitable device `{:?}`!"</span>, device);
-<a href=#152 id=152 data-nosnippet>152</a>			selected_device = <span class="prelude-val">Some</span>(device);
-<a href=#153 id=153 data-nosnippet>153</a>			<span class="kw">break
-<a href=#154 id=154 data-nosnippet>154</a>		</span>}
+<a href=#62 id=62 data-nosnippet>62</a>		<span class="doccomment">/**
+<a href=#63 id=63 data-nosnippet>63</a>		 * load vulkan in execution, otherwise one might have a problem compiling it for macos (apple beeing apple)
+<a href=#64 id=64 data-nosnippet>64</a>		 * another problem is the inexistence of a vulkan dylib natively on mac
+<a href=#65 id=65 data-nosnippet>65</a>		 * the solution for that problem is packaging the necessary files (dylib) inside the .app
+<a href=#66 id=66 data-nosnippet>66</a>		 * &lt;https://stackoverflow.com/questions/39204908/how-to-check-release-debug-builds-using-cfg-in-rust&gt;
+<a href=#67 id=67 data-nosnippet>67</a>		 */
+<a href=#68 id=68 data-nosnippet>68</a>		</span><span class="kw">let </span>entry = <span class="kw">unsafe </span>{ ash::Entry::load()<span class="question-mark">? </span>};
+<a href=#69 id=69 data-nosnippet>69</a>
+<a href=#70 id=70 data-nosnippet>70</a>		<span class="doccomment">/**
+<a href=#71 id=71 data-nosnippet>71</a>		 * Create Instance
+<a href=#72 id=72 data-nosnippet>72</a>		 * &lt;https://vulkan-tutorial.com/en/Drawing_a_triangle/Setup/Instance&gt;
+<a href=#73 id=73 data-nosnippet>73</a>		 * `VkApplicationInfo appInfo{};`
+<a href=#74 id=74 data-nosnippet>74</a>		 * for some reason on target linux-a64 it expects "u8" and not "i8" idk y
+<a href=#75 id=75 data-nosnippet>75</a>		 */
+<a href=#76 id=76 data-nosnippet>76</a>		</span><span class="kw">let </span>app_info = vk::ApplicationInfo::default()
+<a href=#77 id=77 data-nosnippet>77</a>			.api_version(vk::make_api_version(<span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>));
+<a href=#78 id=78 data-nosnippet>78</a>
+<a href=#79 id=79 data-nosnippet>79</a>		<span class="kw">let </span>extensions: <span class="kw-2">&amp;</span>[<span class="kw-2">*const </span>f8] = <span class="kw-2">&amp;</span>[
+<a href=#80 id=80 data-nosnippet>80</a>			vk::KHR_PORTABILITY_ENUMERATION_NAME.as_ptr(),
+<a href=#81 id=81 data-nosnippet>81</a>			vk::KHR_SURFACE_NAME.as_ptr(),
+<a href=#82 id=82 data-nosnippet>82</a>			<span class="attr">#[cfg(target_os = <span class="string">"macos"</span>)]
+<a href=#83 id=83 data-nosnippet>83</a>			</span>vk::EXT_METAL_SURFACE_NAME.as_ptr()
+<a href=#84 id=84 data-nosnippet>84</a>		];
+<a href=#85 id=85 data-nosnippet>85</a>
+<a href=#86 id=86 data-nosnippet>86</a>		<span class="comment">/* */
+<a href=#87 id=87 data-nosnippet>87</a>
+<a href=#88 id=88 data-nosnippet>88</a>		</span><span class="kw">let </span>instance_desc = vk::InstanceCreateInfo::default()
+<a href=#89 id=89 data-nosnippet>89</a>			.application_info(<span class="kw-2">&amp;</span>app_info)
+<a href=#90 id=90 data-nosnippet>90</a>			.enabled_extension_names(extensions);
+<a href=#91 id=91 data-nosnippet>91</a>
+<a href=#92 id=92 data-nosnippet>92</a>		<span class="kw">let </span>instance: Instance = <span class="kw">unsafe </span>{
+<a href=#93 id=93 data-nosnippet>93</a>			<span class="doccomment">/**
+<a href=#94 id=94 data-nosnippet>94</a>			 * `vkCreateInstance(&amp;createInfo, nullptr, &amp;instance)` -&gt; function from C++
+<a href=#95 id=95 data-nosnippet>95</a>			 * in this case, createInfo is `instance_desc`
+<a href=#96 id=96 data-nosnippet>96</a>			 * the Pointer to the variable that stores the handle to the new object (&amp;instance) value isn't necessary
+<a href=#97 id=97 data-nosnippet>97</a>			 *
+<a href=#98 id=98 data-nosnippet>98</a>			 * `VK_ERROR_INCOMPATIBLE_DRIVER`:
+<a href=#99 id=99 data-nosnippet>99</a>			 * &lt;https://vulkan-tutorial.com/en/Drawing_a_triangle/Setup/Instance#:~:text=Encountered%20VK%5FERROR%5FINCOMPATIBLE%5FDRIVER&gt;
+<a href=#100 id=100 data-nosnippet>100</a>			 */
+<a href=#101 id=101 data-nosnippet>101</a>			</span>entry.create_instance(<span class="kw-2">&amp;</span>instance_desc, <span class="prelude-val">None</span>)<span class="question-mark">?
+<a href=#102 id=102 data-nosnippet>102</a>		</span>};
+<a href=#103 id=103 data-nosnippet>103</a>
+<a href=#104 id=104 data-nosnippet>104</a>		<span class="doccomment">/**
+<a href=#105 id=105 data-nosnippet>105</a>		 * Handlers
+<a href=#106 id=106 data-nosnippet>106</a>		 */
+<a href=#107 id=107 data-nosnippet>107</a>		</span><span class="kw">let </span>device = <span class="self">Self</span>::get_device(<span class="kw-2">&amp;</span>instance)<span class="question-mark">?</span>;
+<a href=#108 id=108 data-nosnippet>108</a>		<span class="comment">//let _logic = Self::create_logic_device();
+<a href=#109 id=109 data-nosnippet>109</a>		</span><span class="kw">let </span>renderpass = <span class="self">Self</span>::render_pass(<span class="kw-2">&amp;</span>device)<span class="question-mark">?</span>;
+<a href=#110 id=110 data-nosnippet>110</a>
+<a href=#111 id=111 data-nosnippet>111</a>		<span class="doccomment">/** &lt;https://github.com/ash-rs/ash/blob/master/ash-examples/src/lib.rs&gt;
+<a href=#112 id=112 data-nosnippet>112</a>		 * The Headless backend will be used to implement tests
+<a href=#113 id=113 data-nosnippet>113</a>		 * the repo uses `let surface_loader = surface::Instance::load(&amp;entry, &amp;instance);`
+<a href=#114 id=114 data-nosnippet>114</a>		 * but the way it is created is different, using `SurfaceFactory`, for that I would need winit
+<a href=#115 id=115 data-nosnippet>115</a>		 */
+<a href=#116 id=116 data-nosnippet>116</a>
+<a href=#117 id=117 data-nosnippet>117</a>		</span><span class="attr">#[cfg(target_os = <span class="string">"macos"</span>)]
+<a href=#118 id=118 data-nosnippet>118</a>		</span><span class="kw">let </span>view = backend.ns_view;
+<a href=#119 id=119 data-nosnippet>119</a>
+<a href=#120 id=120 data-nosnippet>120</a>		<span class="attr">#[cfg(target_os = <span class="string">"linux"</span>)]
+<a href=#121 id=121 data-nosnippet>121</a>		</span><span class="kw">let </span>view: <span class="kw-2">*mut </span>void = backend.surface;
+<a href=#122 id=122 data-nosnippet>122</a>
+<a href=#123 id=123 data-nosnippet>123</a>		<span class="attr">#[cfg(target_os = <span class="string">"windows"</span>)]
+<a href=#124 id=124 data-nosnippet>124</a>		</span><span class="kw">let </span>view: <span class="kw-2">*mut </span>void = <span class="macro">todo!</span>();
+<a href=#125 id=125 data-nosnippet>125</a>
+<a href=#126 id=126 data-nosnippet>126</a>		<span class="kw">let </span><span class="prelude-val">Some</span>(nn_view) = NonNull::new(view) <span class="kw">else </span>{
+<a href=#127 id=127 data-nosnippet>127</a>			<span class="kw">return </span><span class="prelude-val">Err</span>(Box::from(<span class="string">"view shouldn't be null"</span>))
+<a href=#128 id=128 data-nosnippet>128</a>		};
+<a href=#129 id=129 data-nosnippet>129</a>
+<a href=#130 id=130 data-nosnippet>130</a>		<span class="kw">let </span>surface = <span class="self">Self</span>::new_surface(<span class="kw-2">&amp;</span>instance, <span class="kw-2">&amp;</span>entry, nn_view.cast())<span class="question-mark">?</span>;
+<a href=#131 id=131 data-nosnippet>131</a>
+<a href=#132 id=132 data-nosnippet>132</a>		<span class="prelude-val">Ok</span>(Renderer {
+<a href=#133 id=133 data-nosnippet>133</a>			surface,
+<a href=#134 id=134 data-nosnippet>134</a>			renderpass,
+<a href=#135 id=135 data-nosnippet>135</a>			device,
+<a href=#136 id=136 data-nosnippet>136</a>			instance,
+<a href=#137 id=137 data-nosnippet>137</a>		})
+<a href=#138 id=138 data-nosnippet>138</a>	}
+<a href=#139 id=139 data-nosnippet>139</a>
+<a href=#140 id=140 data-nosnippet>140</a>	<span class="doccomment">/// Returns the Wrapper for the `SurfaceKHR`
+<a href=#141 id=141 data-nosnippet>141</a>	</span><span class="kw">pub fn </span>get_surface(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SurfaceWrapper
+<a href=#142 id=142 data-nosnippet>142</a>		{ SurfaceWrapper::new(<span class="self">self</span>.surface) }
+<a href=#143 id=143 data-nosnippet>143</a>
+<a href=#144 id=144 data-nosnippet>144</a>	<span class="doccomment">/**
+<a href=#145 id=145 data-nosnippet>145</a>	 * in the future, implement a rate to pick the best device avaliable
+<a href=#146 id=146 data-nosnippet>146</a>	 * get the device properties and check it can be used
+<a href=#147 id=147 data-nosnippet>147</a>	 * &lt;https://docs.vulkan.org/tutorial/latest/03_Drawing_a_triangle/00_Setup/03_Physical_devices_and_queue_families.html&gt;
+<a href=#148 id=148 data-nosnippet>148</a>	 * &lt;https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families#:~:text=isDeviceSuitable&gt;
+<a href=#149 id=149 data-nosnippet>149</a>	 */
+<a href=#150 id=150 data-nosnippet>150</a>	</span><span class="attr">#[inline]
+<a href=#151 id=151 data-nosnippet>151</a>	</span><span class="kw">fn </span>is_device_suitable(instance: <span class="kw-2">&amp;</span>ash::Instance, device: PhysicalDevice) -&gt; bool
+<a href=#152 id=152 data-nosnippet>152</a>	{
+<a href=#153 id=153 data-nosnippet>153</a>		<span class="kw">let </span>prop = <span class="kw">unsafe </span>{ instance.get_physical_device_properties(device) };
+<a href=#154 id=154 data-nosnippet>154</a>		<span class="kw">let </span>feat = <span class="kw">unsafe </span>{ instance.get_physical_device_features(device) };
 <a href=#155 id=155 data-nosnippet>155</a>
-<a href=#156 id=156 data-nosnippet>156</a>		<span class="kw">let </span>selected_device = selected_device.unwrap_or_else(||
-<a href=#157 id=157 data-nosnippet>157</a>			<span class="macro">panic!</span>(<span class="string">"failed to find a suitable GPU!"</span>)
-<a href=#158 id=158 data-nosnippet>158</a>		);
-<a href=#159 id=159 data-nosnippet>159</a>
-<a href=#160 id=160 data-nosnippet>160</a>		<span class="kw">let </span>queue_families =
-<a href=#161 id=161 data-nosnippet>161</a>			<span class="kw">unsafe </span>{ instance.get_physical_device_queue_family_properties(selected_device) };
-<a href=#162 id=162 data-nosnippet>162</a>
-<a href=#163 id=163 data-nosnippet>163</a>		<span class="kw">let </span>graphics_queue_index = queue_families
-<a href=#164 id=164 data-nosnippet>164</a>			.iter()
-<a href=#165 id=165 data-nosnippet>165</a>			.enumerate()
-<a href=#166 id=166 data-nosnippet>166</a>			.find(|(<span class="kw">_</span>, q)| q.queue_flags.contains(vk::QueueFlags::GRAPHICS))
-<a href=#167 id=167 data-nosnippet>167</a>			.map(|(i, <span class="kw">_</span>)| i)
-<a href=#168 id=168 data-nosnippet>168</a>			.expect(<span class="string">"no graphics queue found"</span>) <span class="kw">as </span>u32;
-<a href=#169 id=169 data-nosnippet>169</a>
-<a href=#170 id=170 data-nosnippet>170</a>		<span class="kw">let </span>queue_priority = <span class="number">1.0</span>;
-<a href=#171 id=171 data-nosnippet>171</a>		<span class="kw">let </span>binding = [queue_priority];
-<a href=#172 id=172 data-nosnippet>172</a>
-<a href=#173 id=173 data-nosnippet>173</a>		<span class="kw">let </span>queue_info = vk::DeviceQueueCreateInfo::default()
-<a href=#174 id=174 data-nosnippet>174</a>			.queue_family_index(graphics_queue_index)
-<a href=#175 id=175 data-nosnippet>175</a>			.queue_priorities(<span class="kw-2">&amp;</span>binding);
-<a href=#176 id=176 data-nosnippet>176</a>
-<a href=#177 id=177 data-nosnippet>177</a>		<span class="kw">let </span>device_features = vk::PhysicalDeviceFeatures::default();
-<a href=#178 id=178 data-nosnippet>178</a>
-<a href=#179 id=179 data-nosnippet>179</a>		<span class="kw">let </span>device_create_info = vk::DeviceCreateInfo::default()
-<a href=#180 id=180 data-nosnippet>180</a>			.queue_create_infos(slice::from_ref(<span class="kw-2">&amp;</span>queue_info))
-<a href=#181 id=181 data-nosnippet>181</a>			.enabled_features(<span class="kw-2">&amp;</span>device_features);
+<a href=#156 id=156 data-nosnippet>156</a>		<span class="doccomment">/**
+<a href=#157 id=157 data-nosnippet>157</a>		 * `INTEGRATED_GPU` will be the case on `MacOS`
+<a href=#158 id=158 data-nosnippet>158</a>		 * for some reason the constant value for that is not working, so im using `.as_raw() == 1`
+<a href=#159 id=159 data-nosnippet>159</a>		 * "associated item not found in `PhysicalDevice`"
+<a href=#160 id=160 data-nosnippet>160</a>		 */
+<a href=#161 id=161 data-nosnippet>161</a>		</span><span class="kw">if </span>feat.geometry_shader == dirty::TRUE
+<a href=#162 id=162 data-nosnippet>162</a>			&amp;&amp; prop.device_type == vk::PhysicalDeviceType::DISCRETE_GPU
+<a href=#163 id=163 data-nosnippet>163</a>			|| prop.device_type.as_raw() == <span class="number">1 </span><span class="comment">// this represents Self(1) or INTEGRATED_GPU
+<a href=#164 id=164 data-nosnippet>164</a>		</span>{ <span class="kw">return </span><span class="bool-val">true</span>; }
+<a href=#165 id=165 data-nosnippet>165</a>
+<a href=#166 id=166 data-nosnippet>166</a>		<span class="bool-val">false
+<a href=#167 id=167 data-nosnippet>167</a>	</span>}
+<a href=#168 id=168 data-nosnippet>168</a>
+<a href=#169 id=169 data-nosnippet>169</a>	<span class="doccomment">/**
+<a href=#170 id=170 data-nosnippet>170</a>	 * &lt;https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families&gt;
+<a href=#171 id=171 data-nosnippet>171</a>	 * this will get the first graphics card avaliable
+<a href=#172 id=172 data-nosnippet>172</a>	 */
+<a href=#173 id=173 data-nosnippet>173</a>	</span><span class="kw">fn </span>get_device(instance: <span class="kw-2">&amp;</span>ash::Instance) -&gt; <span class="prelude-ty">Result</span>&lt;ash::Device, Box&lt;<span class="kw">dyn </span>Error&gt;&gt;
+<a href=#174 id=174 data-nosnippet>174</a>	{
+<a href=#175 id=175 data-nosnippet>175</a>		<span class="doccomment">/**
+<a href=#176 id=176 data-nosnippet>176</a>		 * C++
+<a href=#177 id=177 data-nosnippet>177</a>		 * `uint32_t deviceCount = 0;`
+<a href=#178 id=178 data-nosnippet>178</a>		 * `vkEnumeratePhysicalDevices(instance, &amp;deviceCount, nullptr);`
+<a href=#179 id=179 data-nosnippet>179</a>		 * same idea from ours, but ash offers less control, no need to implement verifications of support
+<a href=#180 id=180 data-nosnippet>180</a>		 */
+<a href=#181 id=181 data-nosnippet>181</a>		</span><span class="kw">let </span>physical_devices = <span class="kw">unsafe </span>{ instance.enumerate_physical_devices()<span class="question-mark">? </span>};
 <a href=#182 id=182 data-nosnippet>182</a>
-<a href=#183 id=183 data-nosnippet>183</a>		<span class="kw">let </span>device_extensions = [
-<a href=#184 id=184 data-nosnippet>184</a>			vk::KHR_SWAPCHAIN_NAME.as_ptr(),
-<a href=#185 id=185 data-nosnippet>185</a>		];
-<a href=#186 id=186 data-nosnippet>186</a>
-<a href=#187 id=187 data-nosnippet>187</a>		<span class="kw">let </span>device_create_info = device_create_info
-<a href=#188 id=188 data-nosnippet>188</a>			.enabled_extension_names(<span class="kw-2">&amp;</span>device_extensions);
-<a href=#189 id=189 data-nosnippet>189</a>
-<a href=#190 id=190 data-nosnippet>190</a>		<span class="prelude-val">Ok</span>(
-<a href=#191 id=191 data-nosnippet>191</a>			<span class="kw">unsafe </span>{ instance.create_device(selected_device, <span class="kw-2">&amp;</span>device_create_info, <span class="prelude-val">None</span>)<span class="question-mark">? </span>}
-<a href=#192 id=192 data-nosnippet>192</a>		)
-<a href=#193 id=193 data-nosnippet>193</a>	}
+<a href=#183 id=183 data-nosnippet>183</a>		<span class="kw">let </span><span class="kw-2">mut </span>maybe_selected_device: <span class="prelude-ty">Option</span>&lt;PhysicalDevice&gt; = <span class="prelude-val">None</span>;
+<a href=#184 id=184 data-nosnippet>184</a>		<span class="kw">for </span>device <span class="kw">in </span>physical_devices {
+<a href=#185 id=185 data-nosnippet>185</a>			<span class="kw">if </span>!<span class="self">Self</span>::is_device_suitable(instance, device) { <span class="kw">continue </span>}
+<a href=#186 id=186 data-nosnippet>186</a>			<span class="macro">debug!</span>(<span class="string">"found suitable device `{device:?}`!"</span>);
+<a href=#187 id=187 data-nosnippet>187</a>			maybe_selected_device = <span class="prelude-val">Some</span>(device);
+<a href=#188 id=188 data-nosnippet>188</a>			<span class="kw">break
+<a href=#189 id=189 data-nosnippet>189</a>		</span>}
+<a href=#190 id=190 data-nosnippet>190</a>
+<a href=#191 id=191 data-nosnippet>191</a>		<span class="kw">let </span><span class="prelude-val">Some</span>(selected_device) = maybe_selected_device <span class="kw">else </span>{
+<a href=#192 id=192 data-nosnippet>192</a>			<span class="kw">return </span><span class="prelude-val">Err</span>(Box::from(<span class="string">"failed to find a suitable GPU!"</span>))
+<a href=#193 id=193 data-nosnippet>193</a>		};
 <a href=#194 id=194 data-nosnippet>194</a>
-<a href=#195 id=195 data-nosnippet>195</a>	<span class="attr">#[cfg(target_os = <span class="string">"macos"</span>)]
-<a href=#196 id=196 data-nosnippet>196</a>	</span><span class="kw">fn </span>new_surface(instance: <span class="kw-2">&amp;</span>Instance, entry: <span class="kw-2">&amp;</span>ash::Entry, window: NonNull&lt;void&gt;) -&gt; SurfaceKHR
-<a href=#197 id=197 data-nosnippet>197</a>	{
-<a href=#198 id=198 data-nosnippet>198</a>		<span class="kw">use </span>objc2::{rc::Retained, msg_send, ClassType};
-<a href=#199 id=199 data-nosnippet>199</a>		<span class="kw">use </span>objc2_quartz_core::CALayer;
-<a href=#200 id=200 data-nosnippet>200</a>		<span class="kw">use </span>objc2_foundation::NSObject;
-<a href=#201 id=201 data-nosnippet>201</a>		<span class="kw">use </span>ash::ext::metal_surface;
-<a href=#202 id=202 data-nosnippet>202</a>		<span class="macro">debug!</span>(<span class="string">"creating metal surface"</span>);
-<a href=#203 id=203 data-nosnippet>203</a>
-<a href=#204 id=204 data-nosnippet>204</a>		<span class="kw">let </span>ns_view: <span class="kw-2">&amp;</span>NSObject = <span class="kw">unsafe </span>{ window.cast().as_ref() };
-<a href=#205 id=205 data-nosnippet>205</a>		<span class="kw">let _</span>: () = <span class="kw">unsafe </span>{ <span class="macro">msg_send!</span>[ns_view, setWantsLayer: <span class="bool-val">true</span>] };
-<a href=#206 id=206 data-nosnippet>206</a>
-<a href=#207 id=207 data-nosnippet>207</a>		<span class="kw">let </span>layer: <span class="prelude-ty">Option</span>&lt;Retained&lt;CALayer&gt;&gt; = <span class="kw">unsafe </span>{ <span class="macro">msg_send!</span>[ns_view, layer] };
-<a href=#208 id=208 data-nosnippet>208</a>		<span class="kw">let </span>layer = void::to_handle(
-<a href=#209 id=209 data-nosnippet>209</a>			<span class="kw-2">&amp;mut </span>layer.expect(<span class="string">"failed making the view layer-backed"</span>).as_super()
-<a href=#210 id=210 data-nosnippet>210</a>		);
-<a href=#211 id=211 data-nosnippet>211</a>
-<a href=#212 id=212 data-nosnippet>212</a>		<span class="kw">let </span>surface_desc = vk::MetalSurfaceCreateInfoEXT::default().layer(layer <span class="kw">as </span><span class="kw-2">*const </span>core::ffi::c_void);
-<a href=#213 id=213 data-nosnippet>213</a>		<span class="kw">let </span>surface = metal_surface::Instance::new(entry, instance);
+<a href=#195 id=195 data-nosnippet>195</a>		<span class="kw">let </span>queue_families = <span class="kw">unsafe </span>{
+<a href=#196 id=196 data-nosnippet>196</a>			instance.get_physical_device_queue_family_properties(selected_device)
+<a href=#197 id=197 data-nosnippet>197</a>		};
+<a href=#198 id=198 data-nosnippet>198</a>
+<a href=#199 id=199 data-nosnippet>199</a>		<span class="kw">let </span>graphics_queue_index: u32 = u32::try_from(
+<a href=#200 id=200 data-nosnippet>200</a>			queue_families
+<a href=#201 id=201 data-nosnippet>201</a>				.iter()
+<a href=#202 id=202 data-nosnippet>202</a>				.enumerate()
+<a href=#203 id=203 data-nosnippet>203</a>				.find(|(<span class="kw">_</span>, q)| q.queue_flags.contains(vk::QueueFlags::GRAPHICS))
+<a href=#204 id=204 data-nosnippet>204</a>				.ok_or(<span class="string">"no graphics queue found"</span>)<span class="question-mark">?
+<a href=#205 id=205 data-nosnippet>205</a>				</span>.<span class="number">0
+<a href=#206 id=206 data-nosnippet>206</a>		</span>)<span class="question-mark">?</span>;
+<a href=#207 id=207 data-nosnippet>207</a>
+<a href=#208 id=208 data-nosnippet>208</a>		<span class="kw">let </span>queue_priority = <span class="number">1.0</span>;
+<a href=#209 id=209 data-nosnippet>209</a>		<span class="kw">let </span>binding = [queue_priority];
+<a href=#210 id=210 data-nosnippet>210</a>
+<a href=#211 id=211 data-nosnippet>211</a>		<span class="kw">let </span>queue_info = vk::DeviceQueueCreateInfo::default()
+<a href=#212 id=212 data-nosnippet>212</a>			.queue_family_index(graphics_queue_index)
+<a href=#213 id=213 data-nosnippet>213</a>			.queue_priorities(<span class="kw-2">&amp;</span>binding);
 <a href=#214 id=214 data-nosnippet>214</a>
-<a href=#215 id=215 data-nosnippet>215</a>		<span class="kw">unsafe </span>{
-<a href=#216 id=216 data-nosnippet>216</a>			surface.create_metal_surface(<span class="kw-2">&amp;</span>surface_desc, <span class="prelude-val">None</span>)
-<a href=#217 id=217 data-nosnippet>217</a>				.expect(<span class="string">"couldn't create metal surface"</span>)
-<a href=#218 id=218 data-nosnippet>218</a>		}
-<a href=#219 id=219 data-nosnippet>219</a>	}
+<a href=#215 id=215 data-nosnippet>215</a>		<span class="kw">let </span>device_features = vk::PhysicalDeviceFeatures::default();
+<a href=#216 id=216 data-nosnippet>216</a>
+<a href=#217 id=217 data-nosnippet>217</a>		<span class="kw">let </span>device_extensions = [
+<a href=#218 id=218 data-nosnippet>218</a>			vk::KHR_SWAPCHAIN_NAME.as_ptr(),
+<a href=#219 id=219 data-nosnippet>219</a>		];
 <a href=#220 id=220 data-nosnippet>220</a>
-<a href=#221 id=221 data-nosnippet>221</a>	<span class="comment">// WARN: this is just a model and is not complete. The code will fail.
-<a href=#222 id=222 data-nosnippet>222</a>	</span><span class="attr">#[cfg(target_os = <span class="string">"linux"</span>)]
-<a href=#223 id=223 data-nosnippet>223</a>	</span><span class="kw">fn </span>new_surface(instance: <span class="kw-2">&amp;</span>Instance, entry: <span class="kw-2">&amp;</span>ash::Entry, window: NonNull&lt;void&gt;) -&gt; SurfaceKHR
-<a href=#224 id=224 data-nosnippet>224</a>	{
-<a href=#225 id=225 data-nosnippet>225</a>		<span class="macro">debug!</span>(<span class="string">"creating linux wayland surface"</span>);
-<a href=#226 id=226 data-nosnippet>226</a>		<span class="kw">use </span>ash::{khr::wayland_surface, vk::wl_display};
-<a href=#227 id=227 data-nosnippet>227</a>
-<a href=#228 id=228 data-nosnippet>228</a>		<span class="kw">let </span>window: <span class="kw-2">&amp;</span>Wrapper = <span class="kw">unsafe </span>{ window.cast().as_ref() };
-<a href=#229 id=229 data-nosnippet>229</a>		<span class="doccomment">/**
-<a href=#230 id=230 data-nosnippet>230</a>		 * https://docs.rs/ash-window/0.13.0/src/ash_window/lib.rs.html#36-126
-<a href=#231 id=231 data-nosnippet>231</a>		 */
-<a href=#232 id=232 data-nosnippet>232</a>		</span><span class="kw">let </span>display = core::ptr::null_mut() <span class="kw">as </span><span class="kw-2">*const </span>void <span class="kw">as </span><span class="kw-2">*mut </span>wl_display;
-<a href=#233 id=233 data-nosnippet>233</a>
-<a href=#234 id=234 data-nosnippet>234</a>		<span class="kw">let </span>surface_desc = vk::WaylandSurfaceCreateInfoKHR::default()
-<a href=#235 id=235 data-nosnippet>235</a>			.display(display)
-<a href=#236 id=236 data-nosnippet>236</a>			.surface((<span class="kw-2">*</span>window).surface.as_ptr() <span class="kw">as </span><span class="kw-2">*mut </span>core::ffi::c_void);
-<a href=#237 id=237 data-nosnippet>237</a>
-<a href=#238 id=238 data-nosnippet>238</a>		<span class="kw">let </span>surface = wayland_surface::Instance::new(entry, instance);
-<a href=#239 id=239 data-nosnippet>239</a>		<span class="kw">unsafe </span>{ surface.create_wayland_surface(<span class="kw-2">&amp;</span>surface_desc, <span class="prelude-val">None</span>)
-<a href=#240 id=240 data-nosnippet>240</a>			.expect(<span class="string">"couldn't create wayland surface"</span>) }
-<a href=#241 id=241 data-nosnippet>241</a>	}
-<a href=#242 id=242 data-nosnippet>242</a>
-<a href=#243 id=243 data-nosnippet>243</a>	<span class="attr">#[cfg(target_os = <span class="string">"windows"</span>)]
-<a href=#244 id=244 data-nosnippet>244</a>	</span><span class="kw">fn </span>new_surface(instance: <span class="kw-2">&amp;</span>Instance, entry: <span class="kw-2">&amp;</span>ash::Entry, window: NonNull&lt;void&gt;) -&gt; SurfaceKHR
-<a href=#245 id=245 data-nosnippet>245</a>	{
-<a href=#246 id=246 data-nosnippet>246</a>		<span class="macro">todo!</span>();
-<a href=#247 id=247 data-nosnippet>247</a>	}
-<a href=#248 id=248 data-nosnippet>248</a>
-<a href=#249 id=249 data-nosnippet>249</a>	<span class="doccomment">/// Creates a new vulkan renderpass
-<a href=#250 id=250 data-nosnippet>250</a>	/// here's an oficial example: &lt;https://github.com/ash-rs/ash/blob/master/ash-examples/src/bin/texture.rs&gt;
-<a href=#251 id=251 data-nosnippet>251</a>	</span><span class="kw">pub fn </span>render_pass(device: <span class="kw-2">&amp;</span>ash::Device) -&gt; <span class="prelude-ty">Result</span>&lt;RenderPass, Box&lt;<span class="kw">dyn </span>Error&gt;&gt;
-<a href=#252 id=252 data-nosnippet>252</a>	{
-<a href=#253 id=253 data-nosnippet>253</a>		<span class="comment">// tbh, I have no idea what does this do
-<a href=#254 id=254 data-nosnippet>254</a>		</span><span class="kw">let </span>renderpass_attachments = [
-<a href=#255 id=255 data-nosnippet>255</a>			vk::AttachmentDescription {
-<a href=#256 id=256 data-nosnippet>256</a>				samples: vk::SampleCountFlags::TYPE_1,
-<a href=#257 id=257 data-nosnippet>257</a>				load_op: vk::AttachmentLoadOp::CLEAR,
-<a href=#258 id=258 data-nosnippet>258</a>				store_op: vk::AttachmentStoreOp::STORE,
-<a href=#259 id=259 data-nosnippet>259</a>				final_layout: vk::ImageLayout::PRESENT_SRC_KHR,
-<a href=#260 id=260 data-nosnippet>260</a>				..Default::default()
-<a href=#261 id=261 data-nosnippet>261</a>			},
-<a href=#262 id=262 data-nosnippet>262</a>			vk::AttachmentDescription {
-<a href=#263 id=263 data-nosnippet>263</a>				format: vk::Format::D16_UNORM,
-<a href=#264 id=264 data-nosnippet>264</a>				samples: vk::SampleCountFlags::TYPE_1,
-<a href=#265 id=265 data-nosnippet>265</a>				load_op: vk::AttachmentLoadOp::CLEAR,
-<a href=#266 id=266 data-nosnippet>266</a>				initial_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-<a href=#267 id=267 data-nosnippet>267</a>				final_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-<a href=#268 id=268 data-nosnippet>268</a>				..Default::default()
-<a href=#269 id=269 data-nosnippet>269</a>			},
-<a href=#270 id=270 data-nosnippet>270</a>		];
-<a href=#271 id=271 data-nosnippet>271</a>
-<a href=#272 id=272 data-nosnippet>272</a>		<span class="kw">let </span>color_attachment_refs = [vk::AttachmentReference {
-<a href=#273 id=273 data-nosnippet>273</a>			attachment: <span class="number">0</span>,
-<a href=#274 id=274 data-nosnippet>274</a>			layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-<a href=#275 id=275 data-nosnippet>275</a>		}];
-<a href=#276 id=276 data-nosnippet>276</a>		<span class="kw">let </span>depth_attachment_ref = vk::AttachmentReference {
-<a href=#277 id=277 data-nosnippet>277</a>			attachment: <span class="number">1</span>,
-<a href=#278 id=278 data-nosnippet>278</a>			layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-<a href=#279 id=279 data-nosnippet>279</a>		};
-<a href=#280 id=280 data-nosnippet>280</a>		<span class="kw">let </span>dependencies = [vk::SubpassDependency {
-<a href=#281 id=281 data-nosnippet>281</a>			src_subpass: vk::SUBPASS_EXTERNAL,
-<a href=#282 id=282 data-nosnippet>282</a>			src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-<a href=#283 id=283 data-nosnippet>283</a>			dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
-<a href=#284 id=284 data-nosnippet>284</a>				| vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-<a href=#285 id=285 data-nosnippet>285</a>			dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-<a href=#286 id=286 data-nosnippet>286</a>			..Default::default()
-<a href=#287 id=287 data-nosnippet>287</a>		}];
-<a href=#288 id=288 data-nosnippet>288</a>
-<a href=#289 id=289 data-nosnippet>289</a>		<span class="kw">let </span>subpass = vk::SubpassDescription::default()
-<a href=#290 id=290 data-nosnippet>290</a>			.color_attachments(<span class="kw-2">&amp;</span>color_attachment_refs)
-<a href=#291 id=291 data-nosnippet>291</a>			.depth_stencil_attachment(<span class="kw-2">&amp;</span>depth_attachment_ref)
-<a href=#292 id=292 data-nosnippet>292</a>			.pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS);
-<a href=#293 id=293 data-nosnippet>293</a>
-<a href=#294 id=294 data-nosnippet>294</a>		<span class="kw">let </span>renderpass_create_info = vk::RenderPassCreateInfo::default()
-<a href=#295 id=295 data-nosnippet>295</a>			.attachments(<span class="kw-2">&amp;</span>renderpass_attachments)
-<a href=#296 id=296 data-nosnippet>296</a>			.subpasses(slice::from_ref(<span class="kw-2">&amp;</span>subpass))
-<a href=#297 id=297 data-nosnippet>297</a>			.dependencies(<span class="kw-2">&amp;</span>dependencies);
-<a href=#298 id=298 data-nosnippet>298</a>
-<a href=#299 id=299 data-nosnippet>299</a>		<span class="kw">let </span>renderpass = <span class="kw">unsafe </span>{
-<a href=#300 id=300 data-nosnippet>300</a>			device
-<a href=#301 id=301 data-nosnippet>301</a>				.create_render_pass(<span class="kw-2">&amp;</span>renderpass_create_info, <span class="prelude-val">None</span>)
-<a href=#302 id=302 data-nosnippet>302</a>				.unwrap()
-<a href=#303 id=303 data-nosnippet>303</a>		};
-<a href=#304 id=304 data-nosnippet>304</a>
-<a href=#305 id=305 data-nosnippet>305</a>		<span class="kw">return </span><span class="prelude-val">Ok</span>(renderpass);
-<a href=#306 id=306 data-nosnippet>306</a>	}
-<a href=#307 id=307 data-nosnippet>307</a>
-<a href=#308 id=308 data-nosnippet>308</a>	<span class="comment">// for now returns a generic value
-<a href=#309 id=309 data-nosnippet>309</a>	</span><span class="kw">pub fn </span>get_surface_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (f32, f32) { (<span class="number">0.0</span>, <span class="number">0.0</span>) }
-<a href=#310 id=310 data-nosnippet>310</a>
-<a href=#311 id=311 data-nosnippet>311</a>	<span class="attr">#[allow(unused)]
-<a href=#312 id=312 data-nosnippet>312</a>	</span><span class="kw">pub fn </span>cleanup(<span class="kw-2">&amp;</span><span class="self">self</span>)
-<a href=#313 id=313 data-nosnippet>313</a>	{
-<a href=#314 id=314 data-nosnippet>314</a>		<span class="kw">unsafe </span>{ <span class="self">self</span>.instance.destroy_instance(<span class="prelude-val">None</span>); }
-<a href=#315 id=315 data-nosnippet>315</a>	}
-<a href=#316 id=316 data-nosnippet>316</a>
-<a href=#317 id=317 data-nosnippet>317</a>	<span class="comment">// TODO: make this work (yes, I know it's ugly)
-<a href=#318 id=318 data-nosnippet>318</a>	// For some reason it returns `Vulkan inicialization failed: ERROR_INCOMPATIBLE_DRIVER`
-<a href=#319 id=319 data-nosnippet>319</a>	// it shouldn't happen because of the MoltenVK_icd.json
-<a href=#320 id=320 data-nosnippet>320</a>	/*#[cfg(target_os = "macos")]
-<a href=#321 id=321 data-nosnippet>321</a>	fn vulkan_entry() -&gt; ash::Entry
-<a href=#322 id=322 data-nosnippet>322</a>	{
-<a href=#323 id=323 data-nosnippet>323</a>		use std::env;
-<a href=#324 id=324 data-nosnippet>324</a>
-<a href=#325 id=325 data-nosnippet>325</a>		/**
-<a href=#326 id=326 data-nosnippet>326</a>		 * MacOS does not have vulkan natively, so, we need to load the libs ourselves
-<a href=#327 id=327 data-nosnippet>327</a>		 * Get the self.app path and load dependencies packaged inside Resources/ and Frameworks/
-<a href=#328 id=328 data-nosnippet>328</a>		 */
-<a href=#329 id=329 data-nosnippet>329</a>		#[cfg(not(debug_assertions))]
-<a href=#330 id=330 data-nosnippet>330</a>		use std::path::PathBuf;
-<a href=#331 id=331 data-nosnippet>331</a>
-<a href=#332 id=332 data-nosnippet>332</a>		#[cfg(not(debug_assertions))]
-<a href=#333 id=333 data-nosnippet>333</a>		let exe = env::current_exe().unwrap();
-<a href=#334 id=334 data-nosnippet>334</a>
-<a href=#335 id=335 data-nosnippet>335</a>		#[cfg(not(debug_assertions))]
-<a href=#336 id=336 data-nosnippet>336</a>		let contents = exe.parent()
-<a href=#337 id=337 data-nosnippet>337</a>			.unwrap()
-<a href=#338 id=338 data-nosnippet>338</a>			.parent()
-<a href=#339 id=339 data-nosnippet>339</a>			.unwrap();
-<a href=#340 id=340 data-nosnippet>340</a>
-<a href=#341 id=341 data-nosnippet>341</a>		#[cfg(not(debug_assertions))]
-<a href=#342 id=342 data-nosnippet>342</a>		let icd = contents
-<a href=#343 id=343 data-nosnippet>343</a>			.join("Resources/vulkan/icd.d/MoltenVK_icd.json");
-<a href=#344 id=344 data-nosnippet>344</a>
-<a href=#345 id=345 data-nosnippet>345</a>		#[cfg(not(debug_assertions))]
-<a href=#346 id=346 data-nosnippet>346</a>		let loader = contents
-<a href=#347 id=347 data-nosnippet>347</a>			.join("Frameworks/libvulkan.dylib");
-<a href=#348 id=348 data-nosnippet>348</a>
-<a href=#349 id=349 data-nosnippet>349</a>		/**
-<a href=#350 id=350 data-nosnippet>350</a>		 * Debug
-<a href=#351 id=351 data-nosnippet>351</a>		 * this env wont be inside .app but on target/debug/, so we will need to get the libs from the global install
-<a href=#352 id=352 data-nosnippet>352</a>		 */
-<a href=#353 id=353 data-nosnippet>353</a>		#[cfg(debug_assertions)]
-<a href=#354 id=354 data-nosnippet>354</a>		let icd = "/opt/homebrew/Cellar/molten-vk/1.4.0/etc/vulkan/icd.d/MoltenVK_icd.json";
-<a href=#355 id=355 data-nosnippet>355</a>
-<a href=#356 id=356 data-nosnippet>356</a>		#[cfg(debug_assertions)]
-<a href=#357 id=357 data-nosnippet>357</a>		let loader = "/opt/homebrew/lib/libvulkan.dylib";
-<a href=#358 id=358 data-nosnippet>358</a>
-<a href=#359 id=359 data-nosnippet>359</a>		unsafe {
-<a href=#360 id=360 data-nosnippet>360</a>			env::set_var("VK_ICD_FILENAMES", icd);
-<a href=#361 id=361 data-nosnippet>361</a>
-<a href=#362 id=362 data-nosnippet>362</a>			ash::Entry::load_from(loader)
-<a href=#363 id=363 data-nosnippet>363</a>				.expect("error loading MoltenVK")
-<a href=#364 id=364 data-nosnippet>364</a>		}
-<a href=#365 id=365 data-nosnippet>365</a>	}*/
-<a href=#366 id=366 data-nosnippet>366</a></span>}</code></pre></div></section></main></body></html>
+<a href=#221 id=221 data-nosnippet>221</a>		<span class="kw">let </span>device_create_info = vk::DeviceCreateInfo::default()
+<a href=#222 id=222 data-nosnippet>222</a>			.enabled_extension_names(<span class="kw-2">&amp;</span>device_extensions)
+<a href=#223 id=223 data-nosnippet>223</a>			.queue_create_infos(slice::from_ref(<span class="kw-2">&amp;</span>queue_info))
+<a href=#224 id=224 data-nosnippet>224</a>			.enabled_features(<span class="kw-2">&amp;</span>device_features);
+<a href=#225 id=225 data-nosnippet>225</a>
+<a href=#226 id=226 data-nosnippet>226</a>		<span class="prelude-val">Ok</span>(<span class="kw">unsafe </span>{
+<a href=#227 id=227 data-nosnippet>227</a>			instance.create_device(selected_device, <span class="kw-2">&amp;</span>device_create_info, <span class="prelude-val">None</span>)<span class="question-mark">?
+<a href=#228 id=228 data-nosnippet>228</a>		</span>})
+<a href=#229 id=229 data-nosnippet>229</a>	}
+<a href=#230 id=230 data-nosnippet>230</a>
+<a href=#231 id=231 data-nosnippet>231</a>	<span class="doccomment">/// Creates a new surface
+<a href=#232 id=232 data-nosnippet>232</a>	</span><span class="attr">#[cfg(target_os = <span class="string">"macos"</span>)]
+<a href=#233 id=233 data-nosnippet>233</a>	</span><span class="kw">fn </span>new_surface(
+<a href=#234 id=234 data-nosnippet>234</a>		instance: <span class="kw-2">&amp;</span>Instance,
+<a href=#235 id=235 data-nosnippet>235</a>		entry: <span class="kw-2">&amp;</span>ash::Entry,
+<a href=#236 id=236 data-nosnippet>236</a>		window: NonNull&lt;void&gt;
+<a href=#237 id=237 data-nosnippet>237</a>	) -&gt; <span class="prelude-ty">Result</span>&lt;SurfaceKHR, Box&lt;<span class="kw">dyn </span>Error&gt;&gt;
+<a href=#238 id=238 data-nosnippet>238</a>	{
+<a href=#239 id=239 data-nosnippet>239</a>		<span class="kw">use </span>objc2::{rc::Retained, msg_send, ClassType};
+<a href=#240 id=240 data-nosnippet>240</a>		<span class="kw">use </span>objc2_quartz_core::CALayer;
+<a href=#241 id=241 data-nosnippet>241</a>		<span class="kw">use </span>objc2_foundation::NSObject;
+<a href=#242 id=242 data-nosnippet>242</a>		<span class="kw">use </span>ash::ext::metal_surface;
+<a href=#243 id=243 data-nosnippet>243</a>		<span class="macro">debug!</span>(<span class="string">"creating metal surface"</span>);
+<a href=#244 id=244 data-nosnippet>244</a>
+<a href=#245 id=245 data-nosnippet>245</a>		<span class="kw">let </span>ns_view: <span class="kw-2">&amp;</span>NSObject = void::from_handle(window.as_ptr());
+<a href=#246 id=246 data-nosnippet>246</a>		<span class="kw">let _</span>: () = <span class="kw">unsafe </span>{ <span class="macro">msg_send!</span>[ns_view, setWantsLayer: <span class="bool-val">true</span>] };
+<a href=#247 id=247 data-nosnippet>247</a>
+<a href=#248 id=248 data-nosnippet>248</a>		<span class="kw">let </span><span class="prelude-val">Some</span>(layer_some): <span class="prelude-ty">Option</span>&lt;Retained&lt;CALayer&gt;&gt; = (
+<a href=#249 id=249 data-nosnippet>249</a>			<span class="kw">unsafe </span>{ <span class="macro">msg_send!</span>[ns_view, layer] }
+<a href=#250 id=250 data-nosnippet>250</a>		) <span class="kw">else </span>{
+<a href=#251 id=251 data-nosnippet>251</a>			<span class="kw">return </span><span class="prelude-val">Err</span>(Box::from(<span class="string">"failed making the view layer-backed"</span>))
+<a href=#252 id=252 data-nosnippet>252</a>		};
+<a href=#253 id=253 data-nosnippet>253</a>		<span class="kw">let </span>layer = void::to_handle(<span class="kw-2">&amp;mut </span>layer_some.as_super());
+<a href=#254 id=254 data-nosnippet>254</a>
+<a href=#255 id=255 data-nosnippet>255</a>		<span class="kw">let </span>surface_desc = vk::MetalSurfaceCreateInfoEXT::default()
+<a href=#256 id=256 data-nosnippet>256</a>			.layer(layer.cast::&lt;core::ffi::c_void&gt;());
+<a href=#257 id=257 data-nosnippet>257</a>		<span class="kw">let </span>surface = metal_surface::Instance::new(entry, instance);
+<a href=#258 id=258 data-nosnippet>258</a>
+<a href=#259 id=259 data-nosnippet>259</a>		<span class="kw">let </span><span class="prelude-val">Ok</span>(metal_surface) = (
+<a href=#260 id=260 data-nosnippet>260</a>			<span class="kw">unsafe </span>{ surface.create_metal_surface(<span class="kw-2">&amp;</span>surface_desc, <span class="prelude-val">None</span>) }
+<a href=#261 id=261 data-nosnippet>261</a>		) <span class="kw">else </span>{
+<a href=#262 id=262 data-nosnippet>262</a>			<span class="kw">return </span><span class="prelude-val">Err</span>(Box::from(<span class="string">"couldn't create metal surface"</span>))
+<a href=#263 id=263 data-nosnippet>263</a>		};
+<a href=#264 id=264 data-nosnippet>264</a>
+<a href=#265 id=265 data-nosnippet>265</a>		<span class="prelude-val">Ok</span>(metal_surface)
+<a href=#266 id=266 data-nosnippet>266</a>	}
+<a href=#267 id=267 data-nosnippet>267</a>
+<a href=#268 id=268 data-nosnippet>268</a>	<span class="comment">// WARN: this is just a model and is not complete. The code will fail.
+<a href=#269 id=269 data-nosnippet>269</a>	</span><span class="doccomment">/// Creates a new surface
+<a href=#270 id=270 data-nosnippet>270</a>	</span><span class="attr">#[cfg(target_os = <span class="string">"linux"</span>)]
+<a href=#271 id=271 data-nosnippet>271</a>	</span><span class="kw">fn </span>new_surface(
+<a href=#272 id=272 data-nosnippet>272</a>		instance: <span class="kw-2">&amp;</span>Instance,
+<a href=#273 id=273 data-nosnippet>273</a>		entry: <span class="kw-2">&amp;</span>ash::Entry,
+<a href=#274 id=274 data-nosnippet>274</a>		window: NonNull&lt;void&gt;
+<a href=#275 id=275 data-nosnippet>275</a>	) -&gt; <span class="prelude-ty">Result</span>&lt;SurfaceKHR, Box&lt;<span class="kw">dyn </span>Error&gt;&gt;
+<a href=#276 id=276 data-nosnippet>276</a>	{
+<a href=#277 id=277 data-nosnippet>277</a>		<span class="macro">debug!</span>(<span class="string">"creating linux wayland surface"</span>);
+<a href=#278 id=278 data-nosnippet>278</a>		<span class="kw">use </span>ash::{khr::wayland_surface, vk::wl_display};
+<a href=#279 id=279 data-nosnippet>279</a>
+<a href=#280 id=280 data-nosnippet>280</a>		<span class="kw">let </span>window_ref: <span class="kw-2">&amp;</span>Wrapper = <span class="kw">unsafe </span>{ window.cast().as_ref() };
+<a href=#281 id=281 data-nosnippet>281</a>		<span class="doccomment">/**
+<a href=#282 id=282 data-nosnippet>282</a>		 * https://docs.rs/ash-window/0.13.0/src/ash_window/lib.rs.html#36-126
+<a href=#283 id=283 data-nosnippet>283</a>		 */
+<a href=#284 id=284 data-nosnippet>284</a>		</span><span class="kw">let </span>display = core::ptr::null_mut() <span class="kw">as </span><span class="kw-2">*const </span>void <span class="kw">as </span><span class="kw-2">*mut </span>wl_display;
+<a href=#285 id=285 data-nosnippet>285</a>
+<a href=#286 id=286 data-nosnippet>286</a>		<span class="kw">let </span>surface_desc = vk::WaylandSurfaceCreateInfoKHR::default()
+<a href=#287 id=287 data-nosnippet>287</a>			.display(display)
+<a href=#288 id=288 data-nosnippet>288</a>			.surface(window_ref.surface <span class="kw">as </span><span class="kw-2">*mut </span>core::ffi::c_void);
+<a href=#289 id=289 data-nosnippet>289</a>
+<a href=#290 id=290 data-nosnippet>290</a>		<span class="kw">let </span>surface = wayland_surface::Instance::new(entry, instance);
+<a href=#291 id=291 data-nosnippet>291</a>		<span class="kw">let </span>result = <span class="kw">unsafe </span>{ surface.create_wayland_surface(<span class="kw-2">&amp;</span>surface_desc, <span class="prelude-val">None</span>)<span class="question-mark">? </span>};
+<a href=#292 id=292 data-nosnippet>292</a>
+<a href=#293 id=293 data-nosnippet>293</a>		<span class="prelude-val">Ok</span>(result)
+<a href=#294 id=294 data-nosnippet>294</a>	}
+<a href=#295 id=295 data-nosnippet>295</a>
+<a href=#296 id=296 data-nosnippet>296</a>	<span class="doccomment">/// Creates a new surface
+<a href=#297 id=297 data-nosnippet>297</a>	</span><span class="attr">#[cfg(target_os = <span class="string">"windows"</span>)]
+<a href=#298 id=298 data-nosnippet>298</a>	</span><span class="kw">fn </span>new_surface(
+<a href=#299 id=299 data-nosnippet>299</a>		instance: <span class="kw-2">&amp;</span>Instance,
+<a href=#300 id=300 data-nosnippet>300</a>		entry: <span class="kw-2">&amp;</span>ash::Entry,
+<a href=#301 id=301 data-nosnippet>301</a>		window: NonNull&lt;void&gt;
+<a href=#302 id=302 data-nosnippet>302</a>	) -&gt; <span class="prelude-ty">Result</span>&lt;SurfaceKHR, Box&lt;<span class="kw">dyn </span>Error&gt;&gt;
+<a href=#303 id=303 data-nosnippet>303</a>	{
+<a href=#304 id=304 data-nosnippet>304</a>		<span class="macro">todo!</span>();
+<a href=#305 id=305 data-nosnippet>305</a>	}
+<a href=#306 id=306 data-nosnippet>306</a>
+<a href=#307 id=307 data-nosnippet>307</a>	<span class="doccomment">/// Creates a new vulkan renderpass
+<a href=#308 id=308 data-nosnippet>308</a>	/// here's an oficial example: &lt;https://github.com/ash-rs/ash/blob/master/ash-examples/src/bin/texture.rs&gt;
+<a href=#309 id=309 data-nosnippet>309</a>	</span><span class="kw">pub fn </span>render_pass(device: <span class="kw-2">&amp;</span>ash::Device) -&gt; <span class="prelude-ty">Result</span>&lt;RenderPass, Box&lt;<span class="kw">dyn </span>Error&gt;&gt;
+<a href=#310 id=310 data-nosnippet>310</a>	{
+<a href=#311 id=311 data-nosnippet>311</a>		<span class="comment">// tbh, I have no idea what does this do
+<a href=#312 id=312 data-nosnippet>312</a>		</span><span class="kw">let </span>renderpass_attachments = [
+<a href=#313 id=313 data-nosnippet>313</a>			vk::AttachmentDescription {
+<a href=#314 id=314 data-nosnippet>314</a>				samples: vk::SampleCountFlags::TYPE_1,
+<a href=#315 id=315 data-nosnippet>315</a>				load_op: vk::AttachmentLoadOp::CLEAR,
+<a href=#316 id=316 data-nosnippet>316</a>				store_op: vk::AttachmentStoreOp::STORE,
+<a href=#317 id=317 data-nosnippet>317</a>				final_layout: vk::ImageLayout::PRESENT_SRC_KHR,
+<a href=#318 id=318 data-nosnippet>318</a>				..Default::default()
+<a href=#319 id=319 data-nosnippet>319</a>			},
+<a href=#320 id=320 data-nosnippet>320</a>			vk::AttachmentDescription {
+<a href=#321 id=321 data-nosnippet>321</a>				format: vk::Format::D16_UNORM,
+<a href=#322 id=322 data-nosnippet>322</a>				samples: vk::SampleCountFlags::TYPE_1,
+<a href=#323 id=323 data-nosnippet>323</a>				load_op: vk::AttachmentLoadOp::CLEAR,
+<a href=#324 id=324 data-nosnippet>324</a>				initial_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+<a href=#325 id=325 data-nosnippet>325</a>				final_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+<a href=#326 id=326 data-nosnippet>326</a>				..Default::default()
+<a href=#327 id=327 data-nosnippet>327</a>			},
+<a href=#328 id=328 data-nosnippet>328</a>		];
+<a href=#329 id=329 data-nosnippet>329</a>
+<a href=#330 id=330 data-nosnippet>330</a>		<span class="kw">let </span>color_attachment_refs = [vk::AttachmentReference {
+<a href=#331 id=331 data-nosnippet>331</a>			attachment: <span class="number">0</span>,
+<a href=#332 id=332 data-nosnippet>332</a>			layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+<a href=#333 id=333 data-nosnippet>333</a>		}];
+<a href=#334 id=334 data-nosnippet>334</a>		<span class="kw">let </span>depth_attachment_ref = vk::AttachmentReference {
+<a href=#335 id=335 data-nosnippet>335</a>			attachment: <span class="number">1</span>,
+<a href=#336 id=336 data-nosnippet>336</a>			layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+<a href=#337 id=337 data-nosnippet>337</a>		};
+<a href=#338 id=338 data-nosnippet>338</a>		<span class="kw">let </span>dependencies = [vk::SubpassDependency {
+<a href=#339 id=339 data-nosnippet>339</a>			src_subpass: vk::SUBPASS_EXTERNAL,
+<a href=#340 id=340 data-nosnippet>340</a>			src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+<a href=#341 id=341 data-nosnippet>341</a>			dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
+<a href=#342 id=342 data-nosnippet>342</a>				| vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+<a href=#343 id=343 data-nosnippet>343</a>			dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+<a href=#344 id=344 data-nosnippet>344</a>			..Default::default()
+<a href=#345 id=345 data-nosnippet>345</a>		}];
+<a href=#346 id=346 data-nosnippet>346</a>
+<a href=#347 id=347 data-nosnippet>347</a>		<span class="kw">let </span>subpass = vk::SubpassDescription::default()
+<a href=#348 id=348 data-nosnippet>348</a>			.color_attachments(<span class="kw-2">&amp;</span>color_attachment_refs)
+<a href=#349 id=349 data-nosnippet>349</a>			.depth_stencil_attachment(<span class="kw-2">&amp;</span>depth_attachment_ref)
+<a href=#350 id=350 data-nosnippet>350</a>			.pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS);
+<a href=#351 id=351 data-nosnippet>351</a>
+<a href=#352 id=352 data-nosnippet>352</a>		<span class="kw">let </span>renderpass_create_info = vk::RenderPassCreateInfo::default()
+<a href=#353 id=353 data-nosnippet>353</a>			.attachments(<span class="kw-2">&amp;</span>renderpass_attachments)
+<a href=#354 id=354 data-nosnippet>354</a>			.subpasses(slice::from_ref(<span class="kw-2">&amp;</span>subpass))
+<a href=#355 id=355 data-nosnippet>355</a>			.dependencies(<span class="kw-2">&amp;</span>dependencies);
+<a href=#356 id=356 data-nosnippet>356</a>
+<a href=#357 id=357 data-nosnippet>357</a>		<span class="kw">let </span>renderpass = <span class="kw">unsafe </span>{
+<a href=#358 id=358 data-nosnippet>358</a>			<span class="kw">match </span>device
+<a href=#359 id=359 data-nosnippet>359</a>				.create_render_pass(<span class="kw-2">&amp;</span>renderpass_create_info, <span class="prelude-val">None</span>) {
+<a href=#360 id=360 data-nosnippet>360</a>					<span class="prelude-val">Ok</span>(d) =&gt; d,
+<a href=#361 id=361 data-nosnippet>361</a>					<span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(Box::new(e)),
+<a href=#362 id=362 data-nosnippet>362</a>				}
+<a href=#363 id=363 data-nosnippet>363</a>		};
+<a href=#364 id=364 data-nosnippet>364</a>
+<a href=#365 id=365 data-nosnippet>365</a>		<span class="prelude-val">Ok</span>(renderpass)
+<a href=#366 id=366 data-nosnippet>366</a>	}
+<a href=#367 id=367 data-nosnippet>367</a>
+<a href=#368 id=368 data-nosnippet>368</a>	<span class="comment">// for now returns a generic value
+<a href=#369 id=369 data-nosnippet>369</a>	</span><span class="doccomment">/// Returns the surface size
+<a href=#370 id=370 data-nosnippet>370</a>	</span><span class="attr">#[must_use]
+<a href=#371 id=371 data-nosnippet>371</a>	</span><span class="kw">pub fn </span>get_surface_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (f32, f32) { (<span class="number">0.0</span>, <span class="number">0.0</span>) }
+<a href=#372 id=372 data-nosnippet>372</a>
+<a href=#373 id=373 data-nosnippet>373</a>	<span class="doccomment">/// Stop the rendering and cleanup everything
+<a href=#374 id=374 data-nosnippet>374</a>	</span><span class="attr">#[allow(unused)]
+<a href=#375 id=375 data-nosnippet>375</a>	</span><span class="kw">pub fn </span>cleanup(<span class="kw-2">&amp;</span><span class="self">self</span>)
+<a href=#376 id=376 data-nosnippet>376</a>	{
+<a href=#377 id=377 data-nosnippet>377</a>		<span class="kw">unsafe </span>{ <span class="self">self</span>.instance.destroy_instance(<span class="prelude-val">None</span>); }
+<a href=#378 id=378 data-nosnippet>378</a>	}
+<a href=#379 id=379 data-nosnippet>379</a>
+<a href=#380 id=380 data-nosnippet>380</a>	<span class="comment">// TODO: make this work (yes, I know it's ugly)
+<a href=#381 id=381 data-nosnippet>381</a>	// For some reason it returns `Vulkan inicialization failed: ERROR_INCOMPATIBLE_DRIVER`
+<a href=#382 id=382 data-nosnippet>382</a>	// it shouldn't happen because of the MoltenVK_icd.json
+<a href=#383 id=383 data-nosnippet>383</a>	/*#[cfg(target_os = "macos")]
+<a href=#384 id=384 data-nosnippet>384</a>	fn vulkan_entry() -&gt; ash::Entry
+<a href=#385 id=385 data-nosnippet>385</a>	{
+<a href=#386 id=386 data-nosnippet>386</a>		use std::env;
+<a href=#387 id=387 data-nosnippet>387</a>
+<a href=#388 id=388 data-nosnippet>388</a>		/**
+<a href=#389 id=389 data-nosnippet>389</a>		 * MacOS does not have vulkan natively, so, we need to load the libs ourselves
+<a href=#390 id=390 data-nosnippet>390</a>		 * Get the self.app path and load dependencies packaged inside Resources/ and Frameworks/
+<a href=#391 id=391 data-nosnippet>391</a>		 */
+<a href=#392 id=392 data-nosnippet>392</a>		#[cfg(not(debug_assertions))]
+<a href=#393 id=393 data-nosnippet>393</a>		use std::path::PathBuf;
+<a href=#394 id=394 data-nosnippet>394</a>
+<a href=#395 id=395 data-nosnippet>395</a>		#[cfg(not(debug_assertions))]
+<a href=#396 id=396 data-nosnippet>396</a>		let exe = env::current_exe().unwrap();
+<a href=#397 id=397 data-nosnippet>397</a>
+<a href=#398 id=398 data-nosnippet>398</a>		#[cfg(not(debug_assertions))]
+<a href=#399 id=399 data-nosnippet>399</a>		let contents = exe.parent()
+<a href=#400 id=400 data-nosnippet>400</a>			.unwrap()
+<a href=#401 id=401 data-nosnippet>401</a>			.parent()
+<a href=#402 id=402 data-nosnippet>402</a>			.unwrap();
+<a href=#403 id=403 data-nosnippet>403</a>
+<a href=#404 id=404 data-nosnippet>404</a>		#[cfg(not(debug_assertions))]
+<a href=#405 id=405 data-nosnippet>405</a>		let icd = contents
+<a href=#406 id=406 data-nosnippet>406</a>			.join("Resources/vulkan/icd.d/MoltenVK_icd.json");
+<a href=#407 id=407 data-nosnippet>407</a>
+<a href=#408 id=408 data-nosnippet>408</a>		#[cfg(not(debug_assertions))]
+<a href=#409 id=409 data-nosnippet>409</a>		let loader = contents
+<a href=#410 id=410 data-nosnippet>410</a>			.join("Frameworks/libvulkan.dylib");
+<a href=#411 id=411 data-nosnippet>411</a>
+<a href=#412 id=412 data-nosnippet>412</a>		/**
+<a href=#413 id=413 data-nosnippet>413</a>		 * Debug
+<a href=#414 id=414 data-nosnippet>414</a>		 * this env wont be inside .app but on target/debug/, so we will need to get the libs from the global install
+<a href=#415 id=415 data-nosnippet>415</a>		 */
+<a href=#416 id=416 data-nosnippet>416</a>		#[cfg(debug_assertions)]
+<a href=#417 id=417 data-nosnippet>417</a>		let icd = "/opt/homebrew/Cellar/molten-vk/1.4.0/etc/vulkan/icd.d/MoltenVK_icd.json";
+<a href=#418 id=418 data-nosnippet>418</a>
+<a href=#419 id=419 data-nosnippet>419</a>		#[cfg(debug_assertions)]
+<a href=#420 id=420 data-nosnippet>420</a>		let loader = "/opt/homebrew/lib/libvulkan.dylib";
+<a href=#421 id=421 data-nosnippet>421</a>
+<a href=#422 id=422 data-nosnippet>422</a>		unsafe {
+<a href=#423 id=423 data-nosnippet>423</a>			env::set_var("VK_ICD_FILENAMES", icd);
+<a href=#424 id=424 data-nosnippet>424</a>
+<a href=#425 id=425 data-nosnippet>425</a>			ash::Entry::load_from(loader)
+<a href=#426 id=426 data-nosnippet>426</a>				.expect("error loading MoltenVK")
+<a href=#427 id=427 data-nosnippet>427</a>		}
+<a href=#428 id=428 data-nosnippet>428</a>	}*/
+<a href=#429 id=429 data-nosnippet>429</a></span>}
+</code></pre></div></section></main></body></html>

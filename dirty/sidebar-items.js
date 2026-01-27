@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["WRequestResult","WResponse"],"macro":["exit","write"],"static":["FALSE","TRUE"],"struct":["Box","Color","String","SurfaceWrapper","void"],"type":["f8"]};
+window.SIDEBAR_ITEMS = {"enum":["WResponse"],"fn":["getenv"],"macro":["format","write"],"mod":["slice","str","syscall"],"static":["FALSE","TRUE"],"struct":["Box","Color","Socket","SocketResponse","String","SurfaceWrapper","Thread","Vec","void"],"trait":["ToString"],"type":["AnyFunction","f8"]};
