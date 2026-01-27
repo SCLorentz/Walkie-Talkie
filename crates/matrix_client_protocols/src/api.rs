@@ -1,3 +1,35 @@
+#![no_std]
+#![deny(
+	deprecated,
+	rust_2018_idioms,
+	clippy::shadow_unrelated,
+	unreachable_code,
+	unused_imports,
+	unused_variables,
+	unused_extern_crates,
+	unused_import_braces,
+	unused_qualifications,
+	unused_results,
+	unsafe_op_in_unsafe_fn,
+	clippy::unwrap_used,
+	clippy::expect_used,
+	clippy::shadow_reuse,
+	clippy::shadow_same,
+	clippy::dbg_macro,
+	clippy::print_stdout,
+	clippy::print_stderr,
+	clippy::panic,
+	clippy::indexing_slicing,
+	clippy::float_arithmetic,
+	clippy::unwrap_in_result,
+	clippy::exit,
+	clippy::wildcard_imports,
+	clippy::all,
+	clippy::nursery,
+	trivial_casts,
+	trivial_numeric_casts,
+	missing_docs,
+)]
 #![doc = include_str!("../README.md")]
 // https://matrix.org/docs/matrix-concepts/elements-of-matrix <<-- replace matrix sdk
 // https://github.com/matrix-org/matrix-rust-sdk

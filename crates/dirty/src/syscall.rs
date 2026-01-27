@@ -8,7 +8,7 @@ mod bindings {
 }
 
 /// Exits the program with a specified exit code
-#[allow(unused)]
+#[allow(unused, reason = "this is a common method, it may not be used")]
 #[inline]
 pub fn exit(code: crate::f8) -> ! { unsafe { bindings::exit(code) } }
 

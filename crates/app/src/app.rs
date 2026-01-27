@@ -2,11 +2,11 @@
 #![deny(
 	deprecated,
 	rust_2018_idioms,
-	clippy::shadow_unrelated,
 	unreachable_code,
 	unused_imports,
 	unused_variables,
 	unsafe_op_in_unsafe_fn,
+	clippy::shadow_unrelated,
 	clippy::unwrap_used,
 	clippy::expect_used,
 	clippy::shadow_reuse,
@@ -21,6 +21,7 @@
 	clippy::unwrap_in_result,
 	clippy::exit,
 	clippy::wildcard_imports,
+	clippy::nursery,
 	missing_docs,
 	clippy::all,
 	trivial_casts,
@@ -71,7 +72,7 @@ where
 /// This is the bridge between system events and the lib events
 pub trait EventHandler: Send + Sync
 {
-	/// handle_events is the only function for the trait and it results a non blocking Event object
+	/// `handle_events` is the only function for the trait and it results a non blocking Event object
 	fn handle_events(event: Event); //-> nb::Result<(), nb::Error<()>>;
 }
 
@@ -98,12 +99,14 @@ impl<H: EventHandler> App<H>
 		}
 	}
 
-	/// Returns the global theme defined as Self::theme_get_default()
+	/// Returns the global theme defined as `Self::theme_get_default()`
+	#[allow(clippy::nursery)]
 	pub fn get_global_theme(&self) -> ThemeDefault
 		{ self.theme.clone() }
 
 	/// Modify the current window theme
 	/// If alread set as the value provided, it does nothing
+	#[allow(clippy::nursery)]
 	pub fn set_global_theme(&mut self, theme: ThemeDefault)
 		{ self.theme = theme }
 
@@ -114,7 +117,7 @@ impl<H: EventHandler> App<H>
 		size: (f64, f64),
 	) -> Result<Window, WResponse>
 	{
-		let window = Window::new(self.name.clone(), title, self.theme.clone(), size)?;
+		let window = Window::init(self.name.clone(), title, self.theme.clone(), size)?;
 		self.windows.push(window.clone());
 		Ok(window)
 	}
@@ -143,7 +146,7 @@ extern "C" fn event_thread(p: *mut void) -> *mut void
 }
 
 /// Theme struct
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ThemeDefault {
 	/// set the alpha value of the window
 	pub blur: bool,
@@ -157,7 +160,7 @@ pub struct ThemeDefault {
 	pub has_title: bool,
 }
 
-/// NativeDecoration provides the necessary abstraction used inside the `platform` modules
+/// `NativeDecoration` provides the necessary abstraction used inside the `platform` modules
 pub trait NativeDecoration
 {
 	/// executes the application window
@@ -174,7 +177,7 @@ pub trait NativeDecoration
 
 /// Detect if the current system prefers CSDs or SSDs
 /// By default, prefer server side decorations
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum DecorationMode {
 	/// Render the window decorations on the compositor
 	ClientSide,
@@ -183,7 +186,7 @@ pub enum DecorationMode {
 }
 
 /// Default struct for window Decorations
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Decoration {
 	frame: *const void,
 	backend: Wrapper,
@@ -211,42 +214,6 @@ pub struct Window {
 #[forbid(unsafe_code)]
 impl Window
 {
-	/// Create a new window
-	pub fn new(
-		app_name: String,
-		title: &'static str,
-		theme: ThemeDefault,
-		size: (f64, f64)
-	) -> Result<Self, WResponse>
-	{
-		#[allow(unused_mut)]
-		let mut decoration = match Decoration::new(
-			String::from(title),
-			size.0,
-			size.1,
-			theme.clone()
-		) {
-			Ok(v) => v,
-			Err(_) => return Err(WResponse::UnexpectedError),
-		};
-
-		let _menu = decoration.create_app_menu(app_name);
-
-		if theme.blur
-		&& let Err(response) = decoration.apply_blur()
-			{ warn!("{response:?}") }
-
-		Ok(Window {
-			decoration,
-			surface: None,
-			active: false,
-			resizable: true,
-			position: (0.0, 0.0),
-			title: String::from(title),
-			theme,
-		})
-	}
-
 	/// Get system specific window backend (for renderer)
 	#[must_use]
 	pub fn get_backend(&self) -> *mut void
@@ -266,19 +233,60 @@ impl Window
 
 	/// Returns if window does have a surface or not
 	#[must_use]
+	#[allow(clippy::nursery)]
 	pub fn has_surface(&self) -> bool
 		{ self.surface.is_some() }
 
 	/// Detects if the window is focused
 	#[must_use]
+	#[allow(clippy::nursery)]
 	pub fn is_active(&self) -> bool { self.active }
 
 	/// Changes the `window.resizable` argument to a specific bool val
+	#[allow(clippy::nursery)]
 	pub fn resizable(&mut self, arg: bool) { self.resizable = arg }
 }
 
+trait PrivateWindow {
+	fn init(app_name: String, title: &'static str, theme: ThemeDefault, size: (f64, f64)) ->
+		Result<Window, WResponse>;
+}
+
+impl PrivateWindow for Window {
+	fn init(
+		app_name: String,
+		title: &'static str,
+		theme: ThemeDefault,
+		size: (f64, f64)
+	) -> Result<Self, WResponse>
+	{
+		let Ok(mut decoration) = Decoration::new(
+			String::from(title),
+			size.0,
+			size.1,
+			theme.clone()
+		) else { return Err(WResponse::UnexpectedError) };
+
+		let _menu = decoration.create_app_menu(app_name);
+
+		if theme.blur
+		&& let Err(response) = decoration.apply_blur()
+			{ warn!("{response:?}") }
+
+		Ok(Self {
+			decoration,
+			surface: None,
+			active: false,
+			resizable: true,
+			position: (0.0, 0.0),
+			title: String::from(title),
+			theme,
+		})
+	}
+}
+
 /// List of possible types for the cursor
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum CursorType {
 	/// The generic arrow cursor
 	Default,
@@ -311,7 +319,7 @@ impl Cursor {
 	#[must_use]
 	pub fn get_cursor() -> Self
 	{
-		Cursor {
+		Self {
 			position: Self::get_position(),
 			mode: CursorType::Default,
 			visible: true,
@@ -320,7 +328,10 @@ impl Cursor {
 	}
 
 	/// Returns the current position of the cursor relative to the window
-	pub fn get_relative_position() {}
+	#[must_use]
+	#[allow(clippy::nursery)]
+	pub fn get_relative_position() -> (f64, f64)
+		{ (0.0, 0.0) }
 
 	/// Returns the current position of the cursor
 	#[must_use]
@@ -339,9 +350,11 @@ impl Cursor {
 	}
 
 	/// Modify the cursor position
+	#[allow(clippy::nursery)]
 	pub fn change_position(&mut self, _new_pos: (f64, f64)) {}
 
 	/// Modify the cursor position relative to the window
+	#[allow(clippy::nursery)]
 	pub fn change_relative_position(&mut self, _new_pos: (f64, f64)) {}
 
 	/// Hides the Cursor
@@ -376,11 +389,13 @@ impl Cursor {
 
 	/// Set the cursor type
 	/// For example: `CursorType::Pointer` for click actions or `CursorType::Custom(Path)` for custom textures
+	#[allow(clippy::nursery)]
 	pub fn set_type(&mut self, mode: CursorType)
 		{ self.mode = mode; }
 
 	/// Detects if the cursor is visible or not
 	#[must_use]
+	#[allow(clippy::nursery)]
 	pub fn is_visible(&self) -> bool
 		{ self.visible }
 }

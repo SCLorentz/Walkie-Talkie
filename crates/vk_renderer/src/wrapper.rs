@@ -8,7 +8,7 @@ pub struct Wrapper {
 }
 
 #[cfg(target_os = "macos")]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Wrapper {
 	pub ns_view: *mut void,		// NSView
 	pub rect: *const void,		// NSRect

@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(core_intrinsics, stmt_expr_attributes)]
+#![feature(core_intrinsics, stmt_expr_attributes, const_try, const_option_ops)]
 #![deny(
 	deprecated,
 	rust_2018_idioms,
@@ -34,6 +34,13 @@
 	clippy::needless_pass_by_value,
 	clippy::redundant_closure,
 	clippy::large_stack_arrays,
+	clippy::nursery,
+	clippy::cargo,
+	clippy::style,
+	clippy::perf,
+	clippy::complexity,
+	clippy::suspicious,
+	//clippy::restriction, <- never uncomment this
 	missing_debug_implementations,
 	trivial_casts,
 	trivial_numeric_casts,
@@ -48,7 +55,7 @@
 //!
 //! Things in here should and will be dirty!
 //! That's why there are so many `#[deny]` configs (clippy helps a lot here)
-#![doc = include_str!("../README.md")]
+#![cfg_attr(doc, doc = include_str!("../README.md"))]
 
 extern crate alloc;
 pub use alloc::{
@@ -86,7 +93,7 @@ pub struct SocketResponse
 #[cfg(target_family = "unix")]
 #[derive(Debug)]
 #[repr(C)]
-#[allow(non_camel_case_types, clippy::missing_docs_in_private_items)]
+#[allow(non_camel_case_types, clippy::missing_docs_in_private_items, reason = "this is a struct wrapper for the C mod")]
 struct c_Thread
 {
 	pub id: i32,
@@ -112,13 +119,6 @@ mod unix {
 /// Type for a function repr in C that takes `void* arg` and returns `void*`
 #[cfg(target_family = "unix")]
 pub type AnyFunction = extern "C" fn(*mut void) -> *mut void;
-
-/*#[unsafe(no_mangle)]
-pub extern "C" fn fn_wrapper(function: *mut fn(*mut void) -> *mut void) -> *mut void
-{
-	let rs_function = unsafe { *function };
-	rs_function(core::ptr::null_mut())
-}*/
 
 /// This is a thread interface with the C implementation
 #[derive(Debug)]
@@ -172,7 +172,7 @@ impl Thread
  * then the loop will get all following characters until the `\0` (string termination character)
  */
 #[cfg(target_family = "unix")]
-unsafe fn c_strlen(p: *const u8, bypass_hardcoded_limit: Option<usize>) -> Option<usize>
+const unsafe fn c_strlen(p: *const u8, bypass_hardcoded_limit: Option<usize>) -> Option<usize>
 {
 	// this fucker.
 	// Sometimes the C function passes a pointer to nowhere (final of the env array),
@@ -181,7 +181,10 @@ unsafe fn c_strlen(p: *const u8, bypass_hardcoded_limit: Option<usize>) -> Optio
 
 	// to avoid (but not prevent) boundary related errors,
 	// 1024 is a hardcoded limit in case `\0` doesn't exist
-	let limit = bypass_hardcoded_limit.unwrap_or(1024);
+	let limit = match bypass_hardcoded_limit {
+		Some(val) => val,
+		None => 1024,
+	};
 	let mut len = 0;
 
 	while len < limit {
@@ -197,12 +200,12 @@ unsafe fn c_strlen(p: *const u8, bypass_hardcoded_limit: Option<usize>) -> Optio
  * `ptr` is the first byte and `len` is how long it should read the string
  */
 #[cfg(target_family = "unix")]
-unsafe fn getenv_str(ptr: *const u8) -> Option<&'static [u8]>
+const unsafe fn getenv_str(ptr: *const u8) -> Option<&'static [u8]>
 {
-	unsafe {
-		let len = c_strlen(ptr, None);
-		Some(slice::from_raw_parts(ptr, len?))
+	if let Some(len) = unsafe { c_strlen(ptr, None) } {
+		return Some(unsafe { slice::from_raw_parts(ptr, len) });
 	}
+	None
 }
 
 /**
@@ -210,6 +213,7 @@ unsafe fn getenv_str(ptr: *const u8) -> Option<&'static [u8]>
  * <https://doc.rust-lang.org/stable/core/str/fn.from_utf8.html>
  */
 #[cfg(target_family = "unix")]
+#[inline]
 fn convert_bytes_to_string(bytes: &[u8]) -> Option<String>
 {
 	let Ok(str) = str::from_utf8(bytes) else { return None };
@@ -227,12 +231,15 @@ fn convert_bytes_to_string(bytes: &[u8]) -> Option<String>
  * ```
  */
 #[cfg(target_family = "unix")]
+#[inline]
 #[must_use]
 pub fn getenv(find: &'static str) -> Option<String>
 {
 	let raw_pointer = unsafe { unix::getenv(find.as_ptr().cast::<i8>()) };
-	let string = unsafe { getenv_str(raw_pointer.cast::<u8>()) };
-	convert_bytes_to_string(string?)
+	if let Some(string) = unsafe { getenv_str(raw_pointer.cast::<u8>()) } {
+		return convert_bytes_to_string(string);
+	}
+	None
 }
 
 #[cfg(target_family = "unix")]
@@ -248,6 +255,7 @@ pub struct Socket {
 #[cfg(target_family = "unix")]
 impl Socket {
 	/// Create a new socket connection to the defined address
+	#[inline]
 	#[must_use]
 	pub fn new(address: &'static [u8]) -> Self
 	{
@@ -255,30 +263,35 @@ impl Socket {
 			unsafe { unix::create_socket(void::to_handle(address)) };
 
 		if response.status == -1 {
-			return Socket { socket_id: None };
+			return Self { socket_id: None };
 		}
 
 		let socket_id = Some(response.server_socket);
-		Socket { socket_id, }
+		Self { socket_id, }
 	}
 
 	/// read the socket signal
+	#[inline]
 	#[must_use]
 	pub fn read_socket(&self, ch: &'static [u8]) -> Option<Box<&[f8]>>
 	{
-		let socket_id = self.socket_id?;
-		let response = unsafe { unix::read_socket(socket_id, void::to_handle(ch)) };
-		Some(Box::new(void::from_handle(response)))
+		if let Some(socket_id) = self.socket_id {
+			let response = unsafe { unix::read_socket(socket_id, void::to_handle(ch)) };
+			return Some(Box::new(void::from_handle(response)));
+		}
+		None
 	}
 
 	/// write a socket signal
+	#[inline]
 	pub fn write_socket(&self, ch: &'static [u8])
 	{
 		let Some(socket_id) = self.socket_id else { return };
-		unsafe { unix::write_socket(socket_id, void::to_handle(ch)) };
+		unsafe { unix::write_socket(socket_id, void::to_handle(ch)); }
 	}
 
 	/// close the connection with the socket
+	#[inline]
 	pub fn close_socket(&self)
 	{
 		let Some(socket_id) = self.socket_id else { return };
@@ -290,7 +303,7 @@ impl Socket {
 ///
 /// This can be ether i8 or u8 depending on the current ABI specification used
 #[cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))]
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types, reason = "this should use the same format. as i8/u8")]
 pub type f8 = i8;
 
 // fuck the ABI
@@ -298,12 +311,11 @@ pub type f8 = i8;
 ///
 /// This can be ether i8 or u8 depending on the current ABI specification used
 #[cfg(all(target_os = "linux", target_env = "musl", target_arch = "aarch64"))]
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 pub type f8 = u8;
 
 /// just a void type
 #[repr(C)]
-#[allow(non_camel_case_types)]
 #[derive(Debug)]
 pub struct void {
 	/// This is a pointer of nothing
@@ -316,13 +328,14 @@ impl void {
 	/// Get a T type value and stores it safely as a generic type
 	#[must_use]
 	#[inline]
-	pub fn to_handle<T>(val: T) -> *mut void
-		{ Box::into_raw(Box::new(val)).cast::<void>() }
+	pub fn to_handle<T>(val: T) -> *mut Self
+		{ Box::into_raw(Box::new(val)).cast::<Self>() }
 
 	/// Espects a T return type and a Boxed `void` pointer to get value inside the Box
 	#[must_use]
 	#[inline]
-	pub fn from_handle<T>(ptr: *const void) -> T
+	// cast::<T> doesn't work here
+	pub fn from_handle<T>(ptr: *const Self) -> T
 		{ unsafe { *Box::from_raw(ptr as *mut T) } }
 }
 
@@ -340,6 +353,7 @@ pub static FALSE: u32 = 0;
  * 5## : General Program limitation
  */
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum WResponse
 {
 	/// The binary does not support this function
@@ -364,41 +378,49 @@ pub enum WResponse
 
 // for some reason I can't move this to app.rs
 /// Abtraction layer for multiple OS support
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
+#[non_exhaustive]
 pub struct SurfaceWrapper(pub *mut void);
 
 impl SurfaceWrapper
 {
 	/// Create a new wrapper
+	#[inline]
 	#[must_use]
-	pub fn new<T>(wrap: T) -> Self { SurfaceWrapper(void::to_handle(wrap)) }
+	pub fn new<T>(wrap: T) -> Self { Self(void::to_handle(wrap)) }
 	/// Is wrapper valid?
+	#[inline]
 	#[must_use]
-	pub fn is_null(&self) -> bool { self.0.is_null() }
+	pub const fn is_null(&self) -> bool { self.0.is_null() }
 	/// cast wrapper to original value
+	#[inline]
 	#[must_use]
 	pub fn cast<T>(&self) -> T { void::from_handle(self.0) }
 }
 
 /// RGB color implementation
 /// reference: <https://github.com/seancroach/hex_color/blob/main/src/lib.rs>
-#[derive(PartialEq, Clone, Debug)]
-#[allow(missing_docs, non_snake_case)]
+#[derive(PartialEq, Eq, Clone, Debug)]
+#[non_exhaustive]
+#[expect(missing_docs, non_snake_case, clippy::min_ident_chars, reason = "using the default nom. for RGBA")]
 pub struct Color { pub R: u8, pub G: u8, pub B: u8, pub A: u8, }
 
 // 0.0039215686274 <- I got here before realizing that this is just 1/255
 /// Just a simple constant to normalize the RGB (0-255) value to the normal shader value (0-1)
-/// In old days people used to this trick: `(x * 257) >> 16` (nice ✧ദ്ദി)
+/// In old days people used to this trick: `(x * 257) >> 16` (nice ✧ദ്ദി).
 const RGB_NORM: f64 = 1.0 / 255.0;
 
 impl Color {
-	/// Create new color value
+	/// Create new color value.
+	#[inline]
 	#[must_use]
-	#[allow(non_snake_case)]
-	pub fn from(R: u8, G: u8, B: u8, A: u8) -> Self { Self { R, G, B, A } }
+	#[expect(non_snake_case, clippy::min_ident_chars, reason = "using the default nom. for RGBA")]
+	pub const fn from(R: u8, G: u8, B: u8, A: u8) -> Self { Self { R, G, B, A } }
 
-	/// Converts this to a functional method to be used inside functions
+	/// Converts this to a functional method to be used inside functions.
+	#[inline]
 	#[must_use]
+	#[expect(clippy::float_arithmetic, reason = "necessary for the value normalization for GPU")]
 	pub fn to_default(&self) -> ( f64, f64, f64, f64 )
 	{(
 		f64::from(self.R) * RGB_NORM,

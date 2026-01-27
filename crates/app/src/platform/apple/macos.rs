@@ -1,22 +1,20 @@
-#![allow(unused_imports, unused_doc_comments, clippy::tabs_in_doc_comments)]
+#![allow(unused_doc_comments, clippy::tabs_in_doc_comments)]
 use log::debug;
-use crate::{void, String};
+use crate::{void, String, DecorationMode, Decoration, WResponse, ThemeDefault, NativeDecoration};
 
 use objc2::{
 	rc::{Retained, Allocated},
 	runtime::ProtocolObject,
 	define_class,
 	msg_send,
-	DefinedClass,
 	MainThreadOnly,
 	Message,
-	ClassType,
 	sel
 };
 
 use objc2_app_kit::{
 	NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate,
-	NSBackingStoreType, NSColor, NSFont, NSTextAlignment, NSTextField, NSWindow, NSWindowDelegate,
+	NSBackingStoreType, NSColor, NSWindow, NSWindowDelegate,
 	NSWindowStyleMask, NSView, NSWindowTitleVisibility, NSVisualEffectBlendingMode,
 	NSVisualEffectView, NSVisualEffectMaterial, NSVisualEffectState, NSAutoresizingMaskOptions,
 	NSMenu, NSMenuItem
@@ -27,10 +25,8 @@ use objc2_foundation::{
 	NSSize, NSString,
 };
 
-use crate::{DecorationMode, Decoration, WResponse, Color, ThemeDefault, NativeDecoration};
-
 /// Wrapper struct
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Wrapper {
 	pub ns_view: *mut void,		// NSView
 	pub rect:  *const void,		// NSRect
@@ -97,7 +93,7 @@ impl NativeDecoration for Decoration
 
 		debug!("Creating NativeDecoration object");
 
-		Ok(Decoration {
+		Ok(Self {
 			mode: DecorationMode::ServerSide,
 			frame: void::to_handle(Retained::<NSWindow>::as_ptr(&window).cast_mut()),
 			backend,
@@ -151,7 +147,7 @@ impl NativeDecoration for Decoration
 		let item_menu = NSMenuItem::alloc(mtm);
 		let quit_item = unsafe { NSMenuItem::initWithTitle_action_keyEquivalent(
 			item_menu,
-			&NSString::from_str(dirty::format!("Quit {}", app_name).as_str()),
+			&NSString::from_str(dirty::format!("Quit {app_name}").as_str()),
 			Some(sel!(terminate:)),
 			&NSString::from_str("q")
 		) };

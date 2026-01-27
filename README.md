@@ -9,6 +9,10 @@ Modern chat apps are resource-heavy, closed-source, and often built with Electro
 
 This project is experimental and under active development. It is not yet intended for daily use. Mostly only the beggining of the backend implemented, optimized multiplatform vulkan powered rendering engines are hard to build.
 
+### Upcoming Features
+
+- [] Matrix protocol implementation
+
 ## Development
 
 None of the options for creating user interfaces for multiplatform pleased me, so I'm doing one from scratch using the Vulkan rendering API and the native calls from macOS, android, windows and linux. The main objective is to create something minimalistic portable and native in all platforms and desktops. I want to be able to use those crates on other projects as well and in the future, move them to their own repo.

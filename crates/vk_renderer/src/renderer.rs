@@ -6,6 +6,10 @@
 	unreachable_code,
 	unused_imports,
 	unused_variables,
+	unused_extern_crates,
+	unused_import_braces,
+	unused_qualifications,
+	unused_results,
 	unsafe_op_in_unsafe_fn,
 	clippy::unwrap_used,
 	clippy::expect_used,
@@ -21,17 +25,20 @@
 	clippy::unwrap_in_result,
 	clippy::exit,
 	clippy::wildcard_imports,
-	missing_docs,
 	clippy::all,
+	clippy::nursery,
+	trivial_casts,
+	trivial_numeric_casts,
+	missing_docs,
 )]
-#![allow(
-	clippy::tabs_in_doc_comments,
-	unused_doc_comments
-)]
+#![allow(clippy::tabs_in_doc_comments, unused_doc_comments)]
 #![doc = include_str!("../README.md")]
 
-use ash::Instance;
-use ash::vk::{self, SurfaceKHR, RenderPass, PhysicalDevice};
+use ash::{
+	Instance,
+	Device,
+	vk::{self, SurfaceKHR, RenderPass, PhysicalDevice}
+};
 use log::debug;
 use core::{slice, ptr::NonNull, error::Error};
 use dirty::{Box, void, f8, SurfaceWrapper};
@@ -45,7 +52,7 @@ pub struct Renderer {
 	/// Vulkan Surface
 	surface: SurfaceKHR,
 	renderpass: RenderPass,
-	device: ash::Device,
+	device: Device,
 	instance: Instance,
 }
 
@@ -54,7 +61,7 @@ impl Renderer {
 	/// Creates a new Vulkan render
 	/// this will be our `initVulkan()` from the tutorial
 	/// <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Base_code#:~:text=initVulkan()>
-	pub fn new(surface_backend: *mut void) -> Result<Renderer, Box<dyn Error>>
+	pub fn new(surface_backend: *mut void) -> Result<Self, Box<dyn Error>>
 	{
 		let backend: Wrapper = void::from_handle(surface_backend);
 		debug!("Creating new vulkan render");
@@ -129,7 +136,7 @@ impl Renderer {
 
 		let surface = Self::new_surface(&instance, &entry, nn_view.cast())?;
 
-		Ok(Renderer {
+		Ok(Self {
 			surface,
 			renderpass,
 			device,
@@ -138,6 +145,7 @@ impl Renderer {
 	}
 
 	/// Returns the Wrapper for the `SurfaceKHR`
+	#[must_use]
 	pub fn get_surface(&self) -> SurfaceWrapper
 		{ SurfaceWrapper::new(self.surface) }
 
@@ -148,7 +156,7 @@ impl Renderer {
 	 * <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families#:~:text=isDeviceSuitable>
 	 */
 	#[inline]
-	fn is_device_suitable(instance: &ash::Instance, device: PhysicalDevice) -> bool
+	fn is_device_suitable(instance: &Instance, device: PhysicalDevice) -> bool
 	{
 		let prop = unsafe { instance.get_physical_device_properties(device) };
 		let feat = unsafe { instance.get_physical_device_features(device) };
@@ -170,7 +178,7 @@ impl Renderer {
 	 * <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families>
 	 * this will get the first graphics card avaliable
 	 */
-	fn get_device(instance: &ash::Instance) -> Result<ash::Device, Box<dyn Error>>
+	fn get_device(instance: &Instance) -> Result<Device, Box<dyn Error>>
 	{
 		/**
 		 * C++
@@ -306,7 +314,7 @@ impl Renderer {
 
 	/// Creates a new vulkan renderpass
 	/// here's an oficial example: <https://github.com/ash-rs/ash/blob/master/ash-examples/src/bin/texture.rs>
-	pub fn render_pass(device: &ash::Device) -> Result<RenderPass, Box<dyn Error>>
+	pub fn render_pass(device: &Device) -> Result<RenderPass, Box<dyn Error>>
 	{
 		// tbh, I have no idea what does this do
 		let renderpass_attachments = [
@@ -368,6 +376,7 @@ impl Renderer {
 	// for now returns a generic value
 	/// Returns the surface size
 	#[must_use]
+	#[allow(clippy::nursery)]
 	pub fn get_surface_size(&self) -> (f32, f32) { (0.0, 0.0) }
 
 	/// Stop the rendering and cleanup everything
