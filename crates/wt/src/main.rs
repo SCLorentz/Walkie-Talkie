@@ -2,7 +2,7 @@
 #![forbid(unsafe_code)]
 #![doc = include_str!("../README.md")]
 #![doc(issue_tracker_base_url = "https://github.com/SCLorentz/Walkie-Talkie/issues")]
-use app::{Event, EventHandler};
+use app::{Event, EventHandler, Window};
 
 struct MatrixClient;
 
@@ -34,9 +34,10 @@ fn main()
 
 	if let Ok(mut window) = app.new_window("walkie talkie", (600.0, 500.0))
 	{
-		let renderer = vk_renderer::Renderer::new(window.get_backend())
+		let backend = app.get_backend(&window);
+		let renderer = vk_renderer::Renderer::new(backend)
 			.expect("Vulkan inicialization failed");
-		let _ = window.connect_surface(renderer.get_surface());
+		let _ = app.connect_surface(&mut window, renderer.get_surface());
 	};
 
 	let _ = app.new_window("window 2", (500.0, 500.0));

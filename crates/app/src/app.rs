@@ -60,7 +60,7 @@ where
 	H: EventHandler + Send + Sync,
 {
 	/// List of the program windows
-	pub windows: Vec<Window>,
+	pub windows: Vec<WindowStruct>,
 	/// Cursor information
 	pub cursor: Cursor,
 	theme: ThemeDefault,
@@ -112,9 +112,9 @@ impl<H: EventHandler> App<H>
 		&mut self,
 		title: &'static str,
 		size: (f64, f64),
-	) -> Result<Window, WResponse>
+	) -> Result<WindowStruct, WResponse>
 	{
-		let window = Window::new(self.name.clone(), title, self.theme.clone(), size)?;
+		let window = Self::create_window(self.name.clone(), title, self.theme.clone(), size)?;
 		self.windows.push(window.clone());
 		Ok(window)
 	}
@@ -195,7 +195,7 @@ impl Decoration {}
 
 /// Window interface
 #[derive(Clone, PartialEq, Debug)]
-pub struct Window {
+pub struct WindowStruct {
 	/// Window title
 	pub title: String,
 	/// The graphical backend (on our case, vulkan)
@@ -208,16 +208,34 @@ pub struct Window {
 	theme: ThemeDefault,
 }
 
+/// Window Trait
+pub trait Window {
+	/// creates a new window based on the current implementation for the specific software
+	fn create_window(app_name: String, title: &'static str, theme: ThemeDefault, size: (f64, f64)) -> Result<WindowStruct, WResponse>;
+	/// Get system specific window backend (for renderer)
+	#[must_use]
+	fn get_backend(&self, window: &WindowStruct) -> *mut void;
+	/// Connects a specified vulkan surface with the current window
+	fn connect_surface(&mut self, window: &mut WindowStruct, surface: Surface) -> Result<(), WResponse>;
+	/// Returns if window does have a surface or not
+	#[must_use]
+	fn has_surface(&self, window: &WindowStruct) -> bool;
+	/// Detects if the window is focused
+	#[must_use]
+	fn is_active(&self, window: &WindowStruct) -> bool;
+	/// Changes the `window.resizable` argument to a specific bool val
+	fn resizable(&mut self, window: &mut WindowStruct, arg: bool);
+}
+
 #[forbid(unsafe_code)]
-impl Window
+impl<H: EventHandler> Window for App<H>
 {
-	/// Create a new window
-	pub fn new(
+	fn create_window(
 		app_name: String,
 		title: &'static str,
 		theme: ThemeDefault,
 		size: (f64, f64)
-	) -> Result<Self, WResponse>
+	) -> Result<WindowStruct, WResponse>
 	{
 		#[allow(unused_mut)]
 		let mut decoration = match Decoration::new(
@@ -236,7 +254,7 @@ impl Window
 		&& let Err(response) = decoration.apply_blur()
 			{ warn!("{response:?}") }
 
-		Ok(Window {
+		Ok(WindowStruct {
 			decoration,
 			surface: None,
 			active: false,
@@ -247,16 +265,13 @@ impl Window
 		})
 	}
 
-	/// Get system specific window backend (for renderer)
-	#[must_use]
-	pub fn get_backend(&self) -> *mut void
-		{ void::to_handle(self.decoration.backend.clone()) }
+	fn get_backend(&self, window: &WindowStruct) -> *mut void
+		{ void::to_handle(window.decoration.backend.clone()) }
 
-	/// Connects a specified vulkan surface with the current window
-	pub fn connect_surface(&mut self, surface: Surface) -> Result<(), WResponse>
+	fn connect_surface(&mut self, window: &mut WindowStruct, surface: Surface) -> Result<(), WResponse>
 	{
-		if !self.has_surface() {
-			self.surface = Some(surface);
+		if !self.has_surface(&window) {
+			window.surface = Some(surface);
 			return Ok(());
 		}
 		warn!("this window is already connected to a surface!");
@@ -264,17 +279,12 @@ impl Window
 		Err(WResponse::ChannelInUse)
 	}
 
-	/// Returns if window does have a surface or not
-	#[must_use]
-	pub fn has_surface(&self) -> bool
-		{ self.surface.is_some() }
+	fn has_surface(&self, window: &WindowStruct) -> bool
+		{ window.surface.is_some() }
 
-	/// Detects if the window is focused
-	#[must_use]
-	pub fn is_active(&self) -> bool { self.active }
+	fn is_active(&self, window: &WindowStruct) -> bool { window.active }
 
-	/// Changes the `window.resizable` argument to a specific bool val
-	pub fn resizable(&mut self, arg: bool) { self.resizable = arg }
+	fn resizable(&mut self, window: &mut WindowStruct, arg: bool) { window.resizable = arg }
 }
 
 /// List of possible types for the cursor

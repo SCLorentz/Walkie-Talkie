@@ -255,11 +255,11 @@ impl Socket {
 			unsafe { unix::create_socket(void::to_handle(address)) };
 
 		if response.status == -1 {
-			return Socket { socket_id: None };
+			return Self { socket_id: None };
 		}
 
 		let socket_id = Some(response.server_socket);
-		Socket { socket_id, }
+		Self { socket_id, }
 	}
 
 	/// read the socket signal
@@ -316,13 +316,13 @@ impl void {
 	/// Get a T type value and stores it safely as a generic type
 	#[must_use]
 	#[inline]
-	pub fn to_handle<T>(val: T) -> *mut void
-		{ Box::into_raw(Box::new(val)).cast::<void>() }
+	pub fn to_handle<T>(val: T) -> *mut Self
+		{ Box::into_raw(Box::new(val)).cast::<Self>() }
 
 	/// Espects a T return type and a Boxed `void` pointer to get value inside the Box
 	#[must_use]
 	#[inline]
-	pub fn from_handle<T>(ptr: *const void) -> T
+	pub fn from_handle<T>(ptr: *const Self) -> T
 		{ unsafe { *Box::from_raw(ptr as *mut T) } }
 }
 
@@ -340,6 +340,7 @@ pub static FALSE: u32 = 0;
  * 5## : General Program limitation
  */
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum WResponse
 {
 	/// The binary does not support this function
@@ -371,10 +372,10 @@ impl SurfaceWrapper
 {
 	/// Create a new wrapper
 	#[must_use]
-	pub fn new<T>(wrap: T) -> Self { SurfaceWrapper(void::to_handle(wrap)) }
+	pub fn new<T>(wrap: T) -> Self { Self(void::to_handle(wrap)) }
 	/// Is wrapper valid?
 	#[must_use]
-	pub fn is_null(&self) -> bool { self.0.is_null() }
+	pub const fn is_null(&self) -> bool { self.0.is_null() }
 	/// cast wrapper to original value
 	#[must_use]
 	pub fn cast<T>(&self) -> T { void::from_handle(self.0) }
@@ -395,7 +396,7 @@ impl Color {
 	/// Create new color value
 	#[must_use]
 	#[allow(non_snake_case)]
-	pub fn from(R: u8, G: u8, B: u8, A: u8) -> Self { Self { R, G, B, A } }
+	pub const fn from(R: u8, G: u8, B: u8, A: u8) -> Self { Self { R, G, B, A } }
 
 	/// Converts this to a functional method to be used inside functions
 	#[must_use]

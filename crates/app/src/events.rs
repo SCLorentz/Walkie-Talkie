@@ -1,7 +1,8 @@
-use crate::{ThemeDefault, Window, Cursor};
+use crate::{ThemeDefault, WindowStruct as Window, Cursor};
 
 /// List of Events
 #[derive(Debug, PartialEq)]
+#[non_exhaustive]
 pub enum Event {
 	/// Mouse enters the window
 	MouseIn {
