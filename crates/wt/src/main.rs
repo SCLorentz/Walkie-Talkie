@@ -2,14 +2,14 @@
 #![forbid(unsafe_code)]
 #![doc = include_str!("../README.md")]
 #![doc(issue_tracker_base_url = "https://github.com/SCLorentz/Walkie-Talkie/issues")]
-use app::{Event, EventHandler, Window};
 
 struct MatrixClient;
 
-impl EventHandler for MatrixClient
+impl app::EventHandler for MatrixClient
 {
-	fn handle_events(e: Event)
+	fn handle_events(e: app::Event)
 	{
+		use app::Event;
 		match e {
 			Event::CloseRequest => log::info!("closing now"),
 			Event::WindowResized { window: w, .. } => log::info!("Resizing window: {:?}", w.title),
