@@ -18,7 +18,6 @@ pub struct Wrapper {
 	pub socket: *mut void,
 }
 
-// wayland_protocols (which include wayland_client) failed to build documentation on version 0.31.12 thks!!
 impl NativeDecoration for Decoration
 {
 	fn new(_title: String, _width: f64, _height: f64, _theme: ThemeDefault) -> Result<Self, WResponse>
@@ -64,12 +63,6 @@ impl NativeDecoration for Decoration
 		})
 	}
 
-	/*fn exit(&self)
-	{
-		//self.backend.socket.close_socket();
-		//todo!();
-	}*/
-
 	fn apply_blur(&mut self) -> Result<(), WResponse>
 	{
 		/**
@@ -92,7 +85,11 @@ impl NativeDecoration for Decoration
 		Err(ProtocolNotSuported)
 	}
 
-	fn exit(&self) -> Result<(), WResponse> { Ok(()) }
+	fn exit(&self) -> Result<(), WResponse>
+	{
+		//self.backend.socket.close_socket();
+		Ok(())
+	}
 
 	fn run(&self) {}
 
