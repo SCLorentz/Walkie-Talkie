@@ -11,7 +11,21 @@ This project is experimental and under active development. It is not yet intende
 
 ### Upcoming Features
 
-- [] Matrix protocol implementation
+- [X] Vulkan renderer (WIP)
+    - [X] Structural base (device, surface, render_pass, etc)
+    - [ ] Create a functional renderer (crates/vk_renderer/src/renderer.rs)
+- [X] Window maker (WIP)
+- [ ] Graphical Interface
+- [ ] Matrix protocol implementation
+- [ ] Login with Matrix
+
+### Support
+
+- [X] MacOS
+- [X] Linux (WIP)
+- [ ] Windows
+- [ ] BSD
+- [ ] Redox
 
 ## Development
 

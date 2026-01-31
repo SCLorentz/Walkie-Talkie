@@ -1,26 +1,35 @@
+#![allow(missing_docs)]
+
+use std::env;
+
 fn main() {
-	let mut targets = Vec::new();
+	let target = env::var("TARGET").expect("TARGET não definido");
+	let mut build = cc::Build::new();
 
-	#[cfg(all(target_os = "macos", target_aarch="aarch64"))]
-	targets.push(("exit", "src/core/macos/exit.s"));
+	match target.as_str() {
+		"aarch64-apple-darwin" => {
+			let _ = build.file("src/core/macos/exit.s");
+		}
 
-	#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-	targets.push(("exit", "src/core/linux/exit_a64.s"));
+		"aarch64-unknown-linux-gnu" | "aarch64-unknown-linux-musl" => {
+			let _ = build.file("src/core/linux/exit_a64.s");
+		}
 
-	#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-	targets.push(("exit", "src/core/linux/exit_x64.s"));
+		"x86_64-unknown-linux-gnu" | "x86_64-unknown-linux-musl" => {
+			let _ = build.file("src/core/linux/exit_x64.s");
+		}
 
-	targets.push(("create_socket", "src/core/unix/socket.c"));
-	targets.push(("read_socket", "src/core/unix/socket.c"));
-	targets.push(("write_socket", "src/core/unix/socket.c"));
-	targets.push(("close_socket", "src/core/unix/socket.c"));
-	targets.push(("create_thread", "src/core/unix/thread.c"));
-	targets.push(("kill_thread", "src/core/unix/thread.c"));
-	targets.push(("getenv", "src/core/unix/getenv.c"));
-
-	for (name, file) in targets {
-		cc::Build::new()
-			.file(file)
-			.compile(name);
+		_ => {
+			panic!("target não suportado para exit syscall: {target}");
+		}
 	}
+
+	let _ = build
+		.file("src/core/unix/socket.c")
+		.file("src/core/unix/thread.c")
+		.file("src/core/unix/getenv.c");
+
+	build.compile("dirty-core");
+
+	println!("target: {:?}\n build: {:?}", target, build);
 }

@@ -55,11 +55,15 @@ features = ["debug", "loaded"]
 # ---- Lints ----------------------
 
 [workspace.lints.rust]
-unexpected_cfgs = { level = "allow" }
+unsafe_code			= "forbid"
+unexpected_cfgs		= "forbid"
+rust_2018_idioms	= { level = "forbid", priority = -1 }
+unused_variables	= "deny"
 
 [workspace.lints.clippy]
-dbg_macro = "deny"
-todo = "deny"
+dbg_macro			= "deny"
+todo				= "deny"
+tabs_in_doc_comments = "allow"
 
 # ---- Profiles -------------------
 

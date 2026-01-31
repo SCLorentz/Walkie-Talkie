@@ -6,10 +6,8 @@ publish.workspace = true
 authors = ["SCLorentz <sclorentz@proton.me>"]
 build = "build.rs"
 
-[lints]
-workspace = true
-
 [lib]
+#crate-type = ["cdylib"]
 path = "src/common.rs"
 doctest = false
 
@@ -17,3 +15,58 @@ doctest = false
 
 [build-dependencies]
 cc = "1.0"
+
+# https://rust-trends.com/posts/mastering-clippy-elevating-your-rust-code-quality/
+[lints.rust]
+internal_features		= "allow"
+deprecated				= "forbid"
+rust_2018_idioms		= "forbid"
+unreachable_code		= "forbid"
+unused_imports			= "forbid"
+unused_variables		= "deny"
+unsafe_op_in_unsafe_fn	= "deny"
+missing_docs			= "deny"
+missing_debug_implementations = "deny"
+trivial_casts			= "deny"
+trivial_numeric_casts	= "deny"
+unused_extern_crates	= "deny"
+unused_import_braces	= "deny"
+unused_qualifications	= "deny"
+unused_results			= "deny"
+macro_use_extern_crate	= "deny"
+warnings				= "deny"
+
+[lints.clippy]
+tabs_in_doc_comments= { level = "allow", priority = 1 }
+pedantic			= "deny"
+all					= "deny"
+shadow_unrelated 	= "deny"
+unwrap_used			= "deny"
+expect_used			= "deny"
+panic				= "forbid"
+todo				= "forbid"
+unimplemented		= "forbid"
+shadow_reuse		= "forbid"
+shadow_same			= "forbid"
+dbg_macro			= "deny"
+print_stdout		= "deny"
+print_stderr		= "deny"
+indexing_slicing	= "deny"
+unwrap_in_result	= "deny"
+exit				= "forbid"
+wildcard_imports	= "deny"
+missing_docs_in_private_items = "deny"
+doc_markdown		= "deny"
+empty_docs			= "deny"
+unwrap_or_default	= "forbid"
+match_wild_err_arm	= "deny"
+needless_pass_by_value = "deny"
+redundant_closure	= "forbid"
+large_stack_arrays	= "deny"
+nursery				= "deny"
+cargo				= "deny"
+style				= "deny"
+perf				= "deny"
+complexity			= "deny"
+suspicious			= "deny"
+correctness			= "deny"

@@ -4,8 +4,13 @@ version = "0.0.1"
 edition.workspace = true
 publish.workspace = true
 
-[lints]
-workspace = true
+# remove unsafe code from here
+#[lints]
+#workspace = true
+
+[lints.rust]
+
+[lints.clippy]
 
 [lib]
 path = "src/renderer.rs"

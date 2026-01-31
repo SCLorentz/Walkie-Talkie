@@ -12,7 +12,7 @@ mod nt;
 #[cfg(target_os = "linux")]
 mod linux;
 
-#[cfg(target_os = "bsd")]
+#[cfg(target_os = "freebsd")]
 mod bsd;
 
 // macOS -------------------
@@ -28,5 +28,5 @@ pub use nt::Wrapper;
 pub use linux::Wrapper;
 
 // BSD ---------------------
-#[cfg(target_os = "bsd")]
+#[cfg(target_os = "freebsd")]
 pub use bsd::Wrapper;

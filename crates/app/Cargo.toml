@@ -8,8 +8,12 @@ authors = ["SCLorentz <sclorentz@proton.me>"]
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
 
-[lints]
-workspace = true
+[lints.rust]
+unexpected_cfgs		= "forbid"
+rust_2018_idioms	= "deny"
+unused_variables	= "deny"
+
+[lints.clippy]
 
 [lib]
 path = "src/app.rs"

@@ -1,5 +1,4 @@
 #![no_std]
-#![forbid(unsafe_code)]
 #![doc = include_str!("../README.md")]
 #![doc(issue_tracker_base_url = "https://github.com/SCLorentz/Walkie-Talkie/issues")]
 

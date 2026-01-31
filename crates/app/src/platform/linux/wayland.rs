@@ -2,15 +2,16 @@ use crate::{
 	DecorationMode,
 	NativeDecoration,
 	Decoration,
-	WRequestResult,
-	WResponse::ProtocolNotSuported,
+	ThemeDefault,
 	platform::linux::{DE, get_de},
 	void,
 	String,
-	WRequestResult::Success
+	WResponse::{self, ProtocolNotSuported},
 };
 
-#[derive(PartialEq, Debug, Clone)]
+use dirty::getenv;
+
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Wrapper {
 	pub state: *mut void,
 	pub surface: *mut void,
@@ -20,12 +21,13 @@ pub struct Wrapper {
 // wayland_protocols (which include wayland_client) failed to build documentation on version 0.31.12 thks!!
 impl NativeDecoration for Decoration
 {
-	fn new(_title: String, _width: f64, _height: f64) -> Result<Self, WResponse>
+	fn new(_title: String, _width: f64, _height: f64, _theme: ThemeDefault) -> Result<Self, WResponse>
 	{
 		// https://gaultier.github.io/blog/wayland_from_scratch.html#opening-a-socket
-		let Some(addresss) = getenv("XDG_RUNTIME_DIR") else {
-			return Err(WResponse::ProtocolNotSuported)
+		let Some(address) = getenv("XDG_RUNTIME_DIR") else {
+			return Err(ProtocolNotSuported)
 		};
+
 		let socket = dirty::Socket::new(address);
 		socket.write_socket(b"hello world");
 
@@ -68,7 +70,7 @@ impl NativeDecoration for Decoration
 		//todo!();
 	}*/
 
-	fn apply_blur(&self) -> Result<(), WResponse>
+	fn apply_blur(&mut self) -> Result<(), WResponse>
 	{
 		/**
 		 * the `hyprland_surface_manager_v1` protocol already covers this, skip
@@ -89,4 +91,10 @@ impl NativeDecoration for Decoration
 
 		Err(ProtocolNotSuported)
 	}
+
+	fn exit(&self) -> Result<(), WResponse> { Ok(()) }
+
+	fn run(&self) {}
+
+	fn create_app_menu(&self, _app_name: String) -> Result<(), WResponse> { Ok(()) }
 }

@@ -31,7 +31,7 @@
 	unused_qualifications,
 	unused_results,
 )]
-#![allow(clippy::tabs_in_doc_comments)]
+#![allow(clippy::tabs_in_doc_comments, unused_doc_comments)]
 #![doc = include_str!("../README.md")]
 
 #[cfg(target_os = "none")]

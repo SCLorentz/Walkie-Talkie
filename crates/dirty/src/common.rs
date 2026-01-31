@@ -1,60 +1,8 @@
 #![no_std]
 #![feature(core_intrinsics, stmt_expr_attributes, const_try, const_option_ops)]
-#![deny(
-	deprecated,
-	rust_2018_idioms,
-	unreachable_code,
-	unused_imports,
-	unused_variables,
-	unsafe_op_in_unsafe_fn,
-	missing_docs,
-	warnings,
-	clippy::all,
-	clippy::shadow_unrelated,
-	clippy::pedantic,
-	clippy::unwrap_used,
-	clippy::expect_used,
-	clippy::panic,
-	clippy::todo,
-	clippy::unimplemented,
-	clippy::shadow_reuse,
-	clippy::shadow_same,
-	clippy::dbg_macro,
-	clippy::print_stdout,
-	clippy::print_stderr,
-	clippy::indexing_slicing,
-	clippy::unwrap_in_result,
-	clippy::exit,
-	clippy::wildcard_imports,
-	clippy::missing_docs_in_private_items,
-	clippy::doc_markdown,
-	clippy::empty_docs,
-	clippy::unwrap_or_default,
-	clippy::match_wild_err_arm,
-	clippy::needless_pass_by_value,
-	clippy::redundant_closure,
-	clippy::large_stack_arrays,
-	clippy::nursery,
-	clippy::cargo,
-	clippy::style,
-	clippy::perf,
-	clippy::complexity,
-	clippy::suspicious,
-	//clippy::restriction, <- never uncomment this
-	missing_debug_implementations,
-	trivial_casts,
-	trivial_numeric_casts,
-	unused_extern_crates,
-	unused_import_braces,
-	unused_qualifications,
-	unused_results,
-	macro_use_extern_crate
-)]
-#![allow(clippy::tabs_in_doc_comments, internal_features)]
 //! This is a helper crate, with minimum dependencies, not even std included
 //!
 //! Things in here should and will be dirty!
-//! That's why there are so many `#[deny]` configs (clippy helps a lot here)
 #![cfg_attr(doc, doc = include_str!("../README.md"))]
 
 extern crate alloc;
@@ -257,7 +205,7 @@ impl Socket {
 	/// Create a new socket connection to the defined address
 	#[inline]
 	#[must_use]
-	pub fn new(address: &'static [u8]) -> Self
+	pub fn new(address: String) -> Self
 	{
 		let response: SocketResponse =
 			unsafe { unix::create_socket(void::to_handle(address)) };
