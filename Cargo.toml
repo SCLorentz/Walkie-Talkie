@@ -63,7 +63,7 @@ unused_variables	= "deny"
 [workspace.lints.clippy]
 dbg_macro			= "deny"
 todo				= "deny"
-tabs_in_doc_comments = "allow"
+tabs_in_doc_comments= "allow"
 
 # ---- Profiles -------------------
 
@@ -74,11 +74,11 @@ debug = "limited"
 lto = "thin"
 codegen-units = 1
 
+# https://www.cargo-lambda.info/guide/cross-compiling.html <- use zig again
 # https://thunderbiscuit.github.io/uniffi-examples/build-workflows/optimizations.html
 [profile.release-smaller]
 inherits = "release"
 opt-level = 'z'
 lto = "fat"
-codegen-units = 1
 panic = 'abort'
 strip = 'debuginfo'

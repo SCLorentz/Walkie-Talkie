@@ -4,14 +4,6 @@ version = "0.0.1"
 edition.workspace = true
 publish.workspace = true
 
-# remove unsafe code from here
-#[lints]
-#workspace = true
-
-[lints.rust]
-
-[lints.clippy]
-
 [lib]
 path = "src/renderer.rs"
 doctest = false
@@ -26,3 +18,39 @@ objc2-app-kit.workspace = true
 objc2-foundation.workspace = true
 objc2.workspace = true
 objc2-quartz-core.workspace = true
+
+[lints.rust]
+unused_doc_comments	= "allow"
+deprecated			= "deny"
+rust_2018_idioms	= "forbid"
+unreachable_code	= "deny"
+unused_imports		= "deny"
+unused_variables	= "deny"
+unused_extern_crates= "deny"
+unused_import_braces= "deny"
+unused_results		= "deny"
+trivial_casts		= "deny"
+missing_docs		= "deny"
+unused_qualifications	= "deny"
+trivial_numeric_casts	= "deny"
+unsafe_op_in_unsafe_fn	= "deny"
+
+[lints.clippy]
+tabs_in_doc_comments= "allow"
+shadow_unrelated	= "deny"
+unwrap_used 		= "deny"
+expect_used 		= "deny"
+shadow_reuse		= "deny"
+shadow_same			= "deny"
+dbg_macro			= "deny"
+print_stdout		= "deny"
+print_stderr		= "deny"
+panic				= "forbid"
+indexing_slicing	= "deny"
+float_arithmetic	= "deny"
+unwrap_in_result	= "deny"
+exit				= "deny"
+wildcard_imports	= "deny"
+all					= "deny"
+nursery				= "deny"
+arithmetic_side_effects	= "deny"

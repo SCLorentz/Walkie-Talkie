@@ -13,9 +13,9 @@ use dirty::getenv;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Wrapper {
-	pub state: *mut void,
+	pub state:   *mut void,
 	pub surface: *mut void,
-	pub socket: *mut void,
+	pub socket:  *mut void,
 }
 
 impl NativeDecoration for Decoration
@@ -56,11 +56,13 @@ impl NativeDecoration for Decoration
 			socket: void::to_handle(socket),
 		};
 
-		Ok(Decoration {
+		let decoration = Decoration {
 			mode: DecorationMode::ServerSide,
 			frame: core::ptr::null_mut() as *const void, // TODO
 			backend,
-		})
+		};
+
+		Ok(decoration)
 	}
 
 	fn apply_blur(&mut self) -> Result<(), WResponse>

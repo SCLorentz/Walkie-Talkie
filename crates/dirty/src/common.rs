@@ -318,13 +318,14 @@ pub enum WResponse
 	InvalidRequest				= 505,
 	/// Tried to do something with the window, but the compositor denied
 	ForbiddenByCompositor		= 601,
+	/// The code expected to be run on the main thread (mostly a problem on macOS)
+	MainThreadError				= 602,
 	/// Something for macos
 	ChannelInUse				= 400,
 	/// A dynamic linked dependency was missing on execution
 	MissingDependencies			= 401,
 }
 
-// for some reason I can't move this to app.rs
 /// Abtraction layer for multiple OS support
 #[derive(Clone, PartialEq, Eq, Debug)]
 #[non_exhaustive]

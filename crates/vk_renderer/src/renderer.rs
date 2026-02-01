@@ -1,37 +1,4 @@
 #![no_std]
-#![deny(
-	deprecated,
-	rust_2018_idioms,
-	clippy::shadow_unrelated,
-	unreachable_code,
-	unused_imports,
-	unused_variables,
-	unused_extern_crates,
-	unused_import_braces,
-	unused_qualifications,
-	unused_results,
-	unsafe_op_in_unsafe_fn,
-	clippy::unwrap_used,
-	clippy::expect_used,
-	clippy::shadow_reuse,
-	clippy::shadow_same,
-	clippy::dbg_macro,
-	clippy::print_stdout,
-	clippy::print_stderr,
-	clippy::panic,
-	clippy::indexing_slicing,
-	clippy::arithmetic_side_effects,
-	clippy::float_arithmetic,
-	clippy::unwrap_in_result,
-	clippy::exit,
-	clippy::wildcard_imports,
-	clippy::all,
-	clippy::nursery,
-	trivial_casts,
-	trivial_numeric_casts,
-	missing_docs,
-)]
-#![allow(clippy::tabs_in_doc_comments, unused_doc_comments)]
 #![doc = include_str!("../README.md")]
 
 use ash::{
@@ -236,7 +203,14 @@ impl Renderer {
 		})
 	}
 
-	/// Creates a new surface
+	/**
+	 * Creates a new surface for MacOS
+	 *
+	 * ## Error:
+	 *
+	 * The function can error in two ways, on the CALayer creation, resulting in "failed making the view layer-backed";
+	 * Or it can fail on the `create_metal_surface()` method, returning a generic error from ash.
+	 */
 	#[cfg(target_os = "macos")]
 	fn new_surface(
 		instance: &Instance,
@@ -244,33 +218,26 @@ impl Renderer {
 		window: NonNull<void>
 	) -> Result<SurfaceKHR, Box<dyn Error>>
 	{
-		use objc2::{rc::Retained, msg_send, ClassType};
+		use objc2::{rc::Retained, msg_send, runtime::NSObject};
 		use objc2_quartz_core::CALayer;
-		use objc2_foundation::NSObject;
 		use ash::ext::metal_surface;
+		use core::ffi::c_void;
 		debug!("creating metal surface");
 
 		let ns_view: &NSObject = void::from_handle(window.as_ptr());
 		let _: () = unsafe { msg_send![ns_view, setWantsLayer: true] };
 
-		let Some(layer_some): Option<Retained<CALayer>> = (
-			unsafe { msg_send![ns_view, layer] }
-		) else {
-			return Err(Box::from("failed making the view layer-backed"))
-		};
-		let layer = void::to_handle(&mut layer_some.as_super());
+		let layer: *mut c_void =
+			match unsafe { msg_send![ns_view, layer] } {
+				Some(val) => Retained::<CALayer>::as_ptr(&val) as *mut c_void, // <- if only I could use `void::to_handle(val)`...
+				None => return Err(Box::from("failed making the view layer-backed"))
+			};
 
-		let surface_desc = vk::MetalSurfaceCreateInfoEXT::default()
-			.layer(layer.cast::<core::ffi::c_void>());
 		let surface = metal_surface::Instance::new(entry, instance);
+		let surface_desc = vk::MetalSurfaceCreateInfoEXT::default()
+			.layer(layer); // <- the rust mf expects `*mut c_void` and not the virtually identical `*mut void`
 
-		let Ok(metal_surface) = (
-			unsafe { surface.create_metal_surface(&surface_desc, None) }
-		) else {
-			return Err(Box::from("couldn't create metal surface"))
-		};
-
-		Ok(metal_surface)
+		return Ok(unsafe { surface.create_metal_surface(&surface_desc, None)? })
 	}
 
 	// WARN: this is just a model and is not complete. The code will fail.
@@ -279,7 +246,7 @@ impl Renderer {
 	fn new_surface(
 		instance: &Instance,
 		entry: &ash::Entry,
-		window: NonNull<void>
+		window: NonNull<void>// <-- this is null on wayland.rs
 	) -> Result<SurfaceKHR, Box<dyn Error>>
 	{
 		debug!("creating linux wayland surface");
@@ -380,7 +347,6 @@ impl Renderer {
 	pub fn get_surface_size(&self) -> (f32, f32) { (0.0, 0.0) }
 
 	/// Stop the rendering and cleanup everything
-	#[allow(unused)]
 	pub fn cleanup(&self)
 	{
 		unsafe { self.instance.destroy_instance(None); }

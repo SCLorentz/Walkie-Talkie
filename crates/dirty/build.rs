@@ -1,5 +1,4 @@
 #![allow(missing_docs)]
-
 use std::env;
 
 fn main() {
@@ -10,15 +9,12 @@ fn main() {
 		"aarch64-apple-darwin" => {
 			let _ = build.file("src/core/macos/exit.s");
 		}
-
 		"aarch64-unknown-linux-gnu" | "aarch64-unknown-linux-musl" => {
 			let _ = build.file("src/core/linux/exit_a64.s");
 		}
-
 		"x86_64-unknown-linux-gnu" | "x86_64-unknown-linux-musl" => {
 			let _ = build.file("src/core/linux/exit_x64.s");
 		}
-
 		_ => {
 			panic!("target não suportado para exit syscall: {target}");
 		}
@@ -30,6 +26,4 @@ fn main() {
 		.file("src/core/unix/getenv.c");
 
 	build.compile("dirty-core");
-
-	println!("target: {:?}\n build: {:?}", target, build);
 }

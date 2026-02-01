@@ -37,11 +37,12 @@ impl NativeDecoration for Decoration
 	/// Creates the native window frame decoration for macOS
 	fn new(title: String, width: f64, height: f64, theme: ThemeDefault) -> Result<Self, WResponse>
 	{
-		let Some(mtm) = MainThreadMarker::new() else { return Err(WResponse::UnexpectedError) };
+		let Some(mtm) = MainThreadMarker::new() else { return Err(WResponse::MainThreadError) };
 
-		let origin = NSPoint::new(10.0, -2.3);
-		let size = NSSize::new(width, height);
-		let rect = NSRect::new(origin, size);
+		let rect = NSRect::new(
+			NSPoint::new(10.0, -2.3),
+			NSSize::new(width, height)
+		);
 
 		let window = unsafe { NSWindow::initWithContentRect_styleMask_backing_defer(
 			NSWindow::alloc(mtm),
@@ -103,7 +104,7 @@ impl NativeDecoration for Decoration
 	/// Apply blur effect on the window
 	fn apply_blur(&mut self) -> Result<(), WResponse>
 	{
-		let Some(mtm) = MainThreadMarker::new() else { return Err(WResponse::UnexpectedError) };
+		let Some(mtm) = MainThreadMarker::new() else { return Err(WResponse::MainThreadError) };
 
 		let backend = self.backend.clone();
 		let rect: NSRect = void::from_handle(backend.rect);
@@ -141,7 +142,7 @@ impl NativeDecoration for Decoration
 	// this is way easier in swift...
 	fn create_app_menu(&self, app_name: String) -> Result<(), WResponse>
 	{
-		let Some(mtm) = MainThreadMarker::new() else { return Err(WResponse::UnexpectedError) };
+		let Some(mtm) = MainThreadMarker::new() else { return Err(WResponse::MainThreadError) };
 		let app = NSApplication::sharedApplication(mtm);
 
 		let item_menu = NSMenuItem::alloc(mtm);
