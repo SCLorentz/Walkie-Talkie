@@ -56,7 +56,7 @@ impl NativeDecoration for Decoration
 			socket: void::to_handle(socket),
 		};
 
-		let decoration = Decoration {
+		let decoration = Self {
 			mode: DecorationMode::ServerSide,
 			frame: core::ptr::null_mut() as *const void, // TODO
 			backend,
@@ -71,10 +71,7 @@ impl NativeDecoration for Decoration
 		 * the `hyprland_surface_manager_v1` protocol already covers this, skip
 		 * <https://wayland.app/protocols/hyprland-surface-v1>
 		 */
-		let desktop = match get_de() {
-			Ok(d) => d,
-			Err(_) => DE::Unknown,
-		};
+		let desktop = get_de().map_or(DE::Unknown, |d| d);
 
 		match desktop {
 			DE::Hyprland =>

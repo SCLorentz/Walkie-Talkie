@@ -110,7 +110,8 @@ impl<H: EventHandler> App<H>
 	pub fn set_global_theme(&mut self, theme: ThemeDefault)
 		{ self.theme = theme }
 
-	/// Creates a new Window element and pushes to the App
+	/// Creates a new Window element and pushes to the `App`
+	#[allow(clippy::missing_errors_doc)]
 	pub fn new_window(
 		&mut self,
 		title: &'static str,
@@ -161,6 +162,7 @@ pub struct ThemeDefault {
 }
 
 /// `NativeDecoration` provides the necessary abstraction used inside the `platform` modules
+#[allow(clippy::doc_markdown, clippy::missing_errors_doc)]
 pub trait NativeDecoration
 {
 	/// executes the application window
@@ -169,9 +171,15 @@ pub trait NativeDecoration
 	fn new(title: String, width: f64, height: f64, theme: ThemeDefault) -> Result<Self, WResponse> where Self: Sized;
 	/// Apply blur to window
 	fn apply_blur(&mut self) -> Result<(), WResponse>;
-	/// exit handler
+	/// Exit handler
 	fn exit(&self) -> Result<(), WResponse>;
-	/// App Menu Controls
+	/**
+	 * Creates the Appmenu Controls (mostly used on MacOS, KDE and Windows)
+	 *
+	 * # Errors
+	 *
+	 * On `MacOS` it must be run on the main thread! If not, it will return `MainThreadError`
+	 */
 	fn create_app_menu(&self, app_name: String) -> Result<(), WResponse>;
 }
 
@@ -219,7 +227,13 @@ impl Window
 	pub fn get_backend(&self) -> *mut void
 		{ void::to_handle(self.decoration.backend.clone()) }
 
-	/// Connects a specified vulkan surface with the current window
+	/**
+	 * Connects a specified vulkan surface with the current window
+	 *
+	 * # Errors
+	 *
+	 * this will return an error if the window already has a surface
+	 */
 	pub fn connect_surface(&mut self, surface: Surface) -> Result<(), WResponse>
 	{
 		if !self.has_surface() {
@@ -247,11 +261,13 @@ impl Window
 	pub fn resizable(&mut self, arg: bool) { self.resizable = arg }
 }
 
+#[doc(hidden)]
 trait PrivateWindow {
 	fn init(app_name: String, title: &'static str, theme: ThemeDefault, size: (f64, f64)) ->
 		Result<Window, WResponse>;
 }
 
+#[doc(hidden)]
 impl PrivateWindow for Window {
 	fn init(
 		app_name: String,
@@ -312,8 +328,7 @@ pub struct Cursor {
 	disabled: bool,
 }
 
-// transform this into a trait?
-#[allow(dead_code)]
+#[allow(clippy::missing_const_for_fn)]
 impl Cursor {
 	/// Get the cursor object
 	#[must_use]

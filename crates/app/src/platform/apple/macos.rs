@@ -114,7 +114,6 @@ impl NativeDecoration for Decoration
 		 * Mostly, other effects will be managed trought renderer/shaders on vulkan and not macOS
 		 */
 		let alloc: Allocated<NSVisualEffectView> = NSVisualEffectView::alloc(mtm);
-		let blur_view_ptr = NSVisualEffectView::initWithFrame(alloc, rect);
 		let window: &NSWindow = void::from_handle(self.frame);
 
 		let Some(content) = window.contentView() else {
@@ -122,24 +121,22 @@ impl NativeDecoration for Decoration
 			return Err(WResponse::UnexpectedError);
 		};
 
-		let blur_view = blur_view_ptr.retain();
-		content.addSubview(&blur_view);
-
-		blur_view.setBlendingMode(NSVisualEffectBlendingMode(0));
-		blur_view.setMaterial(NSVisualEffectMaterial::HUDWindow);
-		blur_view.setState(NSVisualEffectState::Active);
-		blur_view.setFrame(content.bounds());
-		blur_view.setTranslatesAutoresizingMaskIntoConstraints(false);
-		blur_view.setAutoresizingMask(
-			NSAutoresizingMaskOptions::ViewWidthSizable
-				| NSAutoresizingMaskOptions::ViewHeightSizable
-		);
+		let blur = NSVisualEffectView::initWithFrame(alloc, rect).retain();
+			blur.setBlendingMode(NSVisualEffectBlendingMode(0));
+			blur.setMaterial(NSVisualEffectMaterial::HUDWindow);
+			blur.setState(NSVisualEffectState::Active);
+			blur.setFrame(content.bounds());
+			blur.setTranslatesAutoresizingMaskIntoConstraints(false);
+			blur.setAutoresizingMask(
+				NSAutoresizingMaskOptions::ViewWidthSizable
+					| NSAutoresizingMaskOptions::ViewHeightSizable
+			);
+		content.addSubview(&blur);
 
 		debug!("applying blur on NativeDecoration");
 		Ok(())
 	}
 
-	// this is way easier in swift...
 	fn create_app_menu(&self, app_name: String) -> Result<(), WResponse>
 	{
 		let Some(mtm) = MainThreadMarker::new() else { return Err(WResponse::MainThreadError) };

@@ -1,8 +1,8 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::panic, clippy::expect_used)]
 use std::env;
 
 fn main() {
-	let target = env::var("TARGET").expect("TARGET não definido");
+	let Ok(target) = env::var("TARGET") else { panic!("TARGET not defined!") };
 	let mut build = cc::Build::new();
 
 	match target.as_str() {

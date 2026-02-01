@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(clippy::tabs_in_doc_comments, unused_doc_comments)]
 #![doc = include_str!("../README.md")]
 
 use ash::{
@@ -28,6 +29,7 @@ impl Renderer {
 	/// Creates a new Vulkan render
 	/// this will be our `initVulkan()` from the tutorial
 	/// <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Base_code#:~:text=initVulkan()>
+	#[allow(clippy::missing_errors_doc)]
 	pub fn new(surface_backend: *mut void) -> Result<Self, Box<dyn Error>>
 	{
 		let backend: Wrapper = void::from_handle(surface_backend);
@@ -204,11 +206,11 @@ impl Renderer {
 	}
 
 	/**
-	 * Creates a new surface for MacOS
+	 * Creates a new surface for `MacOS`
 	 *
-	 * ## Error:
+	 * # Errors
 	 *
-	 * The function can error in two ways, on the CALayer creation, resulting in "failed making the view layer-backed";
+	 * The function can error in two ways, on the `CALayer` creation, resulting in "failed making the view layer-backed";
 	 * Or it can fail on the `create_metal_surface()` method, returning a generic error from ash.
 	 */
 	#[cfg(target_os = "macos")]
@@ -237,7 +239,7 @@ impl Renderer {
 		let surface_desc = vk::MetalSurfaceCreateInfoEXT::default()
 			.layer(layer); // <- the rust mf expects `*mut c_void` and not the virtually identical `*mut void`
 
-		return Ok(unsafe { surface.create_metal_surface(&surface_desc, None)? })
+		Ok(unsafe { surface.create_metal_surface(&surface_desc, None)? })
 	}
 
 	// WARN: this is just a model and is not complete. The code will fail.
@@ -279,8 +281,12 @@ impl Renderer {
 		todo!();
 	}
 
-	/// Creates a new vulkan renderpass
-	/// here's an oficial example: <https://github.com/ash-rs/ash/blob/master/ash-examples/src/bin/texture.rs>
+	/**
+	 * Creates a new vulkan renderpass.
+	 *
+	 * here's an oficial example: <https://github.com/ash-rs/ash/blob/master/ash-examples/src/bin/texture.rs>
+	 */
+	#[allow(clippy::missing_errors_doc)]
 	pub fn render_pass(device: &Device) -> Result<RenderPass, Box<dyn Error>>
 	{
 		// tbh, I have no idea what does this do

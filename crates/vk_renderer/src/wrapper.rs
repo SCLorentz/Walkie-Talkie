@@ -1,7 +1,7 @@
 use crate::void;
 
 #[cfg(target_os = "linux")]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Wrapper {
 	pub state: *mut void,
 	pub surface: *mut void,
@@ -16,5 +16,5 @@ pub struct Wrapper {
 }
 
 #[cfg(target_os = "windows")]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Wrapper {}
