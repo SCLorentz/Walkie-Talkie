@@ -2,29 +2,58 @@
 #![allow(clippy::tabs_in_doc_comments, unused_doc_comments)]
 #![doc = include_str!("../README.md")]
 
-use ash::{
-	Instance,
-	Device,
-	vk::{self, SurfaceKHR, RenderPass, PhysicalDevice}
-};
+use ash::{Instance, Device, vk};
 use log::debug;
 use core::{slice, ptr::NonNull, error::Error};
-use dirty::{Box, void, f8, SurfaceWrapper};
+use dirty::{Box, void, f8, SurfaceWrapper, Vec};
 
 mod wrapper;
 use wrapper::Wrapper;
 
 /// Default Renderer struct
-#[allow(dead_code)]
+#[allow(missing_docs)]
 pub struct Renderer {
-	/// Vulkan Surface
-	surface: SurfaceKHR,
-	renderpass: RenderPass,
-	device: Device,
-	instance: Instance,
+	pub device: Device,
+	pub instance: Instance,
+	data: AppData,
+}
+
+#[allow(missing_docs)]
+#[derive(Clone, Debug, Default)]
+pub struct AppData {
+	pub validation: bool,
+	// Surface
+	pub surface: vk::SurfaceKHR,
+	// Physical Device / Logical Device
+	pub physical_device: vk::PhysicalDevice,
+	pub graphics_queue: vk::Queue,
+	pub present_queue: vk::Queue,
+	// Swapchain
+	pub swapchain_format: vk::Format,
+	pub swapchain_extent: vk::Extent2D,
+	pub swapchain: vk::SwapchainKHR,
+	pub swapchain_images: Vec<vk::Image>,
+	pub swapchain_image_views: Vec<vk::ImageView>,
+	// Pipeline
+	pub render_pass: vk::RenderPass,
+	pub pipeline_layout: vk::PipelineLayout,
+	pub pipeline: vk::Pipeline,
+	// Command Pool
+	pub command_pool: vk::CommandPool,
+	// Framebuffers
+	pub framebuffers: Vec<vk::Framebuffer>,
+	// Command Buffers
+	pub command_buffers: Vec<vk::CommandBuffer>,
+	// Sync Objects
+	pub image_available_semaphores: Vec<vk::Semaphore>,
+	pub render_finished_semaphores: Vec<vk::Semaphore>,
+	pub in_flight_fences: Vec<vk::Fence>,
+	pub images_in_flight: Vec<vk::Fence>,
 }
 
 /// The rendring interface
+/// <https://kylemayes.github.io/vulkanalia/introduction.html>
+/// <https://vulkan-tutorial.com/Introduction>
 impl Renderer {
 	/// Creates a new Vulkan render
 	/// this will be our `initVulkan()` from the tutorial
@@ -32,9 +61,26 @@ impl Renderer {
 	#[allow(clippy::missing_errors_doc)]
 	pub fn new(surface_backend: *mut void) -> Result<Self, Box<dyn Error>>
 	{
-		let backend: Wrapper = void::from_handle(surface_backend);
 		debug!("Creating new vulkan render");
+		let (instance, entry) = Self::create_instance()?;
+		let backend: Wrapper = void::from_handle(surface_backend);
+		let mut data = AppData::default();
 
+		let device = Self::get_device(&instance)?;
+		data.render_pass = Self::render_pass(&device)?;
+
+		Self::create_surface(data.clone(), backend, instance.clone(), entry)?;
+		unsafe { Self::create_framebuffers(&device, &mut data)? };
+
+		Ok(Self {
+			device,
+			instance,
+			data
+		})
+	}
+
+	fn create_instance() -> Result<(Instance, ash::Entry), Box<dyn Error>>
+	{
 		/**
 		 * load vulkan in execution, otherwise one might have a problem compiling it for macos (apple beeing apple)
 		 * another problem is the inexistence of a vulkan dylib natively on mac
@@ -59,8 +105,6 @@ impl Renderer {
 			vk::EXT_METAL_SURFACE_NAME.as_ptr()
 		];
 
-		/* */
-
 		let instance_desc = vk::InstanceCreateInfo::default()
 			.application_info(&app_info)
 			.enabled_extension_names(extensions);
@@ -77,46 +121,13 @@ impl Renderer {
 			entry.create_instance(&instance_desc, None)?
 		};
 
-		/**
-		 * Handlers
-		 */
-		let device = Self::get_device(&instance)?;
-		//let _logic = Self::create_logic_device();
-		let renderpass = Self::render_pass(&device)?;
-
-		/** <https://github.com/ash-rs/ash/blob/master/ash-examples/src/lib.rs>
-		 * The Headless backend will be used to implement tests
-		 * the repo uses `let surface_loader = surface::Instance::load(&entry, &instance);`
-		 * but the way it is created is different, using `SurfaceFactory`, for that I would need winit
-		 */
-
-		#[cfg(target_os = "macos")]
-		let view = backend.ns_view;
-
-		#[cfg(target_os = "linux")]
-		let view: *mut void = backend.surface;
-
-		#[cfg(target_os = "windows")]
-		let view: *mut void = todo!();
-
-		let Some(nn_view) = NonNull::new(view) else {
-			return Err(Box::from("view shouldn't be null"))
-		};
-
-		let surface = Self::new_surface(&instance, &entry, nn_view.cast())?;
-
-		Ok(Self {
-			surface,
-			renderpass,
-			device,
-			instance,
-		})
+		Ok((instance, entry))
 	}
 
 	/// Returns the Wrapper for the `SurfaceKHR`
 	#[must_use]
 	pub fn get_surface(&self) -> SurfaceWrapper
-		{ SurfaceWrapper::new(self.surface) }
+		{ SurfaceWrapper::new(self.data.surface) }
 
 	/**
 	 * in the future, implement a rate to pick the best device avaliable
@@ -125,7 +136,7 @@ impl Renderer {
 	 * <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families#:~:text=isDeviceSuitable>
 	 */
 	#[inline]
-	fn is_device_suitable(instance: &Instance, device: PhysicalDevice) -> bool
+	fn is_device_suitable(instance: &Instance, device: vk::PhysicalDevice) -> bool
 	{
 		let prop = unsafe { instance.get_physical_device_properties(device) };
 		let feat = unsafe { instance.get_physical_device_features(device) };
@@ -157,7 +168,7 @@ impl Renderer {
 		 */
 		let physical_devices = unsafe { instance.enumerate_physical_devices()? };
 
-		let mut maybe_selected_device: Option<PhysicalDevice> = None;
+		let mut maybe_selected_device: Option<vk::PhysicalDevice> = None;
 		for device in physical_devices {
 			if !Self::is_device_suitable(instance, device) { continue }
 			debug!("found suitable device `{device:?}`!");
@@ -205,6 +216,32 @@ impl Renderer {
 		})
 	}
 
+	fn create_surface(mut data: AppData, backend: Wrapper, instance: Instance, entry: ash::Entry)
+		-> Result<(), Box<dyn Error>>
+	{
+		/** <https://github.com/ash-rs/ash/blob/master/ash-examples/src/lib.rs>
+		 * The Headless backend will be used to implement tests
+		 * the repo uses `let surface_loader = surface::Instance::load(&entry, &instance);`
+		 * but the way it is created is different, using `SurfaceFactory`, for that I would need winit
+		 */
+
+		#[cfg(target_os = "macos")]
+		let view = backend.ns_view;
+
+		#[cfg(target_os = "linux")]
+		let view: *mut void = backend.surface;
+
+		#[cfg(target_os = "windows")]
+		let view: *mut void = todo!();
+
+		let Some(nn_view) = NonNull::new(view) else {
+			return Err(Box::from("view shouldn't be null"))
+		};
+
+		data.surface = Self::new_surface(&instance, &entry, nn_view.cast())?;
+		Ok(())
+	}
+
 	/**
 	 * Creates a new surface for `MacOS`
 	 *
@@ -218,12 +255,12 @@ impl Renderer {
 		instance: &Instance,
 		entry: &ash::Entry,
 		window: NonNull<void>
-	) -> Result<SurfaceKHR, Box<dyn Error>>
+	) -> Result<vk::SurfaceKHR, Box<dyn Error>>
 	{
 		use objc2::{rc::Retained, msg_send, runtime::NSObject};
 		use objc2_quartz_core::CALayer;
 		use ash::ext::metal_surface;
-		use core::ffi::c_void;
+		use core::ffi::c_void; // if only I could use `void::to_handle(val)`...
 		debug!("creating metal surface");
 
 		let ns_view: &NSObject = void::from_handle(window.as_ptr());
@@ -231,7 +268,7 @@ impl Renderer {
 
 		let layer: *mut c_void =
 			match unsafe { msg_send![ns_view, layer] } {
-				Some(val) => Retained::<CALayer>::as_ptr(&val) as *mut c_void, // <- if only I could use `void::to_handle(val)`...
+				Some(val) => Retained::<CALayer>::as_ptr(&val) as *mut c_void,
 				None => return Err(Box::from("failed making the view layer-backed"))
 			};
 
@@ -278,7 +315,13 @@ impl Renderer {
 		window: NonNull<void>
 	) -> Result<SurfaceKHR, Box<dyn Error>>
 	{
-		todo!();
+		debug!("creating windows surface");
+		use ash::vk::KhrWin32SurfaceExtensionInstanceCommands;
+
+		let surface = instance.create_win32_surface_khr(&info, None).unwrap();
+		pick_physical_device(&instance, &mut data)?;
+
+		Ok(result)
 	}
 
 	/**
@@ -287,7 +330,7 @@ impl Renderer {
 	 * here's an oficial example: <https://github.com/ash-rs/ash/blob/master/ash-examples/src/bin/texture.rs>
 	 */
 	#[allow(clippy::missing_errors_doc)]
-	pub fn render_pass(device: &Device) -> Result<RenderPass, Box<dyn Error>>
+	pub fn render_pass(device: &Device) -> Result<vk::RenderPass, Box<dyn Error>>
 	{
 		// tbh, I have no idea what does this do
 		let renderpass_attachments = [
@@ -346,6 +389,38 @@ impl Renderer {
 		Ok(renderpass)
 	}
 
+	fn create_pipeline(_device: &Device, _data: &mut AppData)
+		-> Result<(), Box<dyn Error>>
+	{
+		Ok(())
+	}
+
+	/// <https://kylemayes.github.io/vulkanalia/drawing/framebuffers.html>
+	unsafe fn create_framebuffers(device: &Device, data: &mut AppData)
+		-> Result<(), Box<dyn Error>>
+	{
+		data.framebuffers = data
+			.swapchain_image_views
+			.iter()
+			.map(|i| {
+				use vk::FramebufferCreateInfo;
+				let attachments = &[*i];
+
+				let create_info	= FramebufferCreateInfo::default()
+					.render_pass(data.render_pass)
+					.attachments(attachments)
+					.width(data.swapchain_extent.width)
+					.height(data.swapchain_extent.height)
+					.layers(1);
+
+				let result = unsafe { device.create_framebuffer(&create_info, None)? };
+				Ok(result)
+			})
+			.collect::<Result<Vec<_>, Box<dyn Error>>>()?;
+
+		Ok(())
+	}
+
 	// for now returns a generic value
 	/// Returns the surface size
 	#[must_use]
@@ -353,10 +428,16 @@ impl Renderer {
 	pub fn get_surface_size(&self) -> (f32, f32) { (0.0, 0.0) }
 
 	/// Stop the rendering and cleanup everything
-	pub fn cleanup(&self)
+	unsafe fn cleanup(&self) { unsafe
 	{
-		unsafe { self.instance.destroy_instance(None); }
-	}
+		// https://docs.rs/ash/latest/ash/khr/surface/struct.InstanceFn.html#structfield.destroy_surface_khr
+		//self.instance.destroy_surface_khr(self.surface, None); <- this is type Instance and not InstanceFn
+		self.data.framebuffers
+			.iter()
+			.for_each(|f| self.device.destroy_framebuffer(*f, None));
+
+		self.instance.destroy_instance(None);
+	}}
 
 	// TODO: make this work (yes, I know it's ugly)
 	// For some reason it returns `Vulkan inicialization failed: ERROR_INCOMPATIBLE_DRIVER`
