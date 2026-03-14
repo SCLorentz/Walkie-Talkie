@@ -126,7 +126,7 @@ impl<H: EventHandler> App<H>
 			nb::block!(H::handle_events(Event::Generic)).unwrap();
 		});*/
 
-		//dirty::Thread::default(event_thread).run();
+		dirty::Thread::default(event_thread).run();
 
 		#[cfg(target_os = "macos")]
 		if let Some(window) = self.windows.first() {

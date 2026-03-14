@@ -32,7 +32,7 @@ fn main()
 			theme.has_title = true;
 	app.set_global_theme(theme);
 
-	if let Ok(mut window) = app.new_window("walkie talkie", (600.0, 500.0))
+	if let Ok(mut _window) = app.new_window("walkie talkie", (600.0, 500.0))
 	{
 		//let renderer = vk_renderer::Renderer::new(window.get_backend())
 		//	.expect("Vulkan inicialization failed");
