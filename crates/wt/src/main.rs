@@ -34,9 +34,9 @@ fn main()
 
 	if let Ok(mut window) = app.new_window("walkie talkie", (600.0, 500.0))
 	{
-		let renderer = vk_renderer::Renderer::new(window.get_backend())
-			.expect("Vulkan inicialization failed");
-		let _ = window.connect_surface(renderer.get_surface());
+		//let renderer = vk_renderer::Renderer::new(window.get_backend())
+		//	.expect("Vulkan inicialization failed");
+		//let _ = window.connect_surface(renderer.get_surface());
 	};
 
 	let _ = app.new_window("window 2", (500.0, 500.0));

@@ -14,9 +14,9 @@ fn main() {
 	targets.push(("read_socket", "src/core/unix/socket.c"));
 	targets.push(("write_socket", "src/core/unix/socket.c"));
 	targets.push(("close_socket", "src/core/unix/socket.c"));
-	targets.push(("create_thread", "src/core/unix/thread.c"));
-	targets.push(("kill_thread", "src/core/unix/thread.c"));
-	targets.push(("getenv", "src/core/unix/getenv.c"));
+	//targets.push(("create_thread", "src/core/unix/thread.c"));
+	//targets.push(("kill_thread", "src/core/unix/thread.c"));
+	//targets.push(("getenv", "src/core/unix/getenv.c"));
 
 	for (name, file) in targets {
 		cc::Build::new()

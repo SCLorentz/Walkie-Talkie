@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(core_intrinsics, stmt_expr_attributes)]
+//#![feature(core_intrinsics, stmt_expr_attributes)]
 #![deny(
 	deprecated,
 	rust_2018_idioms,
@@ -83,7 +83,7 @@ pub struct SocketResponse
 }
 
 /// Wrapper type for the C `struct` that stores threads
-#[cfg(target_family = "unix")]
+/*#[cfg(target_family = "unix")]
 #[derive(Debug)]
 #[repr(C)]
 #[allow(non_camel_case_types, clippy::missing_docs_in_private_items)]
@@ -91,22 +91,33 @@ struct c_Thread
 {
 	pub id: i32,
 	pub thread: *mut void,
-}
+}*/
 
 #[cfg(target_family = "unix")]
 /// This will handle with our C imports from `unix/socket.c`
 mod unix {
-	use crate::{AnyFunction, SocketResponse, void, c_Thread};
+	use crate::{SocketResponse, void};
 
 	unsafe extern "C" {
 		pub(crate) fn create_socket(address: *mut void) -> SocketResponse;
 		pub(crate) fn read_socket(server_socket: i32, ch: *mut void) -> *mut void;
 		pub(crate) fn write_socket(server_socket: i32, ch: *mut void);
 		pub(crate) fn close_socket(server_socket: i32);
-		pub(crate) fn getenv(find: *const i8) -> *const i8;
-		pub(crate) fn create_thread(function: AnyFunction) -> c_Thread;
-		pub(crate) fn kill_thread(thread: &c_Thread);
+		//pub(crate) fn getenv(find: *const i8) -> *const i8;
+		//pub(crate) fn create_thread(function: AnyFunction) -> c_Thread;
+		//pub(crate) fn kill_thread(thread: &c_Thread);
+		pub(crate) fn getenv(name: *const u8) -> *const u8;
 	}
+}
+
+/// returns the value of an environment variable
+pub fn getenv(val: &str) -> Option<*const u8>
+{
+	let name: *const u8 = val.as_ptr();
+	let env = unsafe { unix::getenv(name) };
+
+	if env == core::ptr::null() { return None }
+	Some(env)
 }
 
 /// Type for a function repr in C that takes `void* arg` and returns `void*`
@@ -121,7 +132,7 @@ pub extern "C" fn fn_wrapper(function: *mut fn(*mut void) -> *mut void) -> *mut 
 }*/
 
 /// This is a thread interface with the C implementation
-#[derive(Debug)]
+/*#[derive(Debug)]
 #[cfg(target_family = "unix")]
 pub struct Thread {
 	/// The function beeing executed in the new thread
@@ -163,7 +174,7 @@ impl Thread
 		unsafe { unix::kill_thread(thread); }
 		Ok(())
 	}
-}
+}*/
 
 /**
  * The function will return the size of a string.
@@ -171,7 +182,7 @@ impl Thread
  * This works by prompting the first byte of the string (represented by the pointer `p`),
  * then the loop will get all following characters until the `\0` (string termination character)
  */
-#[cfg(target_family = "unix")]
+/*#[cfg(target_family = "unix")]
 unsafe fn c_strlen(p: *const u8, bypass_hardcoded_limit: Option<usize>) -> Option<usize>
 {
 	// this fucker.
@@ -190,31 +201,31 @@ unsafe fn c_strlen(p: *const u8, bypass_hardcoded_limit: Option<usize>) -> Optio
 	}
 
 	None
-}
+}*/
 
 /**
  * this basicly creates a new string based on the initial location and the final size
  * `ptr` is the first byte and `len` is how long it should read the string
  */
-#[cfg(target_family = "unix")]
+/*#[cfg(target_family = "unix")]
 unsafe fn getenv_str(ptr: *const u8) -> Option<&'static [u8]>
 {
 	unsafe {
 		let len = c_strlen(ptr, None);
 		Some(slice::from_raw_parts(ptr, len?))
 	}
-}
+}*/
 
 /**
  * this converts the raw byte value into a readable string
  * <https://doc.rust-lang.org/stable/core/str/fn.from_utf8.html>
  */
-#[cfg(target_family = "unix")]
+/*#[cfg(target_family = "unix")]
 fn convert_bytes_to_string(bytes: &[u8]) -> Option<String>
 {
 	let Ok(str) = str::from_utf8(bytes) else { return None };
 	Some(ToString::to_string(str))
-}
+}*/
 
 /**
  * this will check the environ array and search for an specific keyword
@@ -226,14 +237,14 @@ fn convert_bytes_to_string(bytes: &[u8]) -> Option<String>
  * };
  * ```
  */
-#[cfg(target_family = "unix")]
+/*#[cfg(target_family = "unix")]
 #[must_use]
 pub fn getenv(find: &'static str) -> Option<String>
 {
 	let raw_pointer = unsafe { unix::getenv(find.as_ptr().cast::<i8>()) };
 	let string = unsafe { getenv_str(raw_pointer.cast::<u8>()) };
 	convert_bytes_to_string(string?)
-}
+}*/
 
 #[cfg(target_family = "unix")]
 #[derive(Debug)]
@@ -249,7 +260,7 @@ pub struct Socket {
 impl Socket {
 	/// Create a new socket connection to the defined address
 	#[must_use]
-	pub fn new(address: &'static [u8]) -> Self
+	pub fn new(address: Vec<u8>) -> Self
 	{
 		let response: SocketResponse =
 			unsafe { unix::create_socket(void::to_handle(address)) };
@@ -264,15 +275,15 @@ impl Socket {
 
 	/// read the socket signal
 	#[must_use]
-	pub fn read_socket(&self, ch: &'static [u8]) -> Option<Box<&[f8]>>
+	pub fn read_socket(&self, ch: *const u8) -> Option<Box<&[f8]>>
 	{
 		let socket_id = self.socket_id?;
-		let response = unsafe { unix::read_socket(socket_id, void::to_handle(ch)) };
+		let response = unsafe { unix::read_socket(socket_id, ch as *mut void/*void::to_handle(ch)*/) };
 		Some(Box::new(void::from_handle(response)))
 	}
 
 	/// write a socket signal
-	pub fn write_socket(&self, ch: &'static [u8])
+	pub fn write_socket(&self, ch: *const u8)
 	{
 		let Some(socket_id) = self.socket_id else { return };
 		unsafe { unix::write_socket(socket_id, void::to_handle(ch)) };

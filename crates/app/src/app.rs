@@ -41,7 +41,7 @@ mod events;
 
 pub use events::Event;
 use platform::Wrapper;
-use log::{warn, info};
+use log::{warn, info, debug, error};
 
 //pub use nb;
 use dirty::{
@@ -126,7 +126,7 @@ impl<H: EventHandler> App<H>
 			nb::block!(H::handle_events(Event::Generic)).unwrap();
 		});*/
 
-		dirty::Thread::default(event_thread).run();
+		//dirty::Thread::default(event_thread).run();
 
 		#[cfg(target_os = "macos")]
 		if let Some(window) = self.windows.first() {
@@ -138,7 +138,7 @@ impl<H: EventHandler> App<H>
 #[unsafe(no_mangle)]
 extern "C" fn event_thread(p: *mut void) -> *mut void
 {
-	log::debug!("creating event thread!");
+	debug!("creating event thread!");
 	p
 }
 
@@ -262,7 +262,10 @@ impl PrivateWindow for Window {
 			theme.clone()
 		) {
 			Ok(v) => v,
-			Err(_) => return Err(WResponse::UnexpectedError),
+			Err(e) => {
+				error!("Unexpected decoration error: {:?}", e);
+				return Err(WResponse::UnexpectedError)
+			},
 		};
 
 		let _menu = decoration.create_app_menu(app_name);
