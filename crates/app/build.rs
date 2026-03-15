@@ -16,4 +16,8 @@ fn main() {
         .file(file)
         .compile(name);
     }
+
+    cc::Build::new()
+        .file("src/platform/linux/xdg-shell-protocol.c")
+        .compile("xdg-shell-protocol");
 }

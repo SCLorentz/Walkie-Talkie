@@ -19,7 +19,8 @@ pub(crate) struct WindowSurface {
 	display: *mut void,
 	registry: *mut void,
 	registry_listener: *mut void,
-	compositor: *mut void,
+	surface: *mut void,
+	toplevel: *mut void,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -38,6 +39,7 @@ impl NativeDecoration for Decoration
 	fn new(title: String, width: f64, height: f64, theme: ThemeDefault) -> Result<Self, WResponse>
 	{
 		let wl_display = unsafe { request_wl_surface() };
+		let frame = wl_display.toplevel;
 
 		let backend = Wrapper {
 			surface: wl_display,
@@ -45,7 +47,7 @@ impl NativeDecoration for Decoration
 
 		Ok(Decoration {
 			mode: DecorationMode::ServerSide,
-			frame: core::ptr::null_mut() as *const void, // TODO
+			frame,
 			backend,
 		})
 	}
