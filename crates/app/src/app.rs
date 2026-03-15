@@ -272,7 +272,7 @@ impl PrivateWindow for Window {
 
 		if theme.blur
 		&& let Err(response) = decoration.apply_blur()
-			{ warn!("{response:?}") }
+			{ warn!("blur: {response:?}") }
 
 		Ok(Window {
 			decoration,

@@ -96,41 +96,17 @@ struct c_Thread
 #[cfg(target_family = "unix")]
 /// This will handle with our C imports from `unix/socket.c`
 mod unix {
-	use crate::{SocketResponse, void, c_Thread, AnyFunction};
+	use crate::{c_Thread, AnyFunction};
 
 	unsafe extern "C" {
-		pub(crate) fn create_socket(address: *mut void) -> SocketResponse;
-		pub(crate) fn read_socket(server_socket: i32, ch: *const void) -> *mut void;
-		pub(crate) fn write_socket(server_socket: i32, ch: *mut void);
-		pub(crate) fn close_socket(server_socket: i32);
-
 		pub(crate) fn create_thread(function: AnyFunction) -> c_Thread;
 		pub(crate) fn kill_thread(thread: &c_Thread);
-
-		pub(crate) fn getenv(name: *const u8) -> *const u8;
 	}
-}
-
-/// returns the value of an environment variable
-pub fn getenv(val: &str) -> Option<*const u8>
-{
-	let name: *const u8 = val.as_ptr();
-	let env = unsafe { unix::getenv(name) };
-
-	if env == core::ptr::null() { return None }
-	Some(env)
 }
 
 /// Type for a function repr in C that takes `void* arg` and returns `void*`
 #[cfg(target_family = "unix")]
 pub type AnyFunction = extern "C" fn(*mut void) -> *mut void;
-
-/*#[unsafe(no_mangle)]
-pub extern "C" fn fn_wrapper(function: *mut fn(*mut void) -> *mut void) -> *mut void
-{
-	let rs_function = unsafe { *function };
-	rs_function(core::ptr::null_mut())
-}*/
 
 /// This is a thread interface with the C implementation
 #[derive(Debug)]
@@ -188,16 +164,18 @@ impl Thread
  * let raw = dirty::as_u8_slice<MyStruct>(var);
  * ```
 **/
-pub unsafe fn as_u8_slice<T: Sized>(mut p: T) -> *const [u8]
+pub unsafe fn as_u8_slice<T: Sized, const N: usize>(mut p: T) -> [u8; N]
 {
 	#[allow(trivial_casts)]
 	let ptr = &mut p as *const T;
-	let ret = unsafe { core::slice::from_raw_parts(ptr as *const u8,
+	let slice = unsafe { core::slice::from_raw_parts(ptr as *const u8,
 		size_of::<T>()) };
-		ret
+	let mut ret = [0u8; N];
+	ret[..slice.len()].copy_from_slice(slice);
+	ret
 }
 
-#[cfg(target_family = "unix")]
+/*#[cfg(target_family = "unix")]
 #[derive(Debug, Clone, PartialEq)]
 /// The default Socket struct.
 pub struct Socket {
@@ -211,8 +189,9 @@ pub struct Socket {
 impl Socket {
 	/// Create a new socket connection to the defined address
 	#[must_use]
-	pub fn connect(address: Vec<u8>) -> Self
+	pub fn connect(address: &str) -> Self
 	{
+		debug!("connecting to socket: {:?}", address);
 		let response: SocketResponse =
 			unsafe { unix::create_socket(void::to_handle(address)) };
 
@@ -226,28 +205,31 @@ impl Socket {
 
 	/// read the socket signal
 	#[must_use]
-	pub fn recv(&self) -> Option<Box<&[f8]>>
+	pub fn recv(&self) -> Option<[u8; 4096]>
 	{
-		let buffer: *const void = core::ptr::null();
+		let mut buf = [0u8; 4096];
 		let socket_id = self.socket_id?;
-		let response = unsafe { unix::read_socket(socket_id, buffer) };
-		Some(Box::new(void::from_handle(response)))
+		debug!("socket id: {}", socket_id);
+		unsafe { unix::recv(socket_id, &mut buf, 4096, 0x40) };
+		debug!("buf: {:?}", buf);
+
+		Some(buf)
 	}
 
 	/// write a socket signal
-	pub fn send(&self, ch: *const [u8])
+	pub fn send(&self, ch: [u8; 4096])
 	{
 		let Some(socket_id) = self.socket_id else { return };
-		unsafe { unix::write_socket(socket_id, void::to_handle(ch)) };
+		unsafe { unix::send(socket_id, ch, 4096, 0x40) };
 	}
 
 	/// close the connection with the socket
-	pub fn close_socket(&self)
+	pub fn close(&self)
 	{
 		let Some(socket_id) = self.socket_id else { return };
 		unsafe { unix::close_socket(socket_id) }
 	}
-}
+}*/
 
 /// Always trust the f8 type. The ABI is not your friend!
 ///

@@ -5,7 +5,6 @@ use crate::void;
 pub struct Wrapper {
 	pub state: *mut void,
 	pub surface: *mut void,
-	pub socket: dirty::Socket,
 }
 
 #[cfg(target_os = "macos")]
