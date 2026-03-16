@@ -25,7 +25,8 @@ pub(crate) struct WindowSurface {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Wrapper {
-	pub surface: WindowSurface,
+	pub wl_surface: *mut void,
+	pub wl_display: *mut void,
 }
 
 unsafe extern "C" {
@@ -38,11 +39,12 @@ impl NativeDecoration for Decoration
 {
 	fn new(title: String, width: f64, height: f64, theme: ThemeDefault) -> Result<Self, WResponse>
 	{
-		let wl_display = unsafe { request_wl_surface() };
-		let frame = wl_display.toplevel;
+		let state = unsafe { request_wl_surface() };
+		let frame = state.toplevel;
 
 		let backend = Wrapper {
-			surface: wl_display,
+			wl_surface: state.surface,
+			wl_display: state.display,
 		};
 
 		Ok(Decoration {
@@ -54,13 +56,13 @@ impl NativeDecoration for Decoration
 
 	fn exit(&self) -> Result<(), WResponse>
 	{
-		unsafe { request_wl_disconnect(self.backend.surface.display) };
+		unsafe { request_wl_disconnect(self.backend.wl_display) };
 		Ok(())
 	}
 
 	fn run(&self)
 	{
-		unsafe { loop_wl_event(self.backend.surface.display) };
+		unsafe { loop_wl_event(self.backend.wl_display) };
 	}
 
 	fn create_app_menu(&self, _app_name: String) -> Result<(), WResponse>
