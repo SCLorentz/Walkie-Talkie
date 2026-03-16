@@ -1,11 +1,9 @@
 #![allow(missing_docs, clippy::panic, clippy::expect_used)]
-use std::env;
 
 fn main() {
-	let Ok(target) = env::var("TARGET") else { panic!("TARGET not defined!") };
-	let mut build = cc::Build::new();
+	let mut targets = Vec::new();
 
-	#[cfg(all(target_os = "macos", target_aarch="aarch64"))]
+	#[cfg(all(target_os = "macos", target_arch="aarch64"))]
 	targets.push(("exit", "src/core/macos/exit.s"));
 
 	#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
@@ -22,11 +20,4 @@ fn main() {
 			.file(file)
 			.compile(name);
 	}
-
-	let _ = build
-		.file("src/core/unix/socket.c")
-		.file("src/core/unix/thread.c")
-		.file("src/core/unix/getenv.c");
-
-	build.compile("dirty-core");
 }

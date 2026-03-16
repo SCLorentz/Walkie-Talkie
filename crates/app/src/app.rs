@@ -118,7 +118,7 @@ impl<H: EventHandler> App<H>
 		size: (f64, f64),
 	) -> Result<Window, WResponse>
 	{
-		let window = Window::init(self.name.clone(), title, self.theme.clone(), size)?;
+		let window = Window::new(self.name.clone(), title, self.theme.clone(), size)?;
 		self.windows.push(window.clone());
 		Ok(window)
 	}

@@ -260,19 +260,17 @@ impl Renderer {
 		 */
 
 		#[cfg(target_os = "macos")]
-		let view = backend.ns_view;
+		let Some(nn_view) =
+			NonNull::new(backend.ns_view)
+		else
+			{ return Err(Box::from("view shouldn't be null")) };
+
+		#[cfg(target_os = "macos")]
+		data.surface = Self::new_surface(&instance, &entry, nn_view.cast())?;
 
 		#[cfg(target_os = "linux")]
-		let view: *mut void = backend.surface;
+		let surface = Self::mew
 
-		#[cfg(target_os = "windows")]
-		let view: *mut void = todo!();
-
-		let Some(nn_view) = NonNull::new(view) else {
-			return Err(Box::from("view shouldn't be null"))
-		};
-
-		data.surface = Self::new_surface(&instance, &entry, nn_view.cast())?;
 		Ok(())
 	}
 

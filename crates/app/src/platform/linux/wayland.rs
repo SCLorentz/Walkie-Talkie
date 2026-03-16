@@ -10,15 +10,6 @@ use crate::{
 	WResponse::{self, ProtocolNotSuported},
 };
 
-use dirty::getenv;
-
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Wrapper {
-	pub state:   *mut void,
-	pub surface: *mut void,
-	pub socket:  *mut void,
-};
-
 use log::debug;
 use dirty::{format, Vec};
 
@@ -32,7 +23,7 @@ pub(crate) struct WindowSurface {
 	toplevel: *mut void,
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Wrapper {
 	pub wl_surface: *mut void,
 	pub wl_display: *mut void,
