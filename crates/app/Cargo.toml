@@ -4,6 +4,7 @@ version = "0.0.1"
 edition.workspace = true
 publish.workspace = true
 authors = ["SCLorentz <sclorentz@proton.me>"]
+build = "build.rs"
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
@@ -20,6 +21,9 @@ log.workspace = true
 ash.workspace = true
 dirty.workspace = true
 #nb.workspace = true
+
+[build-dependencies]
+cc = "1.0"
 
 #[target.'cfg(target_os = "linux")'.dependencies]
 #wayland-protocols.workspace = true

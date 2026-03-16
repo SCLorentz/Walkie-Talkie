@@ -3,8 +3,8 @@ use crate::void;
 #[cfg(target_os = "linux")]
 #[derive(PartialEq, Debug, Clone)]
 pub struct Wrapper {
-	pub state: *mut void,
-	pub surface: *mut void,
+	pub wl_display: *mut void,
+	pub wl_surface: *mut void,
 }
 
 #[cfg(target_os = "macos")]
