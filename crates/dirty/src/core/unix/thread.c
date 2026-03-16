@@ -5,17 +5,18 @@ struct c_Thread {
 	void* thread;
 };
 
-struct c_Thread create_thread(typeof(void *(void *)) function)
+struct c_Thread create_thread(void *(*function)(void *))
 {
 	pthread_t thread;
 	int id = pthread_create(&thread, NULL, function, NULL);
 
-	struct c_Thread my_thread;
-	my_thread.id = id;
-	my_thread.thread = thread;
+	struct c_Thread new_thread;
+	new_thread.id = id;
+	void *ptr = (void *)&thread;
+	new_thread.thread = ptr;
 
-	return my_thread;
+	return new_thread;
 }
 
-void kill_thread(struct c_Thread my_thread)
-	{ pthread_cancel(my_thread.thread); }
+void kill_thread(struct c_Thread thread)
+	{ pthread_cancel((pthread_t)thread.thread); }

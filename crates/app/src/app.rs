@@ -42,7 +42,7 @@ mod events;
 
 pub use events::Event;
 use platform::Wrapper;
-use log::{warn, info};
+use log::{warn, info, debug, error};
 
 //pub use nb;
 use dirty::{
@@ -130,9 +130,8 @@ impl<H: EventHandler> App<H>
 			nb::block!(H::handle_events(Event::Generic)).unwrap();
 		});*/
 
-		dirty::Thread::default(event_thread).run();
+		//dirty::Thread::default(event_thread).run();
 
-		#[cfg(target_os = "macos")]
 		if let Some(window) = self.windows.first() {
 			window.decoration.run();
 		};
@@ -142,7 +141,7 @@ impl<H: EventHandler> App<H>
 #[unsafe(no_mangle)]
 extern "C" fn event_thread(p: *mut void) -> *mut void
 {
-	log::debug!("creating event thread!");
+	debug!("creating event thread!");
 	p
 }
 
@@ -261,27 +260,31 @@ impl Window
 	pub fn resizable(&mut self, arg: bool) { self.resizable = arg }
 }
 
-#[doc(hidden)]
 trait PrivateWindow {
-	fn init(app_name: String, title: &'static str, theme: ThemeDefault, size: (f64, f64)) ->
+	fn new(app_name: String, title: &'static str, theme: ThemeDefault, size: (f64, f64)) ->
 		Result<Window, WResponse>;
 }
 
-#[doc(hidden)]
 impl PrivateWindow for Window {
-	fn init(
+	fn new(
 		app_name: String,
 		title: &'static str,
 		theme: ThemeDefault,
 		size: (f64, f64)
 	) -> Result<Self, WResponse>
 	{
-		let Ok(mut decoration) = Decoration::new(
-			String::from(title),
+		#[allow(unused_mut)]
+		let mut decoration = match Decoration::new(			String::from(title),
 			size.0,
 			size.1,
 			theme.clone()
-		) else { return Err(WResponse::UnexpectedError) };
+		) {
+			Ok(v) => v,
+			Err(e) => {
+				error!("Unexpected decoration error: {:?}", e);
+				return Err(WResponse::UnexpectedError)
+			},
+		};
 
 		let _menu = decoration.create_app_menu(app_name);
 
@@ -289,7 +292,7 @@ impl PrivateWindow for Window {
 		&& let Err(response) = decoration.apply_blur()
 			{ warn!("{response:?}") }
 
-		Ok(Self {
+		Ok(Window {
 			decoration,
 			surface: None,
 			active: false,

@@ -1,5 +1,49 @@
 #![no_std]
-#![feature(core_intrinsics, stmt_expr_attributes, const_try, const_option_ops)]
+//#![feature(core_intrinsics, stmt_expr_attributes)]
+#![deny(
+	deprecated,
+	rust_2018_idioms,
+	unreachable_code,
+	unused_imports,
+	unused_variables,
+	unsafe_op_in_unsafe_fn,
+	missing_docs,
+	warnings,
+	clippy::all,
+	clippy::shadow_unrelated,
+	clippy::pedantic,
+	clippy::unwrap_used,
+	clippy::expect_used,
+	clippy::panic,
+	clippy::todo,
+	clippy::unimplemented,
+	clippy::shadow_reuse,
+	clippy::shadow_same,
+	clippy::dbg_macro,
+	clippy::print_stdout,
+	clippy::print_stderr,
+	clippy::indexing_slicing,
+	clippy::unwrap_in_result,
+	clippy::exit,
+	clippy::wildcard_imports,
+	clippy::missing_docs_in_private_items,
+	clippy::doc_markdown,
+	clippy::empty_docs,
+	clippy::unwrap_or_default,
+	clippy::match_wild_err_arm,
+	clippy::needless_pass_by_value,
+	clippy::redundant_closure,
+	clippy::large_stack_arrays,
+	missing_debug_implementations,
+	trivial_casts,
+	trivial_numeric_casts,
+	unused_extern_crates,
+	unused_import_braces,
+	unused_qualifications,
+	unused_results,
+	macro_use_extern_crate
+)]
+#![allow(clippy::tabs_in_doc_comments, internal_features)]
 //! This is a helper crate, with minimum dependencies, not even std included
 //!
 //! Things in here should and will be dirty!
@@ -51,14 +95,9 @@ struct c_Thread
 #[cfg(target_family = "unix")]
 /// This will handle with our C imports from `unix/socket.c`
 mod unix {
-	use crate::{AnyFunction, SocketResponse, void, c_Thread};
+	use crate::{c_Thread, AnyFunction};
 
 	unsafe extern "C" {
-		pub(crate) fn create_socket(address: *mut void) -> SocketResponse;
-		pub(crate) fn read_socket(server_socket: i32, ch: *mut void) -> *mut void;
-		pub(crate) fn write_socket(server_socket: i32, ch: *mut void);
-		pub(crate) fn close_socket(server_socket: i32);
-		pub(crate) fn getenv(find: *const i8) -> *const i8;
 		pub(crate) fn create_thread(function: AnyFunction) -> c_Thread;
 		pub(crate) fn kill_thread(thread: &c_Thread);
 	}
@@ -113,85 +152,23 @@ impl Thread
 	}
 }
 
+// https://stackoverflow.com/questions/28127165/how-to-convert-struct-to-u8
 /**
- * The function will return the size of a string.
- *
- * This works by prompting the first byte of the string (represented by the pointer `p`),
- * then the loop will get all following characters until the `\0` (string termination character)
- */
-#[cfg(target_family = "unix")]
-const unsafe fn c_strlen(p: *const u8, bypass_hardcoded_limit: Option<usize>) -> Option<usize>
+ * this transforms any generic struct type variable into raw data
+**/
+pub unsafe fn as_u8_slice<T: Sized, const N: usize>(mut p: T) -> [u8; N]
 {
-	// this fucker.
-	// Sometimes the C function passes a pointer to nowhere (final of the env array),
-	// this happends when the env requested doesn't exist on `char **environ`
-	if p.is_null() { return None; }
-
-	// to avoid (but not prevent) boundary related errors,
-	// 1024 is a hardcoded limit in case `\0` doesn't exist
-	let limit = match bypass_hardcoded_limit {
-		Some(val) => val,
-		None => 1024,
-	};
-	let mut len = 0;
-
-	while len < limit {
-		if unsafe { *p.add(len) == 0 } { return Some(len); }
-		len += 1;
-	}
-
-	None
+	#[allow(trivial_casts)]
+	let ptr = &mut p as *const T;
+	let slice = unsafe { core::slice::from_raw_parts(ptr as *const u8,
+		size_of::<T>()) };
+	let mut ret = [0u8; N];
+	ret[..slice.len()].copy_from_slice(slice);
+	ret
 }
 
-/**
- * this basicly creates a new string based on the initial location and the final size
- * `ptr` is the first byte and `len` is how long it should read the string
- */
-#[cfg(target_family = "unix")]
-const unsafe fn getenv_str(ptr: *const u8) -> Option<&'static [u8]>
-{
-	if let Some(len) = unsafe { c_strlen(ptr, None) } {
-		return Some(unsafe { slice::from_raw_parts(ptr, len) });
-	}
-	None
-}
-
-/**
- * this converts the raw byte value into a readable string
- * <https://doc.rust-lang.org/stable/core/str/fn.from_utf8.html>
- */
-#[cfg(target_family = "unix")]
-#[inline]
-fn convert_bytes_to_string(bytes: &[u8]) -> Option<String>
-{
-	let Ok(str) = str::from_utf8(bytes) else { return None };
-	Some(ToString::to_string(str))
-}
-
-/**
- * this will check the environ array and search for an specific keyword
- *
- * # Example
- * ```rust
- * if let Some(user) = getenv("USER") {
- *     log::debug!("your user: {:?}", user);
- * };
- * ```
- */
-#[cfg(target_family = "unix")]
-#[inline]
-#[must_use]
-pub fn getenv(find: &'static str) -> Option<String>
-{
-	let raw_pointer = unsafe { unix::getenv(find.as_ptr().cast::<i8>()) };
-	if let Some(string) = unsafe { getenv_str(raw_pointer.cast::<u8>()) } {
-		return convert_bytes_to_string(string);
-	}
-	None
-}
-
-#[cfg(target_family = "unix")]
-#[derive(Debug)]
+/*#[cfg(target_family = "unix")]
+#[derive(Debug, Clone, PartialEq)]
 /// The default Socket struct.
 pub struct Socket {
 	/// The same field of `SocketResponse.server_socket`.
@@ -205,8 +182,9 @@ impl Socket {
 	/// Create a new socket connection to the defined address
 	#[inline]
 	#[must_use]
-	pub fn new(address: String) -> Self
+	pub fn connect(address: &str) -> Self
 	{
+		debug!("connecting to socket: {:?}", address);
 		let response: SocketResponse =
 			unsafe { unix::create_socket(void::to_handle(address)) };
 
@@ -221,31 +199,31 @@ impl Socket {
 	/// read the socket signal
 	#[inline]
 	#[must_use]
-	pub fn read_socket(&self, ch: &'static [u8]) -> Option<Box<&[f8]>>
+	pub fn recv(&self) -> Option<[u8; 4096]>
 	{
-		if let Some(socket_id) = self.socket_id {
-			let response = unsafe { unix::read_socket(socket_id, void::to_handle(ch)) };
-			return Some(Box::new(void::from_handle(response)));
-		}
-		None
+		let mut buf = [0u8; 4096];
+		let socket_id = self.socket_id?;
+		debug!("socket id: {}", socket_id);
+		unsafe { unix::recv(socket_id, &mut buf, 4096, 0x40) };
+		debug!("buf: {:?}", buf);
+
+		Some(buf)
 	}
 
 	/// write a socket signal
-	#[inline]
-	pub fn write_socket(&self, ch: &'static [u8])
+	pub fn send(&self, ch: [u8; 4096])
 	{
 		let Some(socket_id) = self.socket_id else { return };
-		unsafe { unix::write_socket(socket_id, void::to_handle(ch)); }
+		unsafe { unix::send(socket_id, ch, 4096, 0x40) };
 	}
 
 	/// close the connection with the socket
-	#[inline]
-	pub fn close_socket(&self)
+	pub fn close(&self)
 	{
 		let Some(socket_id) = self.socket_id else { return };
 		unsafe { unix::close_socket(socket_id) }
 	}
-}
+}*/
 
 /// Always trust the f8 type. The ABI is not your friend!
 ///

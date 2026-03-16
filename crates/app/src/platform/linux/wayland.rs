@@ -1,3 +1,4 @@
+#![allow(unused_doc_comments, unused)]
 use crate::{
 	DecorationMode,
 	NativeDecoration,
@@ -16,54 +17,67 @@ pub struct Wrapper {
 	pub state:   *mut void,
 	pub surface: *mut void,
 	pub socket:  *mut void,
+};
+
+use log::debug;
+use dirty::{format, Vec};
+
+#[repr(C)]
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct WindowSurface {
+	display: *mut void,
+	registry: *mut void,
+	registry_listener: *mut void,
+	surface: *mut void,
+	toplevel: *mut void,
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct Wrapper {
+	pub wl_surface: *mut void,
+	pub wl_display: *mut void,
+}
+
+unsafe extern "C" {
+	pub(crate) fn request_wl_surface() -> WindowSurface;
+	pub(crate) fn request_wl_disconnect(display: *mut void);
+	pub(crate) fn loop_wl_event(display: *mut void);
 }
 
 impl NativeDecoration for Decoration
 {
-	fn new(_title: String, _width: f64, _height: f64, _theme: ThemeDefault) -> Result<Self, WResponse>
+	fn new(title: String, width: f64, height: f64, theme: ThemeDefault) -> Result<Self, WResponse>
 	{
-		// https://gaultier.github.io/blog/wayland_from_scratch.html#opening-a-socket
-		let Some(address) = getenv("XDG_RUNTIME_DIR") else {
-			return Err(ProtocolNotSuported)
-		};
+		let state = unsafe { request_wl_surface() };
+		let frame = state.toplevel;
 
-		let socket = dirty::Socket::new(address);
-		socket.write_socket(b"hello world");
-
-		let buffer: &[u8] = &[];
-		match socket.read_socket(buffer) {
-			Some(result) => log::debug!("{:?}", result),
-			None => log::warn!("no message recived"),
-		};
-
-		/**
-		 * This version will include SSDs and DBusMenu
-		 * <https://docs.rs/dbusmenu-glib/latest/dbusmenu_glib/>
-		 *
-		 * On KDE, implement:
-		 * - <https://wayland.app/protocols/kde-blur>
-		 * - <https://wayland.app/protocols/kde-appmenu>
-		 *
-		 * On Hyprland, implement:
-		 * - <https://wayland.app/protocols/hyprland-surface-v1>
-		 *
-		 * Other future (optional) implementations may include:
-		 * - popups, notifications, tablet, ext_background_effect_manager_v1
-		 */
 		let backend = Wrapper {
-			state: core::ptr::null_mut::<void>(),
-			surface: core::ptr::null_mut::<void>(),
-			socket: void::to_handle(socket),
+			wl_surface: state.surface,
+			wl_display: state.display,
 		};
 
 		let decoration = Self {
 			mode: DecorationMode::ServerSide,
-			frame: core::ptr::null_mut() as *const void, // TODO
+			frame,
 			backend,
 		};
 
 		Ok(decoration)
 	}
+
+	fn exit(&self) -> Result<(), WResponse>
+	{
+		unsafe { request_wl_disconnect(self.backend.wl_display) };
+		Ok(())
+	}
+
+	fn run(&self)
+	{
+		unsafe { loop_wl_event(self.backend.wl_display) };
+	}
+
+	fn create_app_menu(&self, _app_name: String) -> Result<(), WResponse>
+		{ Ok(()) }
 
 	fn apply_blur(&mut self) -> Result<(), WResponse>
 	{
@@ -83,14 +97,4 @@ impl NativeDecoration for Decoration
 
 		Err(ProtocolNotSuported)
 	}
-
-	fn exit(&self) -> Result<(), WResponse>
-	{
-		//self.backend.socket.close_socket();
-		Ok(())
-	}
-
-	fn run(&self) {}
-
-	fn create_app_menu(&self, _app_name: String) -> Result<(), WResponse> { Ok(()) }
 }

@@ -4,6 +4,7 @@
 
 use ash::{Instance, Device, vk};
 use log::debug;
+#[allow(unused)]
 use core::{slice, ptr::NonNull, error::Error};
 use dirty::{Box, void, f8, SurfaceWrapper, Vec};
 
@@ -121,7 +122,40 @@ impl Renderer {
 			entry.create_instance(&instance_desc, None)?
 		};
 
-		Ok((instance, entry))
+		/**
+		 * Handlers
+		 */
+		let device = Self::get_device(&instance)?;
+		//let _logic = Self::create_logic_device();
+		let renderpass = Self::render_pass(&device)?;
+
+		/** <https://github.com/ash-rs/ash/blob/master/ash-examples/src/lib.rs>
+		 * The Headless backend will be used to implement tests
+		 * the repo uses `let surface_loader = surface::Instance::load(&entry, &instance);`
+		 * but the way it is created is different, using `SurfaceFactory`, for that I would need winit
+		 */
+
+		#[cfg(target_os = "macos")]
+		let Some(nn_view) =
+			NonNull::new(backend.ns_view)
+		else
+			{ return Err(Box::from("view shouldn't be null")) };
+
+		#[cfg(target_os = "macos")]
+		let surface = Self::new_surface(&instance, &entry, nn_view.cast())?;
+
+		#[cfg(target_os = "linux")]
+		let surface = Self::new_surface(&instance, &entry, backend.wl_surface, backend.wl_display)?;
+
+		#[cfg(target_os = "windows")]
+		let view: *mut void = todo!();
+
+		Ok(Renderer {
+			surface,
+			renderpass,
+			device,
+			instance,
+		})
 	}
 
 	/// Returns the Wrapper for the `SurfaceKHR`
@@ -285,21 +319,21 @@ impl Renderer {
 	fn new_surface(
 		instance: &Instance,
 		entry: &ash::Entry,
-		window: NonNull<void>// <-- this is null on wayland.rs
+		wl_surface: *mut void,
+		wl_display: *mut void,
 	) -> Result<SurfaceKHR, Box<dyn Error>>
 	{
 		debug!("creating linux wayland surface");
 		use ash::{khr::wayland_surface, vk::wl_display};
 
-		let window_ref: &Wrapper = unsafe { window.cast().as_ref() };
 		/**
 		 * https://docs.rs/ash-window/0.13.0/src/ash_window/lib.rs.html#36-126
 		 */
-		let display = core::ptr::null_mut() as *const void as *mut wl_display;
+		let display = wl_display as *mut wl_display;
 
 		let surface_desc = vk::WaylandSurfaceCreateInfoKHR::default()
 			.display(display)
-			.surface(window_ref.surface as *mut core::ffi::c_void);
+			.surface(wl_surface as *mut core::ffi::c_void);
 
 		let surface = wayland_surface::Instance::new(entry, instance);
 		let result = unsafe { surface.create_wayland_surface(&surface_desc, None)? };

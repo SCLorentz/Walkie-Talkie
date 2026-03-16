@@ -30,14 +30,14 @@ struct SocketResponse create_socket(char* address)
 	return socket_return;
 }
 
-char* read_socket(int server_socket, char* ch)
+/*char* recv_socket(int server_socket, char* buf)
 {
-	read(server_socket, &ch, strlen(ch));
-	return ch;
-}
+	recv(server_socket, &buf, strlen(buf), MSG_DONTWAIT);
+	return buf;
+}*/
 
-void write_socket(int server_socket, char* ch)
-	{ write(server_socket, &ch, strlen(ch)); }
+void send_socket(int server_socket, char* ch)
+	{ send(server_socket, &ch, strlen(ch), MSG_DONTWAIT); }
 
 void close_socket(int server_socket)
 	{ close(server_socket); }

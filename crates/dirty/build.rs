@@ -5,19 +5,22 @@ fn main() {
 	let Ok(target) = env::var("TARGET") else { panic!("TARGET not defined!") };
 	let mut build = cc::Build::new();
 
-	match target.as_str() {
-		"aarch64-apple-darwin" => {
-			let _ = build.file("src/core/macos/exit.s");
-		}
-		"aarch64-unknown-linux-gnu" | "aarch64-unknown-linux-musl" => {
-			let _ = build.file("src/core/linux/exit_a64.s");
-		}
-		"x86_64-unknown-linux-gnu" | "x86_64-unknown-linux-musl" => {
-			let _ = build.file("src/core/linux/exit_x64.s");
-		}
-		_ => {
-			panic!("target não suportado para exit syscall: {target}");
-		}
+	#[cfg(all(target_os = "macos", target_aarch="aarch64"))]
+	targets.push(("exit", "src/core/macos/exit.s"));
+
+	#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+	targets.push(("exit", "src/core/linux/exit_a64.s"));
+
+	#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+	targets.push(("exit", "src/core/linux/exit_x64.s"));
+
+	targets.push(("create_thread", "src/core/unix/thread.c"));
+	targets.push(("kill_thread", "src/core/unix/thread.c"));
+
+	for (name, file) in targets {
+		cc::Build::new()
+			.file(file)
+			.compile(name);
 	}
 
 	let _ = build

@@ -32,6 +32,7 @@ This project is experimental and under active development. It is not yet intende
 None of the options for creating user interfaces for multiplatform pleased me, so I'm doing one from scratch using the Vulkan rendering API and the native calls from macOS, android, windows and linux. The main objective is to create something minimalistic portable and native in all platforms and desktops. I want to be able to use those crates on other projects as well and in the future, move them to their own repo.
 
 <img src="./doc/sources/514.png" alt="Alt Text" width="500">
+<img src="./doc/sources/linux.webp" alt="program size on linux" height="320">
 
 - Always remember to use `nix develop` before trying anything!
 - Avoid unsafe code on crates other than 'dirty'
