@@ -68,8 +68,9 @@ struct WindowSurface {
     struct xdg_toplevel * toplevel;
 };
 
-struct WindowSurface request_wl_surface(int width, int height)
+struct WindowSurface request_wl_surface(char* title)
 {
+    printf("title %p", title);
     struct state state = {0};
 
     struct WindowSurface wl_response = {0};
@@ -97,7 +98,7 @@ struct WindowSurface request_wl_surface(int width, int height)
     wl_response.toplevel =
         xdg_surface_get_toplevel(xdg_surface);
 
-    xdg_toplevel_set_title(wl_response.toplevel, "title");
+    xdg_toplevel_set_title(wl_response.toplevel, title);
     wl_surface_commit(wl_response.surface);
 
     return wl_response;

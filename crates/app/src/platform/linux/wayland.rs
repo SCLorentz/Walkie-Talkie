@@ -30,7 +30,7 @@ pub struct Wrapper {
 }
 
 unsafe extern "C" {
-	pub(crate) fn request_wl_surface() -> WindowSurface;
+	pub(crate) fn request_wl_surface(title: *const u8) -> WindowSurface;
 	pub(crate) fn request_wl_disconnect(display: *mut void);
 	pub(crate) fn loop_wl_event(display: *mut void);
 }
@@ -39,7 +39,7 @@ impl NativeDecoration for Decoration
 {
 	fn new(title: String, width: f64, height: f64, theme: ThemeDefault) -> Result<Self, WResponse>
 	{
-		let state = unsafe { request_wl_surface() };
+		let state = unsafe { request_wl_surface(title.as_ptr()) };
 		let frame = state.toplevel;
 
 		let backend = Wrapper {

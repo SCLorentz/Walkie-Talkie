@@ -37,6 +37,9 @@
 #[cfg(target_os = "none")]
 compile_error!("no bare metal support");
 
+#[cfg(target_os = "windows")]
+compile_error!("no windows (NT) support");
+
 mod platform;
 mod events;
 

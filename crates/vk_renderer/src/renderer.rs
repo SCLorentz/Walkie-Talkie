@@ -34,13 +34,16 @@ use ash::Instance;
 use ash::vk::{self, SurfaceKHR, RenderPass, PhysicalDevice};
 use log::debug;
 use core::{slice, error::Error};
-use dirty::{Box, void, f8, SurfaceWrapper};
+use dirty::{Box, void, f8, SurfaceWrapper, Vec};
 
 #[cfg(target_os = "macos")]
 use dirty::ptr::NonNull;
 
 mod wrapper;
 use wrapper::Wrapper;
+
+#[cfg(target_os = "windows")]
+compile_error!("no windows (NT) support");
 
 /*https://raw.githubusercontent.com/ash-rs/ash/master/ash-examples/src/bin/triangle.rs*/
 
@@ -52,6 +55,10 @@ pub struct Renderer {
 	renderpass: RenderPass,
 	device: ash::Device,
 	instance: Instance,
+	framebuffers: vk::Framebuffer,
+	image_views: vk::ImageView,
+	swapchain: vk::SwapchainKHR,
+	swapchain_loader: ash::khr::swapchain::Device,
 }
 
 /// The rendring interface
@@ -61,23 +68,65 @@ impl Renderer {
 	/// <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Base_code#:~:text=initVulkan()>
 	pub fn new(surface_backend: *mut void) -> Result<Renderer, Box<dyn Error>>
 	{
-		let backend: Wrapper = void::from_handle(surface_backend);
-		debug!("Creating new vulkan render");
-
 		/**
 		 * load vulkan in execution, otherwise one might have a problem compiling it for macos (apple beeing apple)
 		 * another problem is the inexistence of a vulkan dylib natively on mac
 		 * the solution for that problem is packaging the necessary files (dylib) inside the .app
 		 * <https://stackoverflow.com/questions/39204908/how-to-check-release-debug-builds-using-cfg-in-rust>
 		 */
-		let entry = unsafe { ash::Entry::load()? };
+		let backend: Wrapper = void::from_handle(surface_backend);
+		debug!("Creating new vulkan render");
 
-		/**
-		 * Create Instance
-		 * <https://vulkan-tutorial.com/en/Drawing_a_triangle/Setup/Instance>
-		 * `VkApplicationInfo appInfo{};`
-		 * for some reason on target linux-a64 it expects "u8" and not "i8" idk y
+		let entry = unsafe { ash::Entry::load()? };
+		let instance = Self::create_instance(&entry)?;
+
+		/** <https://github.com/ash-rs/ash/blob/master/ash-examples/src/lib.rs>
+		 * The Headless backend will be used to implement tests
+		 * the repo uses `let surface_loader = surface::Instance::load(&entry, &instance);`
+		 * but the way it is created is different, using `SurfaceFactory`, for that I would need winit
 		 */
+		#[cfg(target_os = "macos")]
+		let surface = Self::new_surface(&instance, &entry,  NonNull::new(backend.ns_view)?.cast())?;
+
+		#[cfg(target_os = "linux")]
+		let surface = Self::new_surface(&instance, &entry, backend.wl_surface, backend.wl_display)?;
+
+		let (device, physical_device) = Self::get_device(&instance)?;
+
+		let (swapchain_loader, swapchain, images, format, extent) =
+			Self::create_swapchain(
+				&entry,
+				&instance,
+				&device,
+				physical_device,
+				surface
+			)?;
+
+		let image_views = Self::create_image_views(&device, &images, format)?;
+		let renderpass = Self::render_pass(&device)?;
+		let framebuffers =
+			Self::create_framebuffers(&device, renderpass, &image_views, extent)?;
+
+		Ok(Renderer {
+			instance,
+			surface,
+			device,
+			image_views,
+			renderpass,
+			framebuffers,
+			swapchain,
+			swapchain_loader
+		})
+	}
+
+	/**
+	 * Create Instance
+	 * <https://vulkan-tutorial.com/en/Drawing_a_triangle/Setup/Instance>
+	 * `VkApplicationInfo appInfo{};`
+	 * for some reason on target linux-a64 it expects "u8" and not "i8" idk y
+	 */
+	fn create_instance(entry: &ash::Entry) -> Result<Instance, Box<dyn Error>>
+	{
 		let app_info = vk::ApplicationInfo::default()
 			.api_version(vk::make_api_version(0, 1, 0, 0));
 
@@ -108,40 +157,7 @@ impl Renderer {
 			entry.create_instance(&instance_desc, None)?
 		};
 
-		/**
-		 * Handlers
-		 */
-		let device = Self::get_device(&instance)?;
-		//let _logic = Self::create_logic_device();
-		let renderpass = Self::render_pass(&device)?;
-
-		/** <https://github.com/ash-rs/ash/blob/master/ash-examples/src/lib.rs>
-		 * The Headless backend will be used to implement tests
-		 * the repo uses `let surface_loader = surface::Instance::load(&entry, &instance);`
-		 * but the way it is created is different, using `SurfaceFactory`, for that I would need winit
-		 */
-
-		#[cfg(target_os = "macos")]
-		let Some(nn_view) =
-			NonNull::new(backend.ns_view)
-		else
-			{ return Err(Box::from("view shouldn't be null")) };
-
-		#[cfg(target_os = "macos")]
-		let surface = Self::new_surface(&instance, &entry, nn_view.cast())?;
-
-		#[cfg(target_os = "linux")]
-		let surface = Self::new_surface(&instance, &entry, backend.wl_surface, backend.wl_display)?;
-
-		#[cfg(target_os = "windows")]
-		let view: *mut void = todo!();
-
-		Ok(Renderer {
-			surface,
-			renderpass,
-			device,
-			instance,
-		})
+		Ok(instance)
 	}
 
 	/// Returns the Wrapper for the `SurfaceKHR`
@@ -177,7 +193,7 @@ impl Renderer {
 	 * <https://vulkan-tutorial.com/Drawing_a_triangle/Setup/Physical_devices_and_queue_families>
 	 * this will get the first graphics card avaliable
 	 */
-	fn get_device(instance: &Instance) -> Result<ash::Device, Box<dyn Error>>
+	fn get_device(instance: &Instance) -> Result<(ash::Device, PhysicalDevice), Box<dyn Error>>
 	{
 		/**
 		 * C++
@@ -230,9 +246,57 @@ impl Renderer {
 			.queue_create_infos(slice::from_ref(&queue_info))
 			.enabled_features(&device_features);
 
-		Ok(unsafe {
-			instance.create_device(selected_device, &device_create_info, None)?
-		})
+		Ok((
+			unsafe {
+				instance.create_device(selected_device, &device_create_info, None)?
+			},
+			selected_device
+		))
+	}
+
+	#[allow(unused_variables)]
+	fn create_swapchain(
+		entry: &ash::Entry,
+		instance: &Instance,
+		device: &ash::Device,
+		physical_device: PhysicalDevice,
+		surface: SurfaceKHR,
+	) -> Result<
+		(
+			ash::khr::swapchain::Device,
+			vk::SwapchainKHR,
+			Vec<vk::Image>,
+			vk::Format,
+			vk::Extent2D
+		),
+		Box<dyn Error>
+	> {
+		todo!();
+	}
+
+	#[allow(unused_variables)]
+	fn create_framebuffers(
+		device: &ash::Device,
+		renderpass: RenderPass,
+		image_views: &vk::ImageView,
+		extent: vk::Extent2D,
+	) -> Result<
+		vk::Framebuffer,
+		Box<dyn Error>
+	> {
+		todo!();
+	}
+
+	#[allow(unused_variables)]
+	fn create_image_views(
+		device: &ash::Device,
+		images: &Vec<vk::Image>,
+		format: vk::Format,
+	) -> Result<
+		vk::ImageView,
+		Box<dyn Error>
+	> {
+		todo!();
 	}
 
 	/// Creates a new surface (wayland/metal)
@@ -319,59 +383,44 @@ impl Renderer {
 	/// here's an oficial example: <https://github.com/ash-rs/ash/blob/master/ash-examples/src/bin/texture.rs>
 	pub fn render_pass(device: &ash::Device) -> Result<RenderPass, Box<dyn Error>>
 	{
-		// tbh, I have no idea what does this do
-		let renderpass_attachments = [
-			vk::AttachmentDescription {
-				samples: vk::SampleCountFlags::TYPE_1,
-				load_op: vk::AttachmentLoadOp::CLEAR,
-				store_op: vk::AttachmentStoreOp::STORE,
-				final_layout: vk::ImageLayout::PRESENT_SRC_KHR,
-				..Default::default()
-			},
-			vk::AttachmentDescription {
-				format: vk::Format::D16_UNORM,
-					samples: vk::SampleCountFlags::TYPE_1,
-					load_op: vk::AttachmentLoadOp::CLEAR,
-					initial_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-					final_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-					..Default::default()
-			},
-		];
+		debug!("creating renderpass");
 
-		let color_attachment_refs = [vk::AttachmentReference {
+		let color_attachment = vk::AttachmentDescription::default()
+			.format(vk::Format::UNDEFINED) // <-- what is this how can I set a value to it??
+			.samples(vk::SampleCountFlags::TYPE_1)
+			.load_op(vk::AttachmentLoadOp::CLEAR)
+			.store_op(vk::AttachmentStoreOp::STORE)
+			.initial_layout(vk::ImageLayout::UNDEFINED)
+			.final_layout(vk::ImageLayout::PRESENT_SRC_KHR);
+
+		let color_attachment_ref = vk::AttachmentReference {
 			attachment: 0,
 			layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-		}];
-		let depth_attachment_ref = vk::AttachmentReference {
-			attachment: 1,
-			layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
 		};
-		let dependencies = [vk::SubpassDependency {
-			src_subpass: vk::SUBPASS_EXTERNAL,
-			src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-			dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
-				| vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-			dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-			..Default::default()
-		}];
+
+		let dependency = vk::SubpassDependency::default()
+			.src_subpass(vk::SUBPASS_EXTERNAL)
+			.dst_subpass(0)
+			.src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+			.dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+			.dst_access_mask(
+				vk::AccessFlags::COLOR_ATTACHMENT_WRITE
+			);
 
 		let subpass = vk::SubpassDescription::default()
-			.color_attachments(&color_attachment_refs)
-			.depth_stencil_attachment(&depth_attachment_ref)
-			.pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS);
+			.pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
+			.color_attachments(&dirty::slice::from_ref(&color_attachment_ref));
+
+		let attachments = [color_attachment];
 
 		let renderpass_create_info = vk::RenderPassCreateInfo::default()
-			.attachments(&renderpass_attachments)
+			.attachments(&attachments)
 			.subpasses(slice::from_ref(&subpass))
-			.dependencies(&dependencies);
+			.dependencies(&dirty::slice::from_ref(&dependency));
 
-		let renderpass = unsafe {
-			match device
-			.create_render_pass(&renderpass_create_info, None) {
-				Ok(d) => d,
-				Err(e) => return Err(Box::new(e)),
-			}
-		};
+		let renderpass = (unsafe {
+			device.create_render_pass(&renderpass_create_info, None)
+		})?;
 
 		Ok(renderpass)
 	}
