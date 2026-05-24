@@ -24,9 +24,11 @@ members = [
 default-members = ["crates/wt"]
 
 [workspace.package]
+name	= "Kas"
 edition = "2024"
 version = "0.0.1"
 publish = false
+authors = ["Felipe S.C. Lorentz <sclorentz@proton.me>"]
 
 # =========================================================
 # Internal crates

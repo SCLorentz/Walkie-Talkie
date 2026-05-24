@@ -4,7 +4,6 @@
 #![doc(issue_tracker_base_url = "https://github.com/SCLorentz/Walkie-Talkie/issues")]
 
 mod renderer;
-use dirty::void;
 use renderer::create_renderer;
 
 struct MatrixClient;
@@ -32,7 +31,7 @@ fn main()
 
 	let mut app = App::new(MatrixClient, "Walkie Talkie");
 	let mut theme = app.get_global_theme();
-			theme.blur = false;
+			theme.blur = true;
 			theme.has_title = true;
 	app.set_global_theme(theme);
 

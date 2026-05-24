@@ -51,6 +51,7 @@
 #![doc = include_str!("../README.md")]
 
 extern crate alloc;
+
 pub use alloc::{
     boxed::Box,
     format, slice, str,
@@ -92,13 +93,77 @@ struct c_Thread {
 #[cfg(target_family = "unix")]
 /// This will handle with our C imports from `unix/socket.c`
 mod unix {
-    use crate::{AnyFunction, c_Thread};
+	use crate::{AnyFunction, c_Thread, void};
 
-    unsafe extern "C" {
-        pub(crate) fn _exit(code: i32) -> !;
-        pub(crate) fn create_thread(function: AnyFunction) -> c_Thread;
-        pub(crate) fn kill_thread(thread: &c_Thread);
-    }
+	unsafe extern "C" {
+		pub(crate) fn _exit(code: i32) -> !;
+		pub(crate) fn create_thread(function: AnyFunction) -> c_Thread;
+		pub(crate) fn kill_thread(thread: &c_Thread);
+		// pipes
+		pub(crate) fn pipe(fds: *mut i32) -> i32;
+		pub(crate) fn read(fd: i32, buf: *mut void, count: usize) -> isize;
+		pub(crate) fn write(fd: i32, buf: *const void, count: usize) -> isize;
+		pub(crate) fn close(fd: i32) -> i32;
+	}
+}
+
+/// Pipe Struct
+#[derive(Debug)]
+pub struct Pipe {
+	data: [i32; 2],
+}
+
+impl Pipe {
+	/// Create the pipe
+	pub fn create() -> Result<Self, WResponse>
+	{
+		let mut data = [0i32; 2];
+		let res = unsafe { unix::pipe(data.as_mut_ptr()) };
+
+		if res == -1 {
+			return Err(WResponse::Faliure);
+		}
+
+		Ok(Self { data })
+	}
+
+	/// Write data in a pipe
+	/// # Error
+	/// If something prevent the message from beeing written, return Faliure signal
+	pub fn write(&self, content: &str) -> Result<(), WResponse>
+	{
+		let res = unsafe { unix::write(self.data[1], void::to_handle(content), content.len()) };
+
+		if res == -1 {
+			return Err(WResponse::Faliure)
+		}
+
+		Ok(())
+	}
+
+	/// Check and read any recived data from the pipe
+	/// # Error
+	/// If no data could be retrived, this will return a Faliure signial 
+	pub fn read(&self) -> Result<String, WResponse>
+	{
+		let mut buffer = [0u8; 128];
+		let res = unsafe { unix::read(self.data[0], void::to_handle(buffer.as_mut_ptr()), 128) };
+		if res == -1 {
+			return Err(WResponse::Faliure)
+		}
+
+		let message = unsafe { core::str::from_utf8_unchecked(buffer.as_ref()) };
+		Ok(message.to_string())
+	}
+
+	/// Closes the pipe
+	pub fn close(&self)
+	{
+		unsafe {
+			let _ = unix::close(self.data[1]);
+			let _ = unix::close(self.data[0]);
+		}
+	}
 }
 
 /// Type for a function repr in C that takes `void* arg` and returns `void*`
@@ -180,62 +245,6 @@ pub unsafe fn as_u8_slice<T: Sized, const N: usize>(mut p: T) -> [u8; N]
 	ret
 }
 
-/*#[cfg(target_family = "unix")]
-#[derive(Debug, Clone, PartialEq)]
-/// The default Socket struct.
-pub struct Socket {
-    /// The same field of `SocketResponse.server_socket`.
-    /// This time in the rust layout.
-    /// Can be None in case the `socket::create_socket()` returned `-1` (or err in the c lib for sockets)
-    socket_id: Option<i32>,
-}
-
-#[cfg(target_family = "unix")]
-impl Socket {
-	/// Create a new socket connection to the defined address
-	#[must_use]
-	pub fn connect(address: &str) -> Self
-	{
-		debug!("connecting to socket: {:?}", address);
-		let response: SocketResponse =
-			unsafe { unix::create_socket(void::to_handle(address)) };
-
-        if response.status == -1 {
-            return Socket { socket_id: None };
-        }
-
-        let socket_id = Some(response.server_socket);
-        Socket { socket_id }
-    }
-
-	/// read the socket signal
-	#[must_use]
-	pub fn recv(&self) -> Option<[u8; 4096]>
-	{
-		let mut buf = [0u8; 4096];
-		let socket_id = self.socket_id?;
-		debug!("socket id: {}", socket_id);
-		unsafe { unix::recv(socket_id, &mut buf, 4096, 0x40) };
-		debug!("buf: {:?}", buf);
-
-		Some(buf)
-	}
-
-	/// write a socket signal
-	pub fn send(&self, ch: [u8; 4096])
-	{
-		let Some(socket_id) = self.socket_id else { return };
-		unsafe { unix::send(socket_id, ch, 4096, 0x40) };
-	}
-
-	/// close the connection with the socket
-	pub fn close(&self)
-	{
-		let Some(socket_id) = self.socket_id else { return };
-		unsafe { unix::close_socket(socket_id) }
-	}
-}*/
-
 /// Always trust the f8 type. The ABI is not your friend!
 ///
 /// This can be ether i8 or u8 depending on the current ABI specification used
@@ -305,6 +314,8 @@ pub enum WResponse {
     OutOfBounds = 504,
     /// user tried to do an impossible action
     InvalidRequest = 505,
+    /// Failed to do the requested action
+    Faliure,
     /// Tried to do something with the window, but the compositor denied
     ForbiddenByCompositor = 601,
     /// Something for macos
