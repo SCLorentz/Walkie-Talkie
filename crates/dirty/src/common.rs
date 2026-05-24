@@ -92,15 +92,10 @@ struct c_Thread {
 #[cfg(target_family = "unix")]
 /// This will handle with our C imports from `unix/socket.c`
 mod unix {
-    use crate::{AnyFunction, SocketResponse, c_Thread, void};
+    use crate::{AnyFunction, c_Thread};
 
     unsafe extern "C" {
-        pub(crate) fn getenv() -> *mut void;
         pub(crate) fn _exit(code: i32) -> !;
-        pub(crate) fn create_socket(address: *mut void) -> SocketResponse;
-        pub(crate) fn read_socket(server_socket: i32, ch: *mut void) -> *mut void;
-        pub(crate) fn write_socket(server_socket: i32, ch: *mut void);
-        pub(crate) fn close_socket(server_socket: i32);
         pub(crate) fn create_thread(function: AnyFunction) -> c_Thread;
         pub(crate) fn kill_thread(thread: &c_Thread);
     }
@@ -149,45 +144,44 @@ impl Thread {
      	Err(WResponse::InvalidRequest)
     }
 
-    /**
-     * Kills the specified running thread
-     *
-     * # Errors
-     *
-     * if the user tries to kill a thread that is not running, it will return Err(InvalidRequest)
-     */
-    pub fn kill(&self) -> Result<(), WResponse> {
-        let Some(ref thread) = self.thread else {
-            return Err(WResponse::InvalidRequest);
-        };
-        unsafe {
-            unix::kill_thread(thread);
-        }
-        Ok(())
-    }
+	/**
+	 * Kills the specified running thread
+	 *
+	 * # Errors
+	 *
+	 * if the user tries to kill a thread that is not running, it will return Err(InvalidRequest)
+	 */
+	pub fn kill(&self) -> Result<(), WResponse>
+	{
+		let Some(ref thread) = self.thread else { return Err(WResponse::InvalidRequest) };
+		unsafe { unix::kill_thread(thread); }
+		Ok(())
+	}
 }
 
 /**
- * this will check the environ array and search for an specific keyword
+ * this transforms any generic struct type variable into raw data
  *
- * # Example
  * ```rust
- * if let Some(user) = getenv("USER") {
- *     log::debug!("your user: {:?}", user);
- * };
+ * struct MyStruct { a: int, b: bool }
+ *
+ * let var = MyStruct { a: 2, b: false };
+ * let raw = dirty::as_u8_slice<MyStruct>(var);
  * ```
- */
-#[cfg(target_family = "unix")]
-#[must_use]
-pub fn getenv() -> String {
-    let raw = unsafe { unix::getenv() } as u8;
-    let tmp = &[raw];
-    let val: &str = unsafe { str::from_utf8_unchecked(tmp) };
-    val.to_string()
+**/
+pub unsafe fn as_u8_slice<T: Sized, const N: usize>(mut p: T) -> [u8; N]
+{
+	#[allow(trivial_casts)]
+	let ptr = &mut p as *const T;
+	let slice = unsafe { core::slice::from_raw_parts(ptr as *const u8,
+		size_of::<T>()) };
+	let mut ret = [0u8; N];
+	ret[..slice.len()].copy_from_slice(slice);
+	ret
 }
 
-#[cfg(target_family = "unix")]
-#[derive(Debug)]
+/*#[cfg(target_family = "unix")]
+#[derive(Debug, Clone, PartialEq)]
 /// The default Socket struct.
 pub struct Socket {
     /// The same field of `SocketResponse.server_socket`.
@@ -198,10 +192,13 @@ pub struct Socket {
 
 #[cfg(target_family = "unix")]
 impl Socket {
-    /// Create a new socket connection to the defined address
-    #[must_use]
-    pub fn new(address: &'static [u8]) -> Self {
-        let response: SocketResponse = unsafe { unix::create_socket(void::to_handle(address)) };
+	/// Create a new socket connection to the defined address
+	#[must_use]
+	pub fn connect(address: &str) -> Self
+	{
+		debug!("connecting to socket: {:?}", address);
+		let response: SocketResponse =
+			unsafe { unix::create_socket(void::to_handle(address)) };
 
         if response.status == -1 {
             return Socket { socket_id: None };
@@ -211,30 +208,33 @@ impl Socket {
         Socket { socket_id }
     }
 
-    /// read the socket signal
-    #[must_use]
-    pub fn read_socket(&self, ch: &'static [u8]) -> Option<Box<&[f8]>> {
-        let socket_id = self.socket_id?;
-        let response = unsafe { unix::read_socket(socket_id, void::to_handle(ch)) };
-        Some(Box::new(void::from_handle(response)))
-    }
+	/// read the socket signal
+	#[must_use]
+	pub fn recv(&self) -> Option<[u8; 4096]>
+	{
+		let mut buf = [0u8; 4096];
+		let socket_id = self.socket_id?;
+		debug!("socket id: {}", socket_id);
+		unsafe { unix::recv(socket_id, &mut buf, 4096, 0x40) };
+		debug!("buf: {:?}", buf);
 
-    /// write a socket signal
-    pub fn write_socket(&self, ch: &'static [u8]) {
-        let Some(socket_id) = self.socket_id else {
-            return;
-        };
-        unsafe { unix::write_socket(socket_id, void::to_handle(ch)) };
-    }
+		Some(buf)
+	}
 
-    /// close the connection with the socket
-    pub fn close_socket(&self) {
-        let Some(socket_id) = self.socket_id else {
-            return;
-        };
-        unsafe { unix::close_socket(socket_id) }
-    }
-}
+	/// write a socket signal
+	pub fn send(&self, ch: [u8; 4096])
+	{
+		let Some(socket_id) = self.socket_id else { return };
+		unsafe { unix::send(socket_id, ch, 4096, 0x40) };
+	}
+
+	/// close the connection with the socket
+	pub fn close(&self)
+	{
+		let Some(socket_id) = self.socket_id else { return };
+		unsafe { unix::close_socket(socket_id) }
+	}
+}*/
 
 /// Always trust the f8 type. The ABI is not your friend!
 ///

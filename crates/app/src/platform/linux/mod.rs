@@ -31,10 +31,10 @@ pub enum DE {
 }
 
 //use log::warn;
-use crate::{WRequestResult::Success, WRequestResult};
+use crate::WResponse;
 
 /// Detect the current DE/WM that the program is beeing executed
-pub fn get_de() -> WRequestResult<DE>
+pub fn get_de() -> Result<DE, WResponse>
 {
 	/*let desktop = env::var("XDG_CURRENT_DESKTOP")
 		.unwrap_or_else(|_| {
@@ -46,5 +46,5 @@ pub fn get_de() -> WRequestResult<DE>
 	if desktop.contains("KDE") { return Success(DE::Kde) }
 	if desktop.contains("Hyprland") { return Success(DE::Hyprland) }*/
 
-	Success(DE::Other)
+	Ok(DE::Other)
 }

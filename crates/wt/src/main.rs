@@ -32,7 +32,7 @@ fn main()
 
 	let mut app = App::new(MatrixClient, "Walkie Talkie");
 	let mut theme = app.get_global_theme();
-			theme.blur = true;
+			theme.blur = false;
 			theme.has_title = true;
 	app.set_global_theme(theme);
 

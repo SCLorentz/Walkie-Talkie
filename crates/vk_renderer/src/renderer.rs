@@ -33,6 +33,7 @@
 use ash::Instance;
 use ash::vk::{self, SurfaceKHR, RenderPass, PhysicalDevice};
 use log::debug;
+#[allow(unused)]
 use core::{slice, ptr::NonNull, error::Error};
 use dirty::{Box, void, f8, SurfaceWrapper};
 
@@ -115,19 +116,19 @@ impl Renderer {
 		 */
 
 		#[cfg(target_os = "macos")]
-		let view = backend.ns_view;
+		let Some(nn_view) =
+			NonNull::new(backend.ns_view)
+		else
+			{ return Err(Box::from("view shouldn't be null")) };
+
+		#[cfg(target_os = "macos")]
+		let surface = Self::new_surface(&instance, &entry, nn_view.cast())?;
 
 		#[cfg(target_os = "linux")]
-		let view: *mut void = backend.surface;
+		let surface = Self::new_surface(&instance, &entry, backend.wl_surface, backend.wl_display)?;
 
 		#[cfg(target_os = "windows")]
 		let view: *mut void = todo!();
-
-		let Some(nn_view) = NonNull::new(view) else {
-			return Err(Box::from("view shouldn't be null"))
-		};
-
-		let surface = Self::new_surface(&instance, &entry, nn_view.cast())?;
 
 		Ok(Renderer {
 			surface,
@@ -271,21 +272,21 @@ impl Renderer {
 	fn new_surface(
 		instance: &Instance,
 		entry: &ash::Entry,
-		window: NonNull<void>
+		wl_surface: *mut void,
+		wl_display: *mut void,
 	) -> Result<SurfaceKHR, Box<dyn Error>>
 	{
 		debug!("creating linux wayland surface");
 		use ash::{khr::wayland_surface, vk::wl_display};
 
-		let window_ref: &Wrapper = unsafe { window.cast().as_ref() };
 		/**
 		 * https://docs.rs/ash-window/0.13.0/src/ash_window/lib.rs.html#36-126
 		 */
-		let display = core::ptr::null_mut() as *const void as *mut wl_display;
+		let display = wl_display as *mut wl_display;
 
 		let surface_desc = vk::WaylandSurfaceCreateInfoKHR::default()
 			.display(display)
-			.surface(window_ref.surface as *mut core::ffi::c_void);
+			.surface(wl_surface as *mut core::ffi::c_void);
 
 		let surface = wayland_surface::Instance::new(entry, instance);
 		let result = unsafe { surface.create_wayland_surface(&surface_desc, None)? };
