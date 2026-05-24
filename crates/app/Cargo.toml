@@ -17,7 +17,6 @@ doctest = false
 
 [dependencies]
 log.workspace = true
-ash.workspace = true
 dirty.workspace = true
 #nb.workspace = true
 
@@ -32,6 +31,13 @@ objc2.workspace = true
 objc2-app-kit.workspace = true
 objc2-foundation.workspace = true
 objc2-core-graphics.workspace = true
+metal_renderer.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+ash.workspace = true
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-sys.workspace = true
 
 # ---- Features -------------------
 

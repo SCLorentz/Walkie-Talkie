@@ -1,0 +1,22 @@
+[package]
+name = "metal_renderer"
+version = "0.0.1"
+edition.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+path = "src/renderer.rs"
+doctest = false
+
+[dependencies]
+log.workspace = true
+dirty.workspace = true
+objc2.workspace = true
+objc2-app-kit.workspace = true
+objc2-foundation.workspace = true
+objc2-core-graphics.workspace = true
+objc2-quartz-core.workspace = true
+objc2-metal.workspace = true

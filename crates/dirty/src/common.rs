@@ -1,47 +1,47 @@
 #![no_std]
-#![feature(core_intrinsics, stmt_expr_attributes)]
+#![feature(rustc_private)]
 #![deny(
-	deprecated,
-	rust_2018_idioms,
-	unreachable_code,
-	unused_imports,
-	unused_variables,
-	unsafe_op_in_unsafe_fn,
-	missing_docs,
-	warnings,
-	clippy::all,
-	clippy::shadow_unrelated,
-	clippy::pedantic,
-	clippy::unwrap_used,
-	clippy::expect_used,
-	clippy::panic,
-	clippy::todo,
-	clippy::unimplemented,
-	clippy::shadow_reuse,
-	clippy::shadow_same,
-	clippy::dbg_macro,
-	clippy::print_stdout,
-	clippy::print_stderr,
-	clippy::indexing_slicing,
-	clippy::unwrap_in_result,
-	clippy::exit,
-	clippy::wildcard_imports,
-	clippy::missing_docs_in_private_items,
-	clippy::doc_markdown,
-	clippy::empty_docs,
-	clippy::unwrap_or_default,
-	clippy::match_wild_err_arm,
-	clippy::needless_pass_by_value,
-	clippy::redundant_closure,
-	clippy::large_stack_arrays,
-	missing_debug_implementations,
-	trivial_casts,
-	trivial_numeric_casts,
-	unused_extern_crates,
-	unused_import_braces,
-	unused_qualifications,
-	unused_results,
-	macro_use_extern_crate
+    deprecated,
+    rust_2018_idioms,
+    unreachable_code,
+    unused_imports,
+    unused_variables,
+    unsafe_op_in_unsafe_fn,
+    missing_docs,
+    warnings,
+    clippy::all,
+    clippy::shadow_unrelated,
+    clippy::pedantic,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::todo,
+    clippy::unimplemented,
+    clippy::shadow_reuse,
+    clippy::shadow_same,
+    clippy::dbg_macro,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    clippy::indexing_slicing,
+    clippy::unwrap_in_result,
+    clippy::exit,
+    clippy::wildcard_imports,
+    clippy::missing_docs_in_private_items,
+    clippy::doc_markdown,
+    clippy::empty_docs,
+    clippy::unwrap_or_default,
+    clippy::match_wild_err_arm,
+    clippy::needless_pass_by_value,
+    clippy::redundant_closure,
+    clippy::large_stack_arrays,
+    missing_debug_implementations,
+    trivial_casts,
+    trivial_numeric_casts,
+    unused_extern_crates,
+    unused_import_braces,
+    unused_qualifications,
+    unused_results,
+    macro_use_extern_crate
 )]
 #![allow(clippy::tabs_in_doc_comments, internal_features)]
 //! This is a helper crate, with minimum dependencies, not even std included
@@ -52,12 +52,10 @@
 
 extern crate alloc;
 pub use alloc::{
-	boxed::Box,
-	string::{String, ToString},
-	slice,
-	str,
-	vec::Vec,
-	format,
+    boxed::Box,
+    format, slice, str,
+    string::{String, ToString},
+    vec::Vec,
 };
 
 /// OS specific methods based on systemcalls (ASM)
@@ -67,19 +65,18 @@ pub mod syscall;
 #[cfg(target_family = "unix")]
 #[repr(C)]
 #[derive(Debug)]
-pub struct SocketResponse
-{
-	/**
-	 * This represents the state of the connection.
-	 *
-	 * If `-1`, then the connection failed
-	 */
-	pub status: i32,
-	/**
-	 * if the connection was sucesseful,
-	 * then this will return the int id of the server socket
-	 */
-	pub server_socket: i32,
+pub struct SocketResponse {
+    /**
+     * This represents the state of the connection.
+     *
+     * If `-1`, then the connection failed
+     */
+    pub status: i32,
+    /**
+     * if the connection was sucesseful,
+     * then this will return the int id of the server socket
+     */
+    pub server_socket: i32,
 }
 
 /// Wrapper type for the C `struct` that stores threads
@@ -87,133 +84,87 @@ pub struct SocketResponse
 #[derive(Debug)]
 #[repr(C)]
 #[allow(non_camel_case_types, clippy::missing_docs_in_private_items)]
-struct c_Thread
-{
-	pub id: i32,
-	pub thread: *mut void,
+struct c_Thread {
+    pub id: i32,
+    pub thread: *mut void,
 }
 
 #[cfg(target_family = "unix")]
 /// This will handle with our C imports from `unix/socket.c`
 mod unix {
-	use crate::{AnyFunction, SocketResponse, void, c_Thread};
+    use crate::{AnyFunction, SocketResponse, c_Thread, void};
 
-	unsafe extern "C" {
-		pub(crate) fn create_socket(address: *mut void) -> SocketResponse;
-		pub(crate) fn read_socket(server_socket: i32, ch: *mut void) -> *mut void;
-		pub(crate) fn write_socket(server_socket: i32, ch: *mut void);
-		pub(crate) fn close_socket(server_socket: i32);
-		pub(crate) fn getenv(find: *const i8) -> *const i8;
-		pub(crate) fn create_thread(function: AnyFunction) -> c_Thread;
-		pub(crate) fn kill_thread(thread: &c_Thread);
-	}
+    unsafe extern "C" {
+        pub(crate) fn getenv() -> *mut void;
+        pub(crate) fn _exit(code: i32) -> !;
+        pub(crate) fn create_socket(address: *mut void) -> SocketResponse;
+        pub(crate) fn read_socket(server_socket: i32, ch: *mut void) -> *mut void;
+        pub(crate) fn write_socket(server_socket: i32, ch: *mut void);
+        pub(crate) fn close_socket(server_socket: i32);
+        pub(crate) fn create_thread(function: AnyFunction) -> c_Thread;
+        pub(crate) fn kill_thread(thread: &c_Thread);
+    }
 }
 
 /// Type for a function repr in C that takes `void* arg` and returns `void*`
 #[cfg(target_family = "unix")]
 pub type AnyFunction = extern "C" fn(*mut void) -> *mut void;
 
-/*#[unsafe(no_mangle)]
-pub extern "C" fn fn_wrapper(function: *mut fn(*mut void) -> *mut void) -> *mut void
-{
-	let rs_function = unsafe { *function };
-	rs_function(core::ptr::null_mut())
-}*/
-
 /// This is a thread interface with the C implementation
 #[derive(Debug)]
 #[cfg(target_family = "unix")]
 pub struct Thread {
-	/// The function beeing executed in the new thread
-	pub function: AnyFunction,
-	/// If the thread is active, this contains the ID and `pthread_t` struct
-	thread: Option<c_Thread>,
+    /// The function beeing executed in the new thread
+    pub function: AnyFunction,
+    /// If the thread is active, this contains the ID and `pthread_t` struct
+    thread: Option<c_Thread>,
 }
 
 #[cfg(target_family = "unix")]
-impl Thread
-{
-	/// Creates a new thread with the field `thread_id` and a provided function
-	#[must_use]
-	pub fn default(function: AnyFunction) -> Self
-	{
-		Self {
-			function,
-			thread: None
+impl Thread {
+    /// Creates a new thread with the field `thread_id` and a provided function
+    #[must_use]
+    pub fn default(function: AnyFunction) -> Self {
+        Self {
+            function,
+            thread: None,
+        }
+    }
+
+    /// Runs the `&self.thread`
+    pub fn run(&mut self) {
+        let thread = unsafe { unix::create_thread(self.function) };
+        self.thread = Some(thread);
+    }
+
+    /**
+     * Returns the ID for the active thread
+     * # Errors
+     * this will return an error if the thread was already killed
+     */
+    pub fn get_id(&mut self) -> Result<i32, WResponse> {
+    	if let Some(thread) = &mut self.thread {
+     		return Ok(thread.id)
 		}
-	}
+     	Err(WResponse::InvalidRequest)
+    }
 
-	/// Runs the `&self.thread`
-	pub fn run(&mut self)
-	{
-		let thread = unsafe { unix::create_thread(self.function) };
-		self.thread = Some(thread);
-	}
-
-	/**
-	 * Kills the specified running thread
-	 *
-	 * # Errors
-	 *
-	 * if the user tries to kill a thread that is not running, it will return Err(InvalidRequest)
-	 */
-	pub fn kill(&self) -> Result<(), WResponse>
-	{
-		let Some(ref thread) = self.thread else { return Err(WResponse::InvalidRequest) };
-		unsafe { unix::kill_thread(thread); }
-		Ok(())
-	}
-}
-
-/**
- * The function will return the size of a string.
- *
- * This works by prompting the first byte of the string (represented by the pointer `p`),
- * then the loop will get all following characters until the `\0` (string termination character)
- */
-#[cfg(target_family = "unix")]
-unsafe fn c_strlen(p: *const u8, bypass_hardcoded_limit: Option<usize>) -> Option<usize>
-{
-	// this fucker.
-	// Sometimes the C function passes a pointer to nowhere (final of the env array),
-	// this happends when the env requested doesn't exist on `char **environ`
-	if p.is_null() { return None; }
-
-	// to avoid (but not prevent) boundary related errors,
-	// 1024 is a hardcoded limit in case `\0` doesn't exist
-	let limit = bypass_hardcoded_limit.unwrap_or(1024);
-	let mut len = 0;
-
-	while len < limit {
-		if unsafe { *p.add(len) == 0 } { return Some(len); }
-		len += 1;
-	}
-
-	None
-}
-
-/**
- * this basicly creates a new string based on the initial location and the final size
- * `ptr` is the first byte and `len` is how long it should read the string
- */
-#[cfg(target_family = "unix")]
-unsafe fn getenv_str(ptr: *const u8) -> Option<&'static [u8]>
-{
-	unsafe {
-		let len = c_strlen(ptr, None);
-		Some(slice::from_raw_parts(ptr, len?))
-	}
-}
-
-/**
- * this converts the raw byte value into a readable string
- * <https://doc.rust-lang.org/stable/core/str/fn.from_utf8.html>
- */
-#[cfg(target_family = "unix")]
-fn convert_bytes_to_string(bytes: &[u8]) -> Option<String>
-{
-	let Ok(str) = str::from_utf8(bytes) else { return None };
-	Some(ToString::to_string(str))
+    /**
+     * Kills the specified running thread
+     *
+     * # Errors
+     *
+     * if the user tries to kill a thread that is not running, it will return Err(InvalidRequest)
+     */
+    pub fn kill(&self) -> Result<(), WResponse> {
+        let Some(ref thread) = self.thread else {
+            return Err(WResponse::InvalidRequest);
+        };
+        unsafe {
+            unix::kill_thread(thread);
+        }
+        Ok(())
+    }
 }
 
 /**
@@ -228,62 +179,61 @@ fn convert_bytes_to_string(bytes: &[u8]) -> Option<String>
  */
 #[cfg(target_family = "unix")]
 #[must_use]
-pub fn getenv(find: &'static str) -> Option<String>
-{
-	let raw_pointer = unsafe { unix::getenv(find.as_ptr().cast::<i8>()) };
-	let string = unsafe { getenv_str(raw_pointer.cast::<u8>()) };
-	convert_bytes_to_string(string?)
+pub fn getenv() -> String {
+    let raw = unsafe { unix::getenv() } as u8;
+    let tmp = &[raw];
+    let val: &str = unsafe { str::from_utf8_unchecked(tmp) };
+    val.to_string()
 }
 
 #[cfg(target_family = "unix")]
 #[derive(Debug)]
 /// The default Socket struct.
 pub struct Socket {
-	/// The same field of `SocketResponse.server_socket`.
-	/// This time in the rust layout.
-	/// Can be None in case the `socket::create_socket()` returned `-1` (or err in the c lib for sockets)
-	socket_id: Option<i32>,
+    /// The same field of `SocketResponse.server_socket`.
+    /// This time in the rust layout.
+    /// Can be None in case the `socket::create_socket()` returned `-1` (or err in the c lib for sockets)
+    socket_id: Option<i32>,
 }
 
 #[cfg(target_family = "unix")]
 impl Socket {
-	/// Create a new socket connection to the defined address
-	#[must_use]
-	pub fn new(address: &'static [u8]) -> Self
-	{
-		let response: SocketResponse =
-			unsafe { unix::create_socket(void::to_handle(address)) };
+    /// Create a new socket connection to the defined address
+    #[must_use]
+    pub fn new(address: &'static [u8]) -> Self {
+        let response: SocketResponse = unsafe { unix::create_socket(void::to_handle(address)) };
 
-		if response.status == -1 {
-			return Socket { socket_id: None };
-		}
+        if response.status == -1 {
+            return Socket { socket_id: None };
+        }
 
-		let socket_id = Some(response.server_socket);
-		Socket { socket_id, }
-	}
+        let socket_id = Some(response.server_socket);
+        Socket { socket_id }
+    }
 
-	/// read the socket signal
-	#[must_use]
-	pub fn read_socket(&self, ch: &'static [u8]) -> Option<Box<&[f8]>>
-	{
-		let socket_id = self.socket_id?;
-		let response = unsafe { unix::read_socket(socket_id, void::to_handle(ch)) };
-		Some(Box::new(void::from_handle(response)))
-	}
+    /// read the socket signal
+    #[must_use]
+    pub fn read_socket(&self, ch: &'static [u8]) -> Option<Box<&[f8]>> {
+        let socket_id = self.socket_id?;
+        let response = unsafe { unix::read_socket(socket_id, void::to_handle(ch)) };
+        Some(Box::new(void::from_handle(response)))
+    }
 
-	/// write a socket signal
-	pub fn write_socket(&self, ch: &'static [u8])
-	{
-		let Some(socket_id) = self.socket_id else { return };
-		unsafe { unix::write_socket(socket_id, void::to_handle(ch)) };
-	}
+    /// write a socket signal
+    pub fn write_socket(&self, ch: &'static [u8]) {
+        let Some(socket_id) = self.socket_id else {
+            return;
+        };
+        unsafe { unix::write_socket(socket_id, void::to_handle(ch)) };
+    }
 
-	/// close the connection with the socket
-	pub fn close_socket(&self)
-	{
-		let Some(socket_id) = self.socket_id else { return };
-		unsafe { unix::close_socket(socket_id) }
-	}
+    /// close the connection with the socket
+    pub fn close_socket(&self) {
+        let Some(socket_id) = self.socket_id else {
+            return;
+        };
+        unsafe { unix::close_socket(socket_id) }
+    }
 }
 
 /// Always trust the f8 type. The ABI is not your friend!
@@ -306,24 +256,26 @@ pub type f8 = u8;
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
 pub struct void {
-	/// This is a pointer of nothing
-	/// An u8 array of size 0
-	/// similar as how `core::ffi::c_void` works
-	_private: [u8; 0],
+    /// This is a pointer of nothing
+    /// An u8 array of size 0
+    /// similar as how `core::ffi::c_void` works
+    _private: [u8; 0],
 }
 
 impl void {
-	/// Get a T type value and stores it safely as a generic type
-	#[must_use]
-	#[inline]
-	pub fn to_handle<T>(val: T) -> *mut void
-		{ Box::into_raw(Box::new(val)).cast::<void>() }
+    /// Get a T type value and stores it safely as a generic type
+    #[must_use]
+    #[inline]
+    pub fn to_handle<T>(val: T) -> *mut void {
+        Box::into_raw(Box::new(val)).cast::<void>()
+    }
 
-	/// Espects a T return type and a Boxed `void` pointer to get value inside the Box
-	#[must_use]
-	#[inline]
-	pub fn from_handle<T>(ptr: *const void) -> T
-		{ unsafe { *Box::from_raw(ptr as *mut T) } }
+    /// Espects a T return type and a Boxed `void` pointer to get value inside the Box
+    #[must_use]
+    #[inline]
+    pub fn from_handle<T>(ptr: *const void) -> T {
+        unsafe { *Box::from_raw(ptr as *mut T) }
+    }
 }
 
 /// int32 bool type
@@ -340,26 +292,25 @@ pub static FALSE: u32 = 0;
  * 5## : General Program limitation
  */
 #[derive(Debug)]
-pub enum WResponse
-{
-	/// The binary does not support this function
-	BinarySpecificLimitation	= 500,
-	/// Tried to use a wayland protocol that wasn't implemented on the compositor
-	ProtocolNotSuported			= 501,
-	/// tried to access something and the request was denied by the OS
-	AccessDenied				= 502,
-	/// Recived a value that wasn't supposed to be empty or an error
-	UnexpectedError				= 503,
-	/// this will cause a buffer overflow
-	OutOfBounds					= 504,
-	/// user tried to do an impossible action
-	InvalidRequest				= 505,
-	/// Tried to do something with the window, but the compositor denied
-	ForbiddenByCompositor		= 601,
-	/// Something for macos
-	ChannelInUse				= 400,
-	/// A dynamic linked dependency was missing on execution
-	MissingDependencies			= 401,
+pub enum WResponse {
+    /// The binary does not support this function
+    BinarySpecificLimitation = 500,
+    /// Tried to use a wayland protocol that wasn't implemented on the compositor
+    ProtocolNotSuported = 501,
+    /// tried to access something and the request was denied by the OS
+    AccessDenied = 502,
+    /// Recived a value that wasn't supposed to be empty or an error
+    UnexpectedError = 503,
+    /// this will cause a buffer overflow
+    OutOfBounds = 504,
+    /// user tried to do an impossible action
+    InvalidRequest = 505,
+    /// Tried to do something with the window, but the compositor denied
+    ForbiddenByCompositor = 601,
+    /// Something for macos
+    ChannelInUse = 400,
+    /// A dynamic linked dependency was missing on execution
+    MissingDependencies = 401,
 }
 
 // for some reason I can't move this to app.rs
@@ -367,24 +318,34 @@ pub enum WResponse
 #[derive(Clone, PartialEq, Debug)]
 pub struct SurfaceWrapper(pub *mut void);
 
-impl SurfaceWrapper
-{
-	/// Create a new wrapper
-	#[must_use]
-	pub fn new<T>(wrap: T) -> Self { SurfaceWrapper(void::to_handle(wrap)) }
-	/// Is wrapper valid?
-	#[must_use]
-	pub fn is_null(&self) -> bool { self.0.is_null() }
-	/// cast wrapper to original value
-	#[must_use]
-	pub fn cast<T>(&self) -> T { void::from_handle(self.0) }
+impl SurfaceWrapper {
+    /// Create a new wrapper
+    #[must_use]
+    pub fn new<T>(wrap: T) -> Self {
+        SurfaceWrapper(void::to_handle(wrap))
+    }
+    /// Is wrapper valid?
+    #[must_use]
+    pub fn is_null(&self) -> bool {
+        self.0.is_null()
+    }
+    /// cast wrapper to original value
+    #[must_use]
+    pub fn cast<T>(&self) -> T {
+        void::from_handle(self.0)
+    }
 }
 
 /// RGB color implementation
 /// reference: <https://github.com/seancroach/hex_color/blob/main/src/lib.rs>
 #[derive(PartialEq, Clone, Debug)]
 #[allow(missing_docs, non_snake_case)]
-pub struct Color { pub R: u8, pub G: u8, pub B: u8, pub A: u8, }
+pub struct Color {
+    pub R: u8,
+    pub G: u8,
+    pub B: u8,
+    pub A: u8,
+}
 
 // 0.0039215686274 <- I got here before realizing that this is just 1/255
 /// Just a simple constant to normalize the RGB (0-255) value to the normal shader value (0-1)
@@ -392,18 +353,21 @@ pub struct Color { pub R: u8, pub G: u8, pub B: u8, pub A: u8, }
 const RGB_NORM: f64 = 1.0 / 255.0;
 
 impl Color {
-	/// Create new color value
-	#[must_use]
-	#[allow(non_snake_case)]
-	pub fn from(R: u8, G: u8, B: u8, A: u8) -> Self { Self { R, G, B, A } }
+    /// Create new color value
+    #[must_use]
+    #[allow(non_snake_case)]
+    pub fn from(R: u8, G: u8, B: u8, A: u8) -> Self {
+        Self { R, G, B, A }
+    }
 
-	/// Converts this to a functional method to be used inside functions
-	#[must_use]
-	pub fn to_default(&self) -> ( f64, f64, f64, f64 )
-	{(
-		f64::from(self.R) * RGB_NORM,
-		f64::from(self.G) * RGB_NORM,
-		f64::from(self.B) * RGB_NORM,
-		f64::from(self.A) * RGB_NORM,
-	)}
+    /// Converts this to a functional method to be used inside functions
+    #[must_use]
+    pub fn to_default(&self) -> (f64, f64, f64, f64) {
+        (
+            f64::from(self.R) * RGB_NORM,
+            f64::from(self.G) * RGB_NORM,
+            f64::from(self.B) * RGB_NORM,
+            f64::from(self.A) * RGB_NORM,
+        )
+    }
 }
