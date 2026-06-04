@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["main"],"struct":["MatrixClient"]};
+window.SIDEBAR_ITEMS = {"fn":["main"],"mod":["renderer"],"struct":["MatrixClient"]};
