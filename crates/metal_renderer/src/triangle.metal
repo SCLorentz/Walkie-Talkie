@@ -1,38 +1,42 @@
 #include <metal_stdlib>
 
-struct SceneProperties {
-    float time;
+using namespace metal;
+
+struct VertexOut {
+    float4 position [[position]];
+    float2 uv;
+    uint vertexId;
 };
 
-struct VertexInput {
-    metal::packed_float3 position;
-    metal::packed_float3 color;
-};
+vertex VertexOut vertex_main(uint id [[vertex_id]])
+{
+    float2 pos[6] = {                                               // esses são os pontos do triangulo
+        float2(-1.0, 1.0),  float2(1.0, -1.0), float2(1.0, 1.0),    // triangulo de cima
+        float2(-1.0, -1.0), float2(1.0, -1.0), float2(-1.0, 1.0),   // triangulo de baixo
+    };
 
-struct VertexOutput {
-    metal::float4 position [[position]];
-    metal::float4 color;
-};
-
-vertex VertexOutput vertex_main(
-    device const SceneProperties& properties [[buffer(0)]],
-    device const VertexInput* vertices [[buffer(1)]],
-    uint vertex_idx [[vertex_id]]
-) {
-    VertexOutput out;
-    VertexInput in = vertices[vertex_idx];
-    out.position =
-        metal::float4(
-            metal::float2x2(
-                metal::cos(properties.time), -metal::sin(properties.time),
-                metal::sin(properties.time),  metal::cos(properties.time)
-            ) * in.position.xy,
-            in.position.z,
-            1);
-    out.color = metal::float4(in.color, 1);
+    VertexOut out;
+    out.position = float4(pos[id], 0.0, 1.0);
+    out.uv = (pos[id] + 1.0) * 0.5;
+    out.vertexId = id;
     return out;
 }
 
-fragment metal::float4 fragment_main(VertexOutput in [[stage_in]]) {
-    return in.color;
+fragment float4 fragment_main(VertexOut in [[stage_in]], constant float &alpha [[buffer(0)]])
+{
+    float2 points[6] = {                                            // esses são os pontos do circulo
+        float2(0.25, 0.25), float2(0.75, 0.25), float2(0.25, 0.75),
+        float2(0.25, 0.75), float2(0.75, 0.25), float2(0.75, 0.75)
+    };
+
+    for (uint i = 0; i < 6; i++) {
+        if (distance(in.uv, points[i]) < 0.025) {                   // 0.025 refere-se ao ráio, grandeza proporcional ao circulo
+            return float4(1.0, 1.0, 0.0, 1.0);                      // marca o vértice
+        }
+    }
+
+    float g = smoothstep(1.0, 1.0, in.uv.y);
+    float r = in.uv.x;
+    
+    return float4(r, g, 1.0 - r, 0.2);                              // gradiente multicolorido com alpha
 }

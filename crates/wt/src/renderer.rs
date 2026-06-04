@@ -11,6 +11,10 @@ mod renderer {
 
 pub fn create_renderer(window: &app::Window) -> renderer::Renderer
 {
-    renderer::Renderer::new(window.get_backend())
-        .expect("Renderer initialization failed")
+    let rend = renderer::Renderer::new(window.get_backend())
+        .expect("Renderer initialization failed");
+
+    rend.draw();
+
+    rend
 }

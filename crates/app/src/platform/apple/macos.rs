@@ -142,7 +142,6 @@ impl NativeDecoration for Decoration
 		Ok(())
 	}
 
-	// this is way easier in swift...
 	fn create_app_menu(&self, app_name: String) -> Result<(), WResponse>
 	{
 		let Some(mtm) = MainThreadMarker::new() else { return Err(WResponse::UnexpectedError) };

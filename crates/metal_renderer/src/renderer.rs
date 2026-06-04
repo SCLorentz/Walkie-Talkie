@@ -31,26 +31,29 @@
 #![doc = include_str!("../README.md")]
 // https://github.com/madsmtm/objc2/blob/main/examples/metal/circle/main.rs
 
-use core::error::Error;
+use core::{error::Error, ptr::NonNull};
 use dirty::{void, Box, SurfaceWrapper};
 
 use log::debug;
 use objc2::{
 	runtime::ProtocolObject,
 	rc::Retained,
+	MainThreadMarker,
+	MainThreadOnly,
 };
 
 use objc2_foundation::{
-	NSAutoreleasePool, NSSize
+	NSAutoreleasePool, NSSize, ns_string
 };
-use objc2_quartz_core::{CAMetalLayer, CAMetalDrawable};
+use objc2_quartz_core::CAMetalLayer;
 
 use objc2_metal::{
-	MTLDevice, MTLCreateSystemDefaultDevice, MTLPixelFormat,
-	MTLCommandQueue, MTLLoadAction, MTLStoreAction, MTLClearColor, MTLRenderPassDescriptor,
-    MTLCommandBuffer, MTLCommandEncoder
+	MTLCommandBuffer, MTLCommandQueue, MTLCreateSystemDefaultDevice, MTLDevice, MTLLibrary,
+	MTLPixelFormat, MTLRenderPipelineState, MTLRenderCommandEncoder, MTLPrimitiveType,
+	MTLCommandEncoder,
 };
-use objc2_app_kit::NSView;
+use objc2_metal_kit::MTKView;
+use objc2_app_kit::{NSView, NSApplication};
 
 #[derive(PartialEq, Debug, Clone)]
 #[allow(missing_docs)]
@@ -66,7 +69,9 @@ pub struct Renderer {
     surface:	*const void,
     device:		Retained<ProtocolObject<dyn MTLDevice>>,
     layer:		Retained<CAMetalLayer>,
-    queue: Retained<ProtocolObject<dyn MTLCommandQueue>>,
+    queue:		Retained<ProtocolObject<dyn MTLCommandQueue>>,
+    pipeline_state: Retained<ProtocolObject<dyn MTLRenderPipelineState>>,
+    mtk_view:	Retained<MTKView>,
 }
 
 impl Renderer {
@@ -77,14 +82,19 @@ impl Renderer {
 		let _pool = unsafe { NSAutoreleasePool::new() };
 		debug!("creating new metal renderer");
 
+		let Some(mtm) = MainThreadMarker::new() else { return Err(Box::from("not main thread")) };
+
 		let view: &NSView = void::from_handle(backend.view);
+		let app = NSApplication::sharedApplication(mtm);
+		let window = app.windows().objectAtIndex(0); // suposing at least one window exists
 
 		let Some(device) = MTLCreateSystemDefaultDevice() else {
 			return Err(Box::from("no metal device found"));
 		};
+
 		debug!("Your device is: {}", device.name());
 
-		let Some(queue) = device.newCommandQueue() else { return Err(Box::from("message")) };
+		let Some(queue) = device.newCommandQueue() else { return Err(Box::from("couldn't create queue")) };
 
 		let bounds = view.bounds();
 
@@ -100,54 +110,86 @@ impl Renderer {
 		view.setNeedsDisplay(true);
 		view.displayIfNeeded();
 
+		let mtk_view = {
+			let frame_rect = window.frame();
+			MTKView::initWithFrame_device(MTKView::alloc(mtm), frame_rect, Some(&device))
+		};
+		window.contentView().unwrap().addSubview(&mtk_view);
+
+		let library = device
+            .newLibraryWithSource_options_error(ns_string!(include_str!("triangle.metal")), None)
+            .unwrap_or_else(|e| panic!("Failed to create a library: {e}"));
+
+		let pipeline_descriptor = objc2_metal::MTLRenderPipelineDescriptor::new();
+		unsafe {
+            pipeline_descriptor
+                .colorAttachments()
+                .objectAtIndexedSubscript(0)
+                .setPixelFormat(mtk_view.colorPixelFormat());
+        }
+
+        let vertex_function = library.newFunctionWithName(ns_string!("vertex_main"));
+        pipeline_descriptor.setVertexFunction(vertex_function.as_deref());
+
+        let fragment_function = library.newFunctionWithName(ns_string!("fragment_main"));
+        pipeline_descriptor.setFragmentFunction(fragment_function.as_deref());
+
+        let pipeline_state = device
+            .newRenderPipelineStateWithDescriptor_error(&pipeline_descriptor)
+            .expect("Failed to create a pipeline state.");
+
+        debug!("renderer pipeline created!");
+
 		Ok(Self {
 			surface: void::to_handle(()),
 			device,
 			layer,
 			queue,
+			pipeline_state,
+			mtk_view,
 		})
 	}
 
-	/// draws on the rendering surface
+	/// Draws the content based on the vertex and fragment shaders
 	pub fn draw(&self)
 	{
-        let Some(drawable) = self.layer.nextDrawable() else {
-        	return;
-        };
+		debug!("drawing on GPU");
+		let mut alpha: f32 = 1.0;
 
-        let render_pass = MTLRenderPassDescriptor::new();
+		let drawable = self.mtk_view.currentDrawable().unwrap();
+		let descriptor = self.mtk_view.currentRenderPassDescriptor().unwrap();
+		let command_buffer = self.queue.commandBuffer().unwrap();
+		let encoder = command_buffer.renderCommandEncoderWithDescriptor(&descriptor).unwrap();
 
-        let color_attachment = unsafe { render_pass
-            .colorAttachments()
-            .objectAtIndexedSubscript(0)
-        };
+		encoder.setRenderPipelineState(&self.pipeline_state);
 
-        color_attachment.setTexture(Some(&drawable.texture()));
-        color_attachment.setLoadAction(MTLLoadAction::Clear);
-        color_attachment.setStoreAction(MTLStoreAction::Store);
-        color_attachment.setClearColor(
-            MTLClearColor {
-                red: 1.0,
-                green: 0.0,
-                blue: 0.0,
-                alpha: 1.0,
-            }
-        );
+		let Some(val) = NonNull::new((&mut alpha as *mut f32).cast()) else { return };
 
-        let Some(command_buffer) = self
-            .queue
-            .commandBuffer()
-        else { return };
+		unsafe {
+			encoder.setVertexBytes_length_atIndex(
+				val,
+				core::mem::size_of::<f32>(),
+				0,
+			);
 
-        let Some(encoder) = command_buffer
-            .renderCommandEncoderWithDescriptor(&render_pass)
-        else { return };
+			encoder.setFragmentBytes_length_atIndex(
+				val,
+				core::mem::size_of::<f32>(),
+				0,
+			);
 
-        encoder.endEncoding();
+			encoder.drawPrimitives_vertexStart_vertexCount(
+				MTLPrimitiveType::Triangle,
+				0,
+				6,
+			);
+		}
 
-        command_buffer.presentDrawable(drawable.as_ref());
-        command_buffer.commit();
-    }
+		encoder.endEncoding();
+
+		command_buffer.presentDrawable(&drawable.as_ref());
+		command_buffer.commit();
+	}
 
     #[allow(missing_docs)]
     pub fn get_surface(&self) -> SurfaceWrapper {

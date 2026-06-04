@@ -21,7 +21,6 @@ SECTIONS {
 		*(.bss .bss.*)
 	}
 
-	/* Remove informações de depuração para reduzir tamanho */
 	/DISCARD/ : {
 		*(.comment)
 		*(.note.*)

@@ -11,10 +11,12 @@ members = [
 	"crates/app",
 	"crates/wt",
 	"crates/dirty",
+
+	# rendering system
 	"crates/metal_renderer",
 	"crates/vk_renderer",
 
-	# Optional / WIP
+	# WIP
 	#"crates/logger",
 	#"crates/auth",
 	#"crates/matrix_client_protocols",
@@ -50,12 +52,26 @@ objc2-foundation	= "0.3.2"
 objc2-quartz-core	= "0.3.2"
 objc2-core-graphics	= "0.3.2"
 objc2-metal			= "0.3.2"
+objc2-metal-kit		= "0.3.2"
 
 # =========================================================
 # Logging
 # =========================================================
 
 log = "0.4.28"
+
+# =========================================================
+# Matrix
+# =========================================================
+
+[workspace.dependencies.matrix-sdk]
+version = "0.17.0"
+default-features = false
+features = [
+	"rustls-tls",
+	"sqlite",
+	"e2e-encryption"
+]
 
 [workspace.dependencies.simple_logger]
 version = "5.1.0"

@@ -20,3 +20,4 @@ objc2-foundation.workspace = true
 objc2-core-graphics.workspace = true
 objc2-quartz-core.workspace = true
 objc2-metal.workspace = true
+objc2-metal-kit.workspace = true
