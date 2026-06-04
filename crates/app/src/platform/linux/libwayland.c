@@ -1,7 +1,10 @@
+#ifdef __linux__
+
 #include <wayland-client.h>
+#include "xdg-shell-client-protocol.h"
+
 #include <stdio.h>
 #include <string.h>
-#include "xdg-shell-client-protocol.h"
 
 struct wl_compositor *compositor;
 struct wl_shm *shm;
@@ -114,3 +117,4 @@ void request_wl_disconnect(struct wl_display *display)
 {
     wl_display_disconnect(display);
 }
+#endif

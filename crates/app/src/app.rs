@@ -122,11 +122,10 @@ impl<H: EventHandler> App<H>
 	/// init event handler
 	pub fn init(&self)
 	{
-		/*let _event = thread::spawn(move || {
-			nb::block!(H::handle_events(Event::Generic)).unwrap();
-		});*/
+		let mut event = dirty::Thread::default(event_thread);
+		event.run();
 
-		//dirty::Thread::default(event_thread).run();
+		log::debug!("{:?}", event.get_id());
 
 		if let Some(window) = self.windows.first() {
 			window.decoration.run();

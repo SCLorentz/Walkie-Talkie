@@ -4,6 +4,10 @@
 // TODO: make a VM and test this on windows (fix all problems)
 // TODO: make this work as well on reactOS
 
+use windows_sys::Win32::UI::WindowsAndMessaging::{
+    MessageBoxA, MB_OK,
+};
+
 use crate::{
 	DecorationMode,
 	Decoration,

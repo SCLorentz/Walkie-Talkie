@@ -3,6 +3,9 @@
 #![doc = include_str!("../README.md")]
 #![doc(issue_tracker_base_url = "https://github.com/SCLorentz/Walkie-Talkie/issues")]
 
+mod renderer;
+use renderer::create_renderer;
+
 struct MatrixClient;
 
 impl app::EventHandler for MatrixClient
@@ -28,16 +31,14 @@ fn main()
 
 	let mut app = App::new(MatrixClient, "Walkie Talkie");
 	let mut theme = app.get_global_theme();
-			theme.blur = false;
+			theme.blur = true;
 			theme.has_title = true;
 	app.set_global_theme(theme);
 
-	if let Ok(mut window) = app.new_window("walkie talkie", (600.0, 500.0))
-	{
-		let renderer = vk_renderer::Renderer::new(window.get_backend())
-			.expect("Vulkan inicialization failed");
-		let _ = window.connect_surface(renderer.get_surface());
-	};
+	let Ok(mut window) = app.new_window("walkie talkie", (600.0, 500.0)) else { return };
+
+	let renderer = create_renderer(&window);
+	let _ = window.connect_surface(renderer.get_surface());
 
 	//let _ = app.new_window("window 2", (500.0, 500.0));
 

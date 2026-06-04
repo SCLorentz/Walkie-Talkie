@@ -18,15 +18,13 @@ log.workspace = true
 app.workspace = true
 dirty.workspace = true
 simple_logger.workspace = true
-ash.workspace = true
-vk_renderer.workspace = true
+matrix-sdk = "0.17.0"
+libc = "0.2.186"
 #nb.workspace = true
 
-#[target.'cfg(target_os = "linux")'.dependencies]
-#tikv-jemallocator.workspace = true
+[target.'cfg(target_os = "linux")'.dependencies]
+ash.workspace = true
+vk_renderer.workspace = true
 
-# ---- Features -------------------
-
-[features]
-x11 = []
-gnome = []
+[target.'cfg(target_os = "macos")'.dependencies]
+metal_renderer.workspace = true
