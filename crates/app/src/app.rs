@@ -218,6 +218,7 @@ impl Window
 	pub fn connect_surface(&mut self, surface: Surface) -> Result<(), WResponse>
 	{
 		if !self.has_surface() {
+			// replace `let window = app.windows().objectAtIndex(0);` at 'renderer.rs' logic with this
 			self.surface = Some(surface);
 			return Ok(());
 		}

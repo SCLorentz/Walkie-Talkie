@@ -1,0 +1,18 @@
+{
+	"_main": {
+		"About {}": {
+			"shortcut": "",
+			"action": ""
+		},
+		"Quit {}": {
+			"shortcut": "q",
+			"action": "{terminate:}"
+		}
+	},
+	"Help": {
+		"Repository": {
+			"shortcut": "",
+			"action": "{link:https://github.com/sclorentz/walkie-talkie}"
+		}
+	}
+}

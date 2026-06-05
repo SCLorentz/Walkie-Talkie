@@ -237,9 +237,10 @@ impl Thread {
 pub unsafe fn as_u8_slice<T: Sized, const N: usize>(mut p: T) -> [u8; N]
 {
 	#[allow(trivial_casts)]
-	let ptr = &mut p as *const T;
-	let slice = unsafe { core::slice::from_raw_parts(ptr as *const u8,
-		size_of::<T>()) };
+	let ptr = &raw mut p;
+	let slice = unsafe {
+		core::slice::from_raw_parts(ptr.cast::<u8>(), size_of::<T>())
+	};
 	let mut ret = [0u8; N];
 	ret[..slice.len()].copy_from_slice(slice);
 	ret

@@ -37,6 +37,7 @@ unsafe extern "C" {
 
 impl NativeDecoration for Decoration
 {
+	// fallback to system version of libdecor.h on GNOME 
 	fn new(title: String, width: f64, height: f64, theme: ThemeDefault) -> Result<Self, WResponse>
 	{
 		let state = unsafe { request_wl_surface() };
@@ -65,9 +66,11 @@ impl NativeDecoration for Decoration
 		unsafe { loop_wl_event(self.backend.wl_display) };
 	}
 
+	// TODO: use dbus to passe the values to KDE, on GNOME fallback to LIM menubar
 	fn create_app_menu(&self, _app_name: String) -> Result<(), WResponse>
 		{ Ok(()) }
 
+	// Fallback to default color and error on GNOME
 	fn apply_blur(&mut self) -> Result<(), WResponse>
 	{
 		/**
