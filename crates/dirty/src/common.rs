@@ -137,11 +137,13 @@ impl Thread {
     /**
      * Returns the ID for the active thread
      * # Errors
-     * this will explode if the thread does not exist
+     * this will return Err(UnexpectedError) if the thread does not exist
      */
-    pub fn get_id(&mut self) -> i32 {
-    	unsafe { pthread_self().try_into().unwrap() }
-    }
+	pub fn get_id(&mut self) -> Result<i32, WResponse> {
+		let Ok(val) = (unsafe { pthread_self().try_into() })
+			else { return Err(WResponse::UnexpectedError) };
+		Ok(val)
+	}
 
 	/**
 	 * Kills the specified running thread

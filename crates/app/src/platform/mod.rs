@@ -13,7 +13,7 @@ mod nt;
 	target_os = "linux",
 	target_os = "bsd"
 ))]
-mod linux_bsd;
+mod x11;
 
 // macOS -------------------
 #[cfg(target_os = "macos")]
@@ -28,4 +28,4 @@ pub use nt::Wrapper;
 	target_os = "linux",
 	target_os = "bsd"
 ))]
-pub use linux_bsd::Wrapper;
+pub use x11::Wrapper;
