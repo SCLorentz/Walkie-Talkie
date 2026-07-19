@@ -13,8 +13,5 @@ pub fn create_renderer(window: &app::Window) -> renderer::Renderer
 {
     let rend = renderer::Renderer::new(window.get_backend())
         .expect("Renderer initialization failed");
-
-    rend.draw();
-
     rend
 }

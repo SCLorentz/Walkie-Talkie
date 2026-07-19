@@ -42,6 +42,8 @@ dirty				= { path = "crates/dirty" }
 vk_renderer			= { path = "crates/vk_renderer" }
 metal_renderer		= { path = "crates/metal_renderer" }
 
+libc = "0.2"
+
 # =========================================================
 # Platform: macOS
 # =========================================================
@@ -114,6 +116,7 @@ ndk-sys = "0.6.0"
 
 # tikv-jemallocator = "0.6.1"
 # dbus = "0.9.10"
+# freetype = "0.8.0"
 
 # =========================================================
 # Lints

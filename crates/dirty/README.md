@@ -1,6 +1,8 @@
 # Dirty
 
-Library made to handle unsafe code and interface with the OS
+This is, as the name suggest, a dirty ass rust code
+
+Library made to handle unsafe code and interface with the OS (or not)
 
 ## Want to use a String?
 

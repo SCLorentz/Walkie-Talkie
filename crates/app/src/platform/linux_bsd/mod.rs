@@ -1,12 +1,16 @@
 use crate::{
 	DecorationMode,
 	Decoration,
-	platform::linux::{DE, get_de},
 	WResponse::NotImplementedInCompositor,
 	SurfaceBackend,
 	NativeDecoration,
 	warn
 };
+
+use libc::socket;
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct Wrapper {}
 
 impl NativeDecoration for Decoration
 {

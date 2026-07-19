@@ -51,225 +51,27 @@
 #![doc = include_str!("../README.md")]
 
 extern crate alloc;
-
 pub use alloc::{
-    boxed::Box,
-    format, slice, str,
-    string::{String, ToString},
-    vec::Vec,
+	boxed::Box,
+	format, slice, str,
+	string::{String, ToString},
+	vec::Vec,
 };
 
-/// OS specific methods based on systemcalls (ASM)
-pub mod syscall;
-
-/// This represents the possible state of the socket response
-#[cfg(target_family = "unix")]
-#[repr(C)]
-#[derive(Debug)]
-pub struct SocketResponse {
-    /**
-     * This represents the state of the connection.
-     *
-     * If `-1`, then the connection failed
-     */
-    pub status: i32,
-    /**
-     * if the connection was sucesseful,
-     * then this will return the int id of the server socket
-     */
-    pub server_socket: i32,
-}
-
-/// Wrapper type for the C `struct` that stores threads
-#[cfg(target_family = "unix")]
-#[derive(Debug)]
-#[repr(C)]
-#[allow(non_camel_case_types, clippy::missing_docs_in_private_items)]
-struct c_Thread {
-    pub id: i32,
-    pub thread: *mut void,
-}
-
-#[cfg(target_family = "unix")]
-/// This will handle with our C imports from `unix/socket.c`
-mod unix {
-	use crate::{AnyFunction, c_Thread, void};
-
-	unsafe extern "C" {
-		pub(crate) fn _exit(code: i32) -> !;
-		pub(crate) fn create_thread(function: AnyFunction) -> c_Thread;
-		pub(crate) fn kill_thread(thread: &c_Thread);
-		// pipes
-		pub(crate) fn pipe(fds: *mut i32) -> i32;
-		pub(crate) fn read(fd: i32, buf: *mut void, count: usize) -> isize;
-		pub(crate) fn write(fd: i32, buf: *const void, count: usize) -> isize;
-		pub(crate) fn close(fd: i32) -> i32;
-	}
-}
-
-/// Pipe Struct
-#[derive(Debug)]
-pub struct Pipe {
-	data: [i32; 2],
-}
-
-impl Pipe {
-	/// Create the pipe
-	pub fn create() -> Result<Self, WResponse>
-	{
-		let mut data = [0i32; 2];
-		let res = unsafe { unix::pipe(data.as_mut_ptr()) };
-
-		if res == -1 {
-			return Err(WResponse::Faliure);
-		}
-
-		Ok(Self { data })
-	}
-
-	/// Write data in a pipe
-	/// # Error
-	/// If something prevent the message from beeing written, return Faliure signal
-	pub fn write(&self, content: &str) -> Result<(), WResponse>
-	{
-		let res = unsafe { unix::write(self.data[1], void::to_handle(content), content.len()) };
-
-		if res == -1 {
-			return Err(WResponse::Faliure)
-		}
-
-		Ok(())
-	}
-
-	/// Check and read any recived data from the pipe
-	/// # Error
-	/// If no data could be retrived, this will return a Faliure signial 
-	pub fn read(&self) -> Result<String, WResponse>
-	{
-		let mut buffer = [0u8; 128];
-		let res = unsafe { unix::read(self.data[0], void::to_handle(buffer.as_mut_ptr()), 128) };
-		if res == -1 {
-			return Err(WResponse::Faliure)
-		}
-
-		let message = unsafe { core::str::from_utf8_unchecked(buffer.as_ref()) };
-		Ok(message.to_string())
-	}
-
-	/// Closes the pipe
-	pub fn close(&self)
-	{
-		unsafe {
-			let _ = unix::close(self.data[1]);
-			let _ = unix::close(self.data[0]);
-		}
-	}
-}
-
-/// Type for a function repr in C that takes `void* arg` and returns `void*`
-#[cfg(target_family = "unix")]
-pub type AnyFunction = extern "C" fn(*mut void) -> *mut void;
-
-/// This is a thread interface with the C implementation
-#[derive(Debug)]
-#[cfg(target_family = "unix")]
-pub struct Thread {
-    /// The function beeing executed in the new thread
-    pub function: AnyFunction,
-    /// If the thread is active, this contains the ID and `pthread_t` struct
-    thread: Option<c_Thread>,
-}
-
-#[cfg(target_family = "unix")]
-impl Thread {
-    /// Creates a new thread with the field `thread_id` and a provided function
-    #[must_use]
-    pub fn default(function: AnyFunction) -> Self {
-        Self {
-            function,
-            thread: None,
-        }
-    }
-
-    /// Runs the `&self.thread`
-    pub fn run(&mut self) {
-        let thread = unsafe { unix::create_thread(self.function) };
-        self.thread = Some(thread);
-    }
-
-    /**
-     * Returns the ID for the active thread
-     * # Errors
-     * this will return an error if the thread was already killed
-     */
-    pub fn get_id(&mut self) -> Result<i32, WResponse> {
-    	if let Some(thread) = &mut self.thread {
-     		return Ok(thread.id)
-		}
-     	Err(WResponse::InvalidRequest)
-    }
-
-	/**
-	 * Kills the specified running thread
-	 *
-	 * # Errors
-	 *
-	 * if the user tries to kill a thread that is not running, it will return Err(InvalidRequest)
-	 */
-	pub fn kill(&self) -> Result<(), WResponse>
-	{
-		let Some(ref thread) = self.thread else { return Err(WResponse::InvalidRequest) };
-		unsafe { unix::kill_thread(thread); }
-		Ok(())
-	}
-}
-
-/**
- * this transforms any generic struct type variable into raw data
- *
- * ```rust
- * struct MyStruct { a: int, b: bool }
- *
- * let var = MyStruct { a: 2, b: false };
- * let raw = dirty::as_u8_slice<MyStruct>(var);
- * ```
-**/
-pub unsafe fn as_u8_slice<T: Sized, const N: usize>(mut p: T) -> [u8; N]
-{
-	#[allow(trivial_casts)]
-	let ptr = &raw mut p;
-	let slice = unsafe {
-		core::slice::from_raw_parts(ptr.cast::<u8>(), size_of::<T>())
-	};
-	let mut ret = [0u8; N];
-	ret[..slice.len()].copy_from_slice(slice);
-	ret
-}
-
-/// Always trust the f8 type. The ABI is not your friend!
-///
-/// This can be ether i8 or u8 depending on the current ABI specification used
-#[cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))]
-#[allow(non_camel_case_types)]
-pub type f8 = i8;
-
-// fuck the ABI
-/// Always trust the f8 type. The ABI is not your friend!
-///
-/// This can be ether i8 or u8 depending on the current ABI specification used
-#[cfg(all(target_os = "linux", target_env = "musl", target_arch = "aarch64"))]
-#[allow(non_camel_case_types)]
-pub type f8 = u8;
+use libc::{
+    pthread_create, pthread_join, pthread_t, pthread_kill, pthread_self,
+    c_void,
+};
 
 /// just a void type
 #[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
 pub struct void {
-    /// This is a pointer of nothing
-    /// An u8 array of size 0
-    /// similar as how `core::ffi::c_void` works
-    _private: [u8; 0],
+	/// This is a pointer of nothing
+	/// An u8 array of size 0
+	/// similar as how `core::ffi::c_void` works
+	_private: [u8; 0],
 }
 
 impl void {
@@ -292,6 +94,69 @@ impl void {
 pub static TRUE: u32 = 1;
 /// int32 bool type
 pub static FALSE: u32 = 0;
+
+/// Type for a function repr in C that takes `void* arg` and returns `void*`
+#[cfg(target_family = "unix")]
+pub type AnyFunction = extern "C" fn(*mut c_void) -> *mut c_void;
+
+/// This is a thread interface with the C implementation
+#[derive(Debug)]
+#[cfg(target_family = "unix")]
+pub struct Thread {
+    /// The function beeing executed in the new thread
+    pub thread_main: AnyFunction,
+    /// If the thread is active, this contains the ID and `pthread_t` struct
+    #[allow(unused)]
+    thread: pthread_t,
+}
+
+#[cfg(target_family = "unix")]
+impl Thread {
+    /// Creates a new thread with the field `thread_id` and a provided function
+    #[must_use]
+    pub fn create(thread_main: AnyFunction) -> Self
+    {
+        let mut thread: pthread_t = unsafe { core::mem::zeroed() };
+
+        let ret = unsafe { pthread_create(
+            &mut thread,
+            core::ptr::null(),
+            thread_main,
+            core::ptr::null_mut(),
+        )};
+
+        assert_eq!(ret, 0);
+
+        let _ = unsafe { pthread_join(thread, core::ptr::null_mut()) };
+        Self {
+            thread_main,
+            thread,
+        }
+    }
+
+    /**
+     * Returns the ID for the active thread
+     * # Errors
+     * this will explode if the thread does not exist
+     */
+    pub fn get_id(&mut self) -> i32 {
+    	unsafe { pthread_self().try_into().unwrap() }
+    }
+
+	/**
+	 * Kills the specified running thread
+	 *
+	 * # Errors
+	 *
+	 * if the user tries to kill a thread that is not running, it will return Err(InvalidRequest)
+	 */
+	pub fn kill(&self) -> Result<(), WResponse>
+	{
+		if unsafe { pthread_kill(self.thread, 0) } == -1
+			{ return Err(WResponse::InvalidRequest) }
+		Ok(())
+	}
+}
 
 /** Possible responses
  *

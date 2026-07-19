@@ -19,6 +19,7 @@ doctest = false
 [dependencies]
 log.workspace = true
 dirty.workspace = true
+libc.workspace = true
 #nb.workspace = true
 
 [build-dependencies]
