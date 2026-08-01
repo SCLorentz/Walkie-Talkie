@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["WResponse"],"fn":["as_u8_slice"],"macro":[["format",1],["write",1]],"mod":["slice","str","syscall"],"static":["FALSE","TRUE"],"struct":["Box","Color","Pipe","SocketResponse","String","SurfaceWrapper","Thread","Vec","void"],"trait":["ToString"],"type":["AnyFunction","f8"]};
+window.SIDEBAR_ITEMS = {"enum":["WResponse"],"macro":[["format",1]],"mod":["slice","str"],"static":["FALSE","TRUE"],"struct":["Box","Color","String","SurfaceWrapper","Thread","Vec","void"],"trait":["ToString"],"type":["AnyFunction"]};

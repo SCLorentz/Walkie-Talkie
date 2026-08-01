@@ -1,2 +1,2 @@
-createSrcSidebar('[["app",["",[["platform",[["apple",[],["macos.rs","mod.rs"]]],["mod.rs"]]],["app.rs","events.rs"]]],["dirty",["",[],["common.rs","syscall.rs"]]],["metal_renderer",["",[],["renderer.rs"]]],["vk_renderer",["",[],["renderer.rs","wrapper.rs"]]],["wt",["",[],["main.rs","renderer.rs"]]]]');
-//{"start":19,"fragment_lengths":[98,45,43,53,41]}
+createSrcSidebar('[["app",["",[["platform",[["apple",[],["macos.rs","mod.rs"]]],["mod.rs"]]],["app.rs","events.rs"]]],["dirty",["",[],["common.rs"]]],["metal_renderer",["",[],["renderer.rs"]]],["vk_renderer",["",[],["renderer.rs","wrapper.rs"]]],["wt",["",[],["main.rs","renderer.rs"]]]]');
+//{"start":19,"fragment_lengths":[98,32,43,53,41]}
