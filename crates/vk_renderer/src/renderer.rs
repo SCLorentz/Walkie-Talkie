@@ -35,7 +35,7 @@ use ash::vk::{self, SurfaceKHR, RenderPass, PhysicalDevice};
 use log::debug;
 #[allow(unused)]
 use core::{slice, ptr::NonNull, error::Error};
-use dirty::{Box, void, u8, SurfaceWrapper};
+use dirty::{Box, void, SurfaceWrapper};
 
 mod wrapper;
 use wrapper::Wrapper;
