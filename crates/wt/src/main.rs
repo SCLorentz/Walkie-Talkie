@@ -39,6 +39,7 @@ fn main()
 
 	let renderer = create_renderer(&window);
 	let _ = window.connect_surface(renderer.get_surface());
+	renderer.draw();
 
 	//let _ = app.new_window("window 2", (500.0, 500.0));
 

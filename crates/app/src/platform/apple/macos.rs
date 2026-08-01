@@ -24,7 +24,7 @@ use objc2_app_kit::{
 
 use objc2_foundation::{
 	MainThreadMarker, NSNotification, NSObject, NSObjectProtocol, NSPoint, NSRect,
-	NSSize, NSString,
+	NSSize, NSString, ns_string,
 };
 
 use crate::{DecorationMode, Decoration, WResponse, Color, ThemeDefault, NativeDecoration};
@@ -142,21 +142,33 @@ impl NativeDecoration for Decoration
 		Ok(())
 	}
 
+	// TODO: create json parser (file on sources/configs/appmenu.json)
 	fn create_app_menu(&self, app_name: String) -> Result<(), WResponse>
 	{
+		debug!("creating app menu");
+
 		let Some(mtm) = MainThreadMarker::new() else { return Err(WResponse::UnexpectedError) };
 		let app = NSApplication::sharedApplication(mtm);
 
-		let item_menu = NSMenuItem::alloc(mtm);
 		let quit_item = unsafe { NSMenuItem::initWithTitle_action_keyEquivalent(
-			item_menu,
+			NSMenuItem::alloc(mtm),
 			&NSString::from_str(dirty::format!("Quit {}", app_name).as_str()),
 			Some(sel!(terminate:)),
 			&NSString::from_str("q")
 		) };
 		unsafe { quit_item.setTarget(Some(&app)) };
 
+		let separator = NSMenuItem::separatorItem(mtm);
+		let about_item = unsafe { NSMenuItem::initWithTitle_action_keyEquivalent(
+	        NSMenuItem::alloc(mtm),
+	        &NSString::from_str(dirty::format!("About {}", app_name).as_str()),
+	        Some(sel!(openFile:)),
+	        ns_string!(""),
+    	)};
+
 		let app_menu = NSMenu::new(mtm);
+			app_menu.addItem(&about_item);
+			app_menu.addItem(&separator);
 			app_menu.addItem(&quit_item);
 
 		let app_menu_item = NSMenuItem::new(mtm);
@@ -166,7 +178,6 @@ impl NativeDecoration for Decoration
 		app_menu_item.setSubmenu(Some(&app_menu));
 		app.setMainMenu(Some(&menubar));
 
-		debug!("creating app menu");
 		Ok(())
 	}
 

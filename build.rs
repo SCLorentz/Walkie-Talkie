@@ -1,5 +1,8 @@
 fn main()
 {
+	if std::env::var("CARGO_CFG_DOC").is_ok() {
+		return;
+	}
 	// build platforms
 	println!("cargo::rustc-check-cfg=cfg(android_platform)");
 	println!("cargo::rustc-check-cfg=cfg(macos_platform)");

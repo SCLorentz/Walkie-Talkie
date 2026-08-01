@@ -43,7 +43,6 @@ pub use events::Event;
 use platform::Wrapper;
 use log::{warn, info, debug, error};
 
-//pub use nb;
 use dirty::{
 	WResponse,
 	void,
@@ -122,9 +121,7 @@ impl<H: EventHandler> App<H>
 	/// init event handler
 	pub fn init(&self)
 	{
-		let mut event = dirty::Thread::default(event_thread);
-		event.run();
-
+		let mut event = dirty::Thread::create(event_thread);
 		log::debug!("{:?}", event.get_id());
 
 		if let Some(window) = self.windows.first() {
@@ -134,7 +131,7 @@ impl<H: EventHandler> App<H>
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn event_thread(p: *mut void) -> *mut void
+extern "C" fn event_thread(p: *mut libc::c_void) -> *mut libc::c_void
 {
 	debug!("creating event thread!");
 	p
@@ -218,6 +215,7 @@ impl Window
 	pub fn connect_surface(&mut self, surface: Surface) -> Result<(), WResponse>
 	{
 		if !self.has_surface() {
+			// replace `let window = app.windows().objectAtIndex(0);` at 'renderer.rs' logic with this
 			self.surface = Some(surface);
 			return Ok(());
 		}

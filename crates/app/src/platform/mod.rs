@@ -9,11 +9,11 @@ mod apple;
 #[cfg(target_os = "windows")]
 mod nt;
 
-#[cfg(target_os = "linux")]
-mod linux;
-
-#[cfg(target_os = "bsd")]
-mod bsd;
+#[cfg(any(
+	target_os = "linux",
+	target_os = "bsd"
+))]
+mod x11;
 
 // macOS -------------------
 #[cfg(target_os = "macos")]
@@ -23,10 +23,9 @@ pub use apple::Wrapper;
 #[cfg(target_os = "windows")]
 pub use nt::Wrapper;
 
-// Linux -------------------
-#[cfg(target_os = "linux")]
-pub use linux::Wrapper;
-
-// BSD ---------------------
-#[cfg(target_os = "bsd")]
-pub use bsd::Wrapper;
+// Other -------------------
+#[cfg(any(
+	target_os = "linux",
+	target_os = "bsd"
+))]
+pub use x11::Wrapper;
