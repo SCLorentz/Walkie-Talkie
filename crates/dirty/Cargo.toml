@@ -4,7 +4,6 @@ version = "0.0.1"
 edition.workspace = true
 publish.workspace = true
 authors = ["SCLorentz <sclorentz@proton.me>"]
-build = "build.rs"
 
 [lints]
 workspace = true
