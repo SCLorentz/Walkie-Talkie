@@ -35,7 +35,7 @@ use ash::vk::{self, SurfaceKHR, RenderPass, PhysicalDevice};
 use log::debug;
 #[allow(unused)]
 use core::{slice, ptr::NonNull, error::Error};
-use dirty::{Box, void, f8, SurfaceWrapper};
+use dirty::{Box, void, u8, SurfaceWrapper};
 
 mod wrapper;
 use wrapper::Wrapper;
@@ -77,7 +77,7 @@ impl Renderer {
 		let app_info = vk::ApplicationInfo::default()
 			.api_version(vk::make_api_version(0, 1, 0, 0));
 
-		let extensions: &[*const f8] = &[
+		let extensions: &[*const u8] = &[
 			vk::KHR_PORTABILITY_ENUMERATION_NAME.as_ptr(),
 			vk::KHR_SURFACE_NAME.as_ptr(),
 			#[cfg(target_os = "macos")]
